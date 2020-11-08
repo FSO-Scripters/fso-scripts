@@ -1,0 +1,151 @@
+#Mission Info
+
+$Version: 0.10
+$Name:  XSTR("VN Basic", -1)
+$Author: Lafiel
+$Created: 09/11/2020 at 01:45:00
+$Modified: 09/11/2020 at 01:45:00
+$Notes:
+$End Notes:
+
+$Mission Desc:
+ XSTR("", -1)
+$end_multi_text
++Game Type Flags: 1
++Flags: 265466
++Fog Near Mult: 1.000000
+
++Fog Far Mult: 1.000000
+
+$Contrail Speed Threshold: 25
+
++Disallow Support: 1
++Hull Repair Ceiling: 60.000000
++Subsystem Repair Ceiling: 100.000000
+
++Viewer pos: -1100.686157, 433.210510, 4649.255859
++Viewer orient:
+	-0.651476, -0.000003, -0.758670,
+	0.382043, 0.863953, -0.328067,
+	0.655456, -0.503572, -0.562843
+
+
+$AI Profile: FS2 RETAIL
+
+#Sexp_variables
+
+$Variables:
+(
+)
+  
+#Command Briefing
+
+#Briefing
+$start_briefing
+$num_stages: 0
+$end_briefing
+
+#Debriefing_info
+
+$Num stages: 0
+
+#Players		;! 1 total
+
+$Starting Shipname: Alpha 1
+$Ship Choices: (
+	"GTF Ulysses"	1
+)
+
++Weaponry Pool: (
+	"Subach HL-7"	16
+)
+
+#Objects		;! 1 total
+
+$Name: Alpha 1		;! Object #0
+$Class: GTF Ulysses
+$Callsign: Alpha
+
+$Team: Friendly
+$Location: -3739.354736, 30.675781, -6586.300781
+$Orientation:
+	0.108689, 0.208336, -0.972001,
+	0.766312, -0.640398, -0.051572,
+	-0.633212, -0.739247, -0.229256
+$AI Behavior: None
+$Cargo 1:  XSTR("Nothing", -1)
++Initial Velocity: 40
++Initial Hull: 100
++Subsystem: Pilot
++Subsystem: turret01
++Subsystem: turret02
+$Arrival Location: Hyperspace
+$Arrival Cue: ( false ) 
+$Departure Location: Hyperspace
+$Departure Cue: ( false ) 
+$Determination: 10
++Flags: ( "cargo-known" "player-start" "invulnerable" "hidden-from-sensors" "guardian" "stealth" "friendly-stealth-invisible" )
++Flags2: ( "immobile" )
++Respawn priority: 0
++Group: 0
++Use Table Score:
++Score: 1
+
+#Wings		;! 1 total
+
+$Name: Alpha
+$Waves: 1
+$Wave Threshold: 0
+$Special Ship: 0		
+
+$Arrival Location: Hyperspace
+$Arrival Cue: ( true ) 
+$Departure Location: Hyperspace
+$Departure Cue: ( false ) 
+$Ships: (		;! 1 total
+	"Alpha 1"
+)
++Hotkey: 0
++Flags: ( )
+
+#Events		;! 1 total
+
+$Formula: ( when 
+   ( true ) 
+   ( lua-vn-load "Example_IF" ) 
+   ( destroy-subsys-instantly 
+      "Alpha 1" 
+      "engine" 
+   )
+)
++Name: Load vn
++Repeat Count: 1
++Interval: 1
+
+#Goals		;! 0 total
+
+
+#Waypoints		;! 0 lists total
+
+
+#Messages		;! 0 total
+
+
+#Reinforcements		;! 0 total
+
+
+#Background bitmaps		;! 14 total
+
+$Num stars: 500
+$Ambient light level: 13354979
+
+
+#Asteroid Fields
+
+#Music
+
+$Event Music: None
+$Briefing Music: Brief8
+
+#End
+

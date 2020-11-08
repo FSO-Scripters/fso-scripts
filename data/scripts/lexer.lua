@@ -142,6 +142,10 @@ function lexer.scan (s,matches,filter,options)
                 {STRING3,sdump},
                 {STRING0,sdump},
                 {STRING1,sdump},
+				{'^==',tdump},
+				{'^!=',tdump},
+				{'^<=',tdump},
+				{'^>=',tdump},
                 {'^.',tdump}
             }
         end
