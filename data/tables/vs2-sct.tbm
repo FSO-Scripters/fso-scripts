@@ -447,10 +447,8 @@ function VS2:ProcessLine()
 				self.IfDepth = self.IfDepth + 1
 				self:EvalIf(t)
 			elseif command == "ENDIF" or command == "ELSEIF" or command == "ELSE" then
-				--We should never be here if self.lastIf is false
-				if not self.lastIf then ba.error("VN: Something went wrong: Arrived through dead IF\n") end
 				self.IfDepth = self.IfDepth - 1
-				self:ScanToNextELSEIFOrENDIF(self.IfDepth, self.lastIf)
+				self:ScanToNextELSEIFOrENDIF(self.IfDepth, true)
 			elseif command == "WAIT" then
 				VS2:Wait(t[2], true)
 			elseif command == "SETVAR" then
@@ -2074,7 +2072,7 @@ end
 function VS2:EvalLogic(t)
 	local evalMax = #t
 	
-	--Precedence for Logic recursive parsing: | > & > () > Compare
+	--Precedence for Logic recursive parsing: | < & < () < Compare
 	--Grammar L:= L|L | L&L | (L) | CMP
 	
 	local tokenN = -1
@@ -2119,8 +2117,11 @@ function VS2:EvalLogic(t)
 		return VS2:EvalLogic(subrange(t, 1, tokenN - 1)) and VS2:EvalLogic(subrange(t, tokenN + 1, evalMax))
 	end
 	
-	--No Logical Operator. Either we should start and end with brackets, or have a comparative expression
-	if t[1] == "(" and t[evalMax] == ")" then
+	--No Binary Operator. Either we should see a not, start and end with brackets, or have a comparative expression
+	
+	if t[1] == "!" then
+		return not VS2:EvalLogic(subrange(t, 2, evalMax))
+	elseif t[1] == "(" and t[evalMax] == ")" then
 		return VS2:EvalLogic(subrange(t, 2, evalMax - 1))
 	else
 		return VS2:EvalCompare(t)
@@ -2165,8 +2166,8 @@ end
 function VS2:EvalArithmetic(t)
 	local evalMax = #t
 	
-	--Precedence for Logic recursive parsing: | > & > () > Compare
-	--Grammar L:= L|L | L&L | (L) | CMP
+	--Precedence for Arithmetic recursive parsing: +|- < *|/ < § < () < var|n
+	--Grammar L:= L+L | L-L | L*L | L/L | L§L  | (L) | VAR | n
 	
 	local tokenN = -1
 	local depth = 0
@@ -2222,6 +2223,30 @@ function VS2:EvalArithmetic(t)
 		end
 	end
 	
+	--Not needed with correct script.
+	depth = 0
+	
+	for argN = 1, evalMax, 1 do
+		--Skip Brackets
+		if t[argN] == "(" then
+			depth = depth + 1
+		elseif t[argN] == ")" then
+			depth = depth - 1
+		end
+	
+		if depth == 0 and t[argN] == "§" then
+			tokenN = argN
+		end
+	end
+	
+	if tokenN ~= -1 then
+		--Found a * or /
+		local a = VS2:EvalArithmetic(subrange(t, 1, tokenN - 1))
+		local b = VS2:EvalArithmetic(subrange(t, tokenN + 1, evalMax))
+		return math.random(a, b)
+	end
+
+	
 	--No Arithmetic Operator. Either we should start and end with brackets, or have a variable or a number
 	if t[1] == "(" and t[evalMax] == ")" then
 		return VS2:EvalArithmetic(subrange(t, 2, evalMax - 1))
@@ -2255,8 +2280,6 @@ function VS2:EvalIf(t)
 
 	ba.print("VN: Line " .. self.Line .. " was evaluated to " .. tostring(result) .. "\n")
 
-	self.lastIf = result
-	
 	if result then
 		--Is true or else statement, so evaluate. Will Drop back once an ELSEIF/ELSE/ENDIF is found
 		self:NextLine()
