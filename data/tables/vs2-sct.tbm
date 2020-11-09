@@ -364,8 +364,10 @@ function VS2:ProcessLine()
 			end
 				ba.print("\n")
 			]]--
-	
-			if command == "GOTO" then
+						
+			if command == "#" then
+				self:NextLine()
+			elseif command == "GOTO" then
 				t[2] = string.lower(t[2])
 				self:GoToLine(self.Starts[t[2]], t[2])
 			elseif command == "SETINT" then
