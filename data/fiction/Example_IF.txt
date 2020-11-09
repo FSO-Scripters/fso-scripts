@@ -2,8 +2,8 @@ FILEVERSION 2
 GOTO Start
 LABEL Start
 
-SETVAR test0 = 0
-SETVAR test1 = 1
+SETVAR test0 0
+SETVAR test1 1
 
 Self " "
 

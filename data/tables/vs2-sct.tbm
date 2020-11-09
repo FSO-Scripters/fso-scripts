@@ -475,6 +475,24 @@ function VS2:ProcessLine()
 
 end
 
+function VS2:WriteToVariable(name, value)
+	--always give precedence to sexp. all variables shall be interacted with using this, except for internal variables (such as _vnLocation or f_ flags)
+	if mn.SEXPVariables[name] and mn.SEXPVariables[name]:isValid() then
+		mn.SEXPVariables[name].Value = value
+	else
+		self.Variables[name] = value
+	end	
+end
+
+function VS2:ReadFromVariable(name)
+	--always give precedence to sexp. all variables shall be interacted with using this, except for internal variables (such as _vnLocation or f_ flags)
+	if mn.SEXPVariables[name] and mn.SEXPVariables[name]:isValid() then
+		return mn.SEXPVariables[name].Value
+	else
+		return VS2.Variables[name]
+	end
+end
+
 function VS2:GoToLine(line, payload)
 
 	if line then
@@ -1908,8 +1926,8 @@ function VS2:ShowMap(t)
 			self.LocationMap.OldScaling = self.BG.Scaling
 		end
 		--ba.print("VN: Old Filename was " .. self.LocationMap.OldBG .. "\n")
-		self.Variables["vnLocation"] = self.Variables["vnLocation"] or 0
-		self.CurrentLocation = self.Variables["vnLocation"]
+		self.Variables["_vnLocation"] = self.Variables["_vnLocation"] or 0
+		self.CurrentLocation = self.Variables["_vnLocation"]
 		self.OkayTime = ba.getFrametimeOverall() + 1.1
 		
 		VS2:SetBG({0,self.LocationMap.Data.Bitmap,"BESTFIT"})
@@ -2030,8 +2048,8 @@ function VS2:CreateMenu(t)
 	for i = 3, 7 do
 		if t[i] then
 		
-			if (t[i]:find("$") == 1) and mn.SEXPVariables[t[i]:sub(2)] and mn.SEXPVariables[t[i]:sub(2)]:isValid() then
-				t[i] = mn.SEXPVariables[t[i]:sub(2)].Value
+			if (t[i]:find("$") == 1) then
+				t[i] = VS2:ReadFromVariable(t[i]:sub(2))
 			end
 		
 			choices[index] = "> " .. t[i]
@@ -2253,16 +2271,7 @@ function VS2:EvalArithmetic(t)
 	else
 		--let's hope there is only one token left...
 		if type(t[1]) == "string" then
-			if VS2.Variables[t[1]] then
-				ba.print("VN: Found 'a' as variable " .. t[1] .. ", value is " .. VS2.Variables[t[1]] .. "...\n")
-				return VS2.Variables[t[1]]
-			elseif mn.SEXPVariables[t[1]]:isValid() then
-				ba.print("VN: Found 'a' as sexp variable " .. t[1] .. ", value is " .. mn.SEXPVariables[t[1]].Value .. "...\n")
-				return mn.SEXPVariables[t[1]].Value
-			else
-				--a = 0
-				ba.print("VN: Didn't find 'a' attached to " .. t[1] .. ".../n")
-			end
+			return VS2:ReadFromVariable(t[1])
 		end
 		
 		return t[1]
@@ -2347,95 +2356,15 @@ function VS2:SetVar(t, sexp)
 
 	local token = t[1]
 	local variableName = t[2]
-	local op = t[3]
 	local num = {}
 	local index = 1
 	local variable
 	
 	--axemParse:Validate("line " .. self.Scene.Line .. ": argument 1", t[2], "string")
 	
-	--Is this supposed to be a sexpy party or what
-	if sexp then
-		if mn.SEXPVariables[variableName]:isValid() then
-			variable = mn.SEXPVariables[variableName].Value
-		else
-			return
-		end
-	else
-		variable = self.Variables[variableName]
-	end
-	
-	--If our buddy doesn't exist yet, let us init him at 0
-	if not variable then
-		ba.print("VN: Variable doesn't exist, initializing at zero...\n")
-		variable =  0
-	end
-	
-	--Replace possible variable names with their values
-	for i = 4, #t do
-	
-		if type(t[i]) == "string" then
-			for k, v in pairs(self.Variables) do
-				if k == t[i] then
-					num[index] = v
-				end
-			end
+	variable = VS2:EvalArithmetic({unpack(t, 3)})
 			
-			for j = 1, #mn.SEXPVariables do
-				if mn.SEXPVariables[j] == t[i] then
-					num[index] = mn.SEXPVariables[j].Value
-				end
-			end
-		elseif type(t[i]) == "number" then
-			num[index] = t[i]
-		end
-		
-		if not num[index] then
-			num[index] = 0
-		end
-		
-		index = index + 1
-		
-	end
-			
-	if op == "=" then
-		ba.print("VN: assignment\n")
-		variable = num[1]
-	end
-	
-	local sum = 0
-	
-	for i, v in ipairs(num) do
-		ba.print("VN: " .. v .. "\n")
-		sum = sum + v
-	end
-		
-	if op == "+" then
-		ba.print("VN: add\n")
-		variable = variable + sum
-	end
-	
-	if op == "-" then
-		ba.print("VN: subtract\n")
-		variable = variable - sum
-	end
-	
-	if op == "rand" then
-		ba.print("VN: random\n")
-		local n1 = num[1]
-		local n2 = num[2]
-		variable = math.random(n1, n2)
-	end
-		
-	if sexp then
-		if mn.SEXPVariables[variableName]:isValid() then
-			mn.SEXPVariables[variableName].Value = variable
-		else
-			return
-		end
-	else
-		self.Variables[variableName] = variable
-	end
+	VS2:WriteToVariable(variableName, variable)
 	
 	ba.print("VN: " .. variableName .. " was set to " .. variable .. "\n")
 
@@ -2776,7 +2705,7 @@ function VS2:Draw()
 				
 				local iconsToDraw = {}
 				
-				if self.LocationMap.SelfIcon and button.Value == self.Variables["vnLocation"] then
+				if self.LocationMap.SelfIcon and button.Value == self.Variables["_vnLocation"] then
 					iconsToDraw[#iconsToDraw+1] = self.LocationMap.SelfIcon
 				end
 				
@@ -3226,7 +3155,7 @@ function VS2:Actions(mouse, pressed)
 				for i, v in ipairs(self.Menu.Item) do
 					if v:Clicked() or key == tostring(i) then
 						ad.playInterfaceSound(0)
-						self.Variables[self.Menu.Variable] = i
+						VS2:WriteToVariable(self.Menu.Variable, i)
 						self.Menu = nil
 						self.Scene:NextLine()
 					end
@@ -3250,7 +3179,7 @@ function VS2:Actions(mouse, pressed)
 					
 						ad.playInterfaceSound(0)
 						--ba.print("VN: Map Button clicked, value selected was " .. tostring(v.Value) .. "\n")
-						self.Variables["vnLocation"] = v.Value
+						self.Variables["_vnLocation"] = v.Value
 						--ba.print("VN: Double checking vnLocation... " .. tostring(self.Variables["vnLocation"]) .. "\n")
 						if self.LocationMap.OldBG then
 							VS2:SetBG({"SETBG",self.LocationMap.OldBG})
