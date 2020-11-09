@@ -2079,14 +2079,6 @@ function VS2:CreateMenu(t)
 	
 end
 
-function subrange(t, first, last)
-	local sub = {}
-	for i=first,last do
-		sub[#sub + 1] = t[i]
-	end
-	return sub
-end
-
 function VS2:EvalLogic(t)
 	local evalMax = #t
 	
@@ -2111,7 +2103,7 @@ function VS2:EvalLogic(t)
 	
 	if tokenN ~= -1 then
 		--Found an or
-		return VS2:EvalLogic(subrange(t, 1, tokenN - 1)) or VS2:EvalLogic(subrange(t, tokenN + 1, evalMax))
+		return VS2:EvalLogic({unpack(t, 1, tokenN - 1)}) or VS2:EvalLogic({unpack(t, tokenN + 1, evalMax)})
 	end
 	
 	--Not needed with correct script.
@@ -2132,15 +2124,15 @@ function VS2:EvalLogic(t)
 	
 	if tokenN ~= -1 then
 		--Found an and
-		return VS2:EvalLogic(subrange(t, 1, tokenN - 1)) and VS2:EvalLogic(subrange(t, tokenN + 1, evalMax))
+		return VS2:EvalLogic({unpack(t, 1, tokenN - 1)}) and VS2:EvalLogic({unpack(t, tokenN + 1, evalMax)})
 	end
 	
 	--No Binary Operator. Either we should see a not, start and end with brackets, or have a comparative expression
 	
 	if t[1] == "!" then
-		return not VS2:EvalLogic(subrange(t, 2, evalMax))
+		return not VS2:EvalLogic({unpack(t, 2, evalMax)})
 	elseif t[1] == "(" and t[evalMax] == ")" then
-		return VS2:EvalLogic(subrange(t, 2, evalMax - 1))
+		return VS2:EvalLogic({unpack(t, 2, evalMax - 1)})
 	else
 		return VS2:EvalCompare(t)
 	end
@@ -2163,8 +2155,8 @@ function VS2:EvalCompare(t)
 	local a = 0
 	local b = 0
 	
-	a = VS2:EvalArithmetic(subrange(t, 1, tokenN - 1))
-	b = VS2:EvalArithmetic(subrange(t, tokenN + 1, evalMax))
+	a = VS2:EvalArithmetic({unpack(t, 1, tokenN - 1)})
+	b = VS2:EvalArithmetic({unpack(t, tokenN + 1, evalMax)})
 
 	if op == "==" then
 		return a == b
@@ -2205,8 +2197,8 @@ function VS2:EvalArithmetic(t)
 	
 	if tokenN ~= -1 then
 		--Found a + or -
-		local a = VS2:EvalArithmetic(subrange(t, 1, tokenN - 1))
-		local b = VS2:EvalArithmetic(subrange(t, tokenN + 1, evalMax))
+		local a = VS2:EvalArithmetic({unpack(t, 1, tokenN - 1)})
+		local b = VS2:EvalArithmetic({unpack(t, tokenN + 1, evalMax)})
 		if t[argN] == "+" then
 			return a + b
 		else
@@ -2232,8 +2224,8 @@ function VS2:EvalArithmetic(t)
 	
 	if tokenN ~= -1 then
 		--Found a * or /
-		local a = VS2:EvalArithmetic(subrange(t, 1, tokenN - 1))
-		local b = VS2:EvalArithmetic(subrange(t, tokenN + 1, evalMax))
+		local a = VS2:EvalArithmetic({unpack(t, 1, tokenN - 1)})
+		local b = VS2:EvalArithmetic({unpack(t, tokenN + 1, evalMax)})
 		if t[argN] == "*" then
 			return a * b
 		else
@@ -2259,15 +2251,15 @@ function VS2:EvalArithmetic(t)
 	
 	if tokenN ~= -1 then
 		--Found a * or /
-		local a = VS2:EvalArithmetic(subrange(t, 1, tokenN - 1))
-		local b = VS2:EvalArithmetic(subrange(t, tokenN + 1, evalMax))
+		local a = VS2:EvalArithmetic({unpack(t, 1, tokenN - 1)})
+		local b = VS2:EvalArithmetic({unpack(t, tokenN + 1, evalMax)})
 		return math.random(a, b)
 	end
 
 	
 	--No Arithmetic Operator. Either we should start and end with brackets, or have a variable or a number
 	if t[1] == "(" and t[evalMax] == ")" then
-		return VS2:EvalArithmetic(subrange(t, 2, evalMax - 1))
+		return VS2:EvalArithmetic({unpack(t, 2, evalMax - 1)})
 	else
 		--let's hope there is only one token left...
 		if type(t[1]) == "string" then
@@ -2285,7 +2277,7 @@ function VS2:EvalIf(t)
 	local token = string.upper(t[1])
 	
 	ba.print("VN: Evaluating IF statment...\n")
-	local result = (token == "ELSE") or VS2:EvalLogic(subrange(t,2,#t))
+	local result = (token == "ELSE") or VS2:EvalLogic({unpack(t,2,#t)})
 
 	ba.print("VN: Line " .. self.Line .. " was evaluated to " .. tostring(result) .. "\n")
 
