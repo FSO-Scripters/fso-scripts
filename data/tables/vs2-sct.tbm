@@ -562,7 +562,9 @@ end
 
 function VS2:Interrupt()
 
-	self.ReturnTo = self.Scene.Line + self.IntOffset
+	self.ReturnTo = {}
+	self.ReturnTo.Line = self.Scene.Line + self.IntOffset
+	self.ReturnTo.IfDepth = self.Scene.IfDepth
 	self.Scene:GoToLine(self.IntGoto, "interrupt")
 	
 end
@@ -1474,6 +1476,7 @@ function VS2:Change2(t)
 	local actor = VS2:FindParam("actor", t)
 	local emote = VS2:FindParam("emote", t)
 	local base = VS2:FindParam("base", t)
+	--local scale = VS2:FindParam("scale", t)
 	
 	local passedLine = {"CHANGE",id,filename,x_flip,y_flip,play,layer, actor, emote, base}
 	
