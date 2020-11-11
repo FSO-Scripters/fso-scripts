@@ -1735,7 +1735,7 @@ function VS2:Hide(t)
 	
 end
 
-function VS2:ChangeBG(t)
+function VS2:SetBG(t)
 
 	--for i,v in ipairs(t) do
 	--	ba.print("t["..i.."]="..v.."\n")
@@ -1745,21 +1745,21 @@ function VS2:ChangeBG(t)
 
 	local filename = VS2:FindParam("file", t)
 	local scaling = VS2:FindParam("scaling", t)
-	local crossfade = VS2:FindParam("crossfade", t)
-	local xanchor = VS2:FindParam("xanchor", t)
-	local yanchor = VS2:FindParam("yanchor", t)
-	local xscroll = VS2:FindParam("xscroll", t)
-	local yscroll = VS2:FindParam("yscroll", t)
-	local scrolltime = VS2:FindParam("scrolltime", t)
+	local crossfade = VS2:FindParam("time", t)
+	--local xanchor = VS2:FindParam("xanchor", t)
+	--local yanchor = VS2:FindParam("yanchor", t)
+	--local xscroll = VS2:FindParam("xscroll", t)
+	--local yscroll = VS2:FindParam("yscroll", t)
+	--local scrolltime = VS2:FindParam("scrolltime", t)
 	
-	local passedLine = {"SETBG",filename,scaling,crossfade,xanchor,yanchor,xscroll,yscroll,scrolltime}
+	local passedLine = {"SETBG",filename,scaling,crossfade}
 	
-	VS2:SetBG(passedLine)
+	VS2:SetBG2(passedLine)
 	
 	
 end
 
-function VS2:SetBG(t)
+function VS2:SetBG2(t)
 
 	--t[1] = token
 	--  2  = filename
@@ -1935,7 +1935,7 @@ function VS2:ShowMap(t)
 		self.CurrentLocation = self.Variables["_vnLocation"]
 		self.OkayTime = ba.getFrametimeOverall() + 1.1
 		
-		VS2:SetBG({0,self.LocationMap.Data.Bitmap,"BESTFIT"})
+		VS2:SetBG2({0,self.LocationMap.Data.Bitmap,"BESTFIT"})
 		
 		self.LocationMap.Buttons = {}
 		
@@ -3179,7 +3179,7 @@ function VS2:Actions(mouse, pressed)
 						self.Variables["_vnLocation"] = v.Value
 						--ba.print("VN: Double checking vnLocation... " .. tostring(self.Variables["vnLocation"]) .. "\n")
 						if self.LocationMap.OldBG then
-							VS2:SetBG({"SETBG",self.LocationMap.OldBG})
+							VS2:SetBG2({"SETBG",self.LocationMap.OldBG})
 						end
 												
 						self.LocationMap.Enabled = nil
