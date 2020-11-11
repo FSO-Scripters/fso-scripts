@@ -169,7 +169,6 @@ function VS2:LoadScene(filename, start, stayInGame)
 		local textinfo = self.GraphicInfo.Text
 		
 
-		
 		AXMessage.Fonts.Title = gr.Fonts[textinfo.Title.Font or 2]
 		AXMessage.Fonts.Text = gr.Fonts[textinfo.Message.Font or 3]
 		
@@ -1806,15 +1805,13 @@ function VS2:SetBG2(t)
 	scaling = string.upper(scaling)
 	if scaling == "DEFAULT" then scaling = self.Config.DefaultBGScale end
 	
-	if filename == "BLACK" then
+	if not filename or string.upper(filename) == "NONE" then return	end
+	
+	if string.upper(filename) == "BLACK" then
 		self.BG = {}
 		self.BG.SolidBlack = true
 		return
 	end
-	
-	
-	
-	if string.upper(filename) == "NONE" then return	end
 	
 	if filename and gr.getImageWidth(filename) ~= 0 then
 		self.BG = {}
@@ -1993,8 +1990,8 @@ function VS2:ShowDisplay(t)
 
 	local id = t[2]
 	local displaytype = VS2:FindParam("type", t)
-	local x = VS2:FindParam("x", t)
-	local y = VS2:FindParam("y", t)
+	local x = VS2:FindParam("x", t) or 0.5
+	local y = VS2:FindParam("y", t) or 0.5
 	local align = VS2:FindParam("align",t)
 	
 	if id and self.Config.Displays[displaytype] then
@@ -2003,14 +2000,14 @@ function VS2:ShowDisplay(t)
 		local align_width = 0
 		newDisplay = self.Config.Displays[displaytype]
 		
-		if align == "left" then
-			align_width = 0
-		elseif align == "center" then
-			align_width = 0.5
-		elseif align == "right" then
-			align_width = 1
-		else
+		if not align then
 			ba.warning("VN Script: Bad align given for display " .. id .. ", defaulting to left...\n")
+		elseif string.lower(align) == "left" then
+			align_width = 0
+		elseif string.lower(align) == "center" then
+			align_width = 0.5
+		elseif string.lower(align) == "right" then
+			align_width = 1
 		end
 		
 		newDisplay.X = AXUI.Screen.x + (AXUI.Screen.w * x) - (gr.getImageWidth(newDisplay.Background) * align_width) 
@@ -2403,10 +2400,10 @@ function VS2:SetFont(t)
 		if gr.Fonts[t[2]]:isValid() then
 			AXMessage.Fonts.Text = gr.Fonts[t[2]]
 		else
-			AXMessage.Fonts.Text = gr.Fonts[self.Box.Font.Text.Font or 3]
+			AXMessage.Fonts.Text = gr.Fonts[self.GraphicInfo.Text.Message.Font or 3]
 		end
 	else
-		AXMessage.Fonts.Text = gr.Fonts[self.Box.Font.Text.Font or 3]
+		AXMessage.Fonts.Text = gr.Fonts[self.GraphicInfo.Text.Message.Font or 3]
 	end
 
 end
