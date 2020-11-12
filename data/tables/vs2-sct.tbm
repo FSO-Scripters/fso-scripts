@@ -548,12 +548,12 @@ function VS2:SetInterrupt(t)
 		self.IntDraw = true
 		
 		ba.print("VN: Interrupt Set: Button Filename: " .. filename .. " Line: " .. self.IntGoto .. "\n")
-	else
-		self.IntKey = t[2]
-		self.IntGoto = self.Scene.Starts[t[3]]
-		self.IntOffset = t[4] or 1
+	--else
+	--	self.IntKey = t[2]
+	--	self.IntGoto = self.Scene.Starts[t[3]]
+	--	self.IntOffset = t[4] or 1
 		
-		ba.print("VN: Interrupt Set: Key: " .. self.IntKey .. " Line: " .. self.IntGoto .. "\n")
+	--	ba.print("VN: Interrupt Set: Key: " .. self.IntKey .. " Line: " .. self.IntGoto .. "\n")
 		
 	end
 
