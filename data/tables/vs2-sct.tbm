@@ -1864,6 +1864,9 @@ function VS2:LoadMap(t)
 	--t[2] = Map Entry in the config file
 	
 	local location = t[2]
+	local defaultLocation = t[3] or 0
+	
+	self.Variables["_vnLocation"] = defaultLocation
 	
 	self.LocationMap = {}
 	
@@ -1883,7 +1886,7 @@ function VS2:SetMapIcon(t)
 	local iconid = t[2]
 	local mapicon = VS2:FindParam("file", t)
 	local maplocation = VS2:FindParam("location", t)
-	local selficon = VS2:FindParam("self", t)
+	--local selficon = VS2:FindParam("self", t)
 	
 	--[[ba.print("VN SETMAPICON:\n")
 	ba.print("   ID = " .. tostring(iconid) .. "\n")
@@ -1915,7 +1918,7 @@ function VS2:ShowMap(t)
 
 	if self.LocationMap then
 	
-		if t[2] and string.lower(t[2]) == "nofade" then
+		if t[3] and string.lower(t[3]) == "nofade" then
 			self.MapNoFade = true
 		else
 			self.MapNoFade = nil
@@ -1935,6 +1938,7 @@ function VS2:ShowMap(t)
 		VS2:SetBG2({0,self.LocationMap.Data.Bitmap,"BESTFIT"})
 		
 		self.LocationMap.Buttons = {}
+		self.LocationMap.resultVariable = t[2]
 		
 		local buttonIndex = 1
 		
@@ -3174,6 +3178,8 @@ function VS2:Actions(mouse, pressed)
 						ad.playInterfaceSound(0)
 						--ba.print("VN: Map Button clicked, value selected was " .. tostring(v.Value) .. "\n")
 						self.Variables["_vnLocation"] = v.Value
+						VS2:WriteToVariable(self.LocationMap.resultVariable, v.Value)
+						
 						--ba.print("VN: Double checking vnLocation... " .. tostring(self.Variables["vnLocation"]) .. "\n")
 						if self.LocationMap.OldBG then
 							VS2:SetBG2({"SETBG",self.LocationMap.OldBG})
