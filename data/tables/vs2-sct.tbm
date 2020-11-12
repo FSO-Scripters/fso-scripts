@@ -2083,7 +2083,8 @@ function VS2:CreateMenu(t)
 	
 	if flagVariable then
 		for i, v in ipairs(self.Menu.Item) do
-			if bit.checkBit(flagVariable, i) then
+			-- -1 here as lua counts from 1, but the cpp API counts from 0
+			if bit.checkBit(flagVariable, i - 1) then
 				v.Hoverable = false
 				v.Clickable = false
 				v.Color = "invisible"
@@ -2380,28 +2381,16 @@ end
 function VS2:SetFlag(t)
 
 	--t[1] = The Token
-	--  2  = The variable to associate with (will get f_ put in front)
+	--  2  = The variable to associate with
 	--  3  = The bit to set
-	
-	local varName = t[2]
-	local rootVar = self.Variables[varName] or 0
-	local flagVar = "f_" .. varName
-	local flag = t[3] or rootVar
+	-- Note that the call to the API expects the bit number to be 0 <= x < 32, but lua wants 1 to x. thus we subtract 1 here
 	
 	axemParse:Validate("line " .. self.Scene.Line .. ": argument 1", t[2], "string")
 	
-	if type(flag) == "string" then
-		for k, v in pairs(self.Variables) do
-			if k == flag then
-				flag = v
-			end
-		end
-	end
+	local flag = VS2:ReadFromVariable(t[2]) or 0
+	flag = bit.toggleBit(flag, t[3] - 1)
 	
-	self.Variables[flagVar] = self.Variables[flagVar] or 0
-	
-	self.Variables[flagVar] = bit.toggleBit(self.Variables[flagVar],flag)
-
+	VS2:WriteToVariable(t[2], flag)
 
 end
 
