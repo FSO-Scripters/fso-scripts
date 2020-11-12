@@ -696,14 +696,14 @@ end
 
 function VS2:FindParam(name, t)
 
-	local numargs = (#t-2)/3
+	-- local numargs = (#t-2)/3
 	
 	--ba.print("VN: FindParam Called!\n")
 	--ba.print("VN: Num args = " .. numargs .. "\n")
 	
 	--ba.print("VN: Looking for " .. string.lower(name) .. "...\n")
 	
-	for i = 3, #t, 3 do
+	for i = 2, #t, 1 do
 		--ba.print("VN: looking at " .. t[i] .. "...")
 		if string.lower(t[i]) == string.lower(name) and t[i+1] == "=" then
 			--ba.print(" got it!\n")
@@ -2042,16 +2042,25 @@ end
 function VS2:CreateMenu(t)
 
 	--t[1] = The Token
-	--t[2] = The Variable the result will get saved too
-	--t[3-7] = The Choices
+	--t[2-6] = The Choices
+	--variable  = The Variable the result will get saved too
+	local variable = VS2:FindParam("variable", t)
+	--flag  = The Flag containing which options are shown
+	local flag = VS2:FindParam("flag", t)
 	
 	local choices = {}
 	local index = 1
 	
-	axemParse:Validate("line " .. self.Scene.Line .. ": argument 1", t[2], "string")
-	axemParse:Validate("line " .. self.Scene.Line .. ": argument 2", t[3], "string")
+	--axemParse:Validate("line " .. self.Scene.Line .. ": argument 1", t[2], "string")
+	--axemParse:Validate("line " .. self.Scene.Line .. ": argument 2", t[3], "string")
 	
-	for i = 3, 7 do
+	for i = 2, 6 do
+	
+		if t[i+1] == "=" then 
+			--reached first option
+			break
+		end
+		
 		if t[i] then
 		
 			if (t[i]:find("$") == 1) then
@@ -2068,9 +2077,9 @@ function VS2:CreateMenu(t)
 	self.Menu = AXUI:CreateListBox(choices, AXMessage.Position.x + menuInfo.Offset.x, AXMessage.Position.y + AXMessage.Offsets.Text.y +AXMessage.Fonts.Text.Height + menuInfo.Offset.y, AXMessage.Image.w - 20, AXMessage.Image.h - 50, "white", "silver", "bright_white", false, 0, menuInfo.Font or 3)
 	self.Menu.FontHeight = self.Menu.FontHeight + 2
 	self.Menu:UpdateList(0)
-	self.Menu.Variable = t[2]
+	self.Menu.Variable = variable
 	
-	local flagVariable = self.Variables["f_" .. self.Menu.Variable]
+	local flagVariable = VS2:ReadFromVariable(flag)
 	
 	if flagVariable then
 		for i, v in ipairs(self.Menu.Item) do
