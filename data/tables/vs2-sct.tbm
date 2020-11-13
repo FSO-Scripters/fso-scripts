@@ -1583,6 +1583,8 @@ function VS2:Change(t)
 				thisImage.Repeat = 0
 			elseif string.lower(play) == "forceonce" then
 				thisImage.Repeat = -1
+			elseif string.lower(play) == "paused" then
+				thisImage.Repeat = -2
 			end
 		end
 
@@ -1600,6 +1602,11 @@ function VS2:Change(t)
 			if thisImage.AltGraphic and thisImage.AltGraphic.Handle then
 				thisImage.AltGraphic.Handle.Pause = true
 			end
+		elseif thisImage.Repeat == -2 then
+			thisImage.Graphic.Handle.Loop = false
+			thisImage.AltGraphic.Handle.Loop = false
+			thisImage.Graphic.Handle.Pause = true
+			thisImage.AltGraphic.Handle.Pause = true
 		end
 		
 	end
