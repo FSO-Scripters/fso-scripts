@@ -1625,6 +1625,8 @@ function VS2:GetBaseInfo(base, imageinfo, scale)
 			t.Bitmap = self.Config.Actors[imageinfo.Actor].Base
 		elseif self.Config.Graphics.DefaultBase then
 			t.Bitmap = self.Config.Graphics.DefaultBase
+		else
+			return nil
 		end
 	else
 		t.Bitmap = base
