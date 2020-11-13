@@ -196,7 +196,7 @@ function VS2:LoadScene(filename, start, stayInGame)
 		mn.runSEXP("(hud-disable 1)")
 		mn.runSEXP("(ignore-key -1 !C! !Shift-A! !Shift-Z! !Shift-D! !Shift-V! !Shift-X! !Shift-E! !Shift-W! !Shift-I! !Shift-P! !Shift-C! !Shift-J! !Shift-R!)")
 		
-		if string.lower(self.Config.Anchor) == "screen" then
+		if self.Config.Anchor and string.lower(self.Config.Anchor) == "screen" then
 			self.Anchor = AXUI.Screen.y + AXUI.Screen.h
 			self.Anchor_pct = self.Anchor / AXUI.Screen.h
 		else
