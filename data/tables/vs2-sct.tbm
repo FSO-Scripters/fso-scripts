@@ -1257,11 +1257,9 @@ function VS2:ShowIcon(t)
 	if color then
 	
 		thisImage.Base = {}
-		
-		local baseColor = string.lower(color)
-		
-		if self.Config.Bases[baseColor] then
-			thisImage.Base.Bitmap = self.Config.Bases[baseColor].File
+
+		if self.Config.Bases[color] then
+			thisImage.Base.Bitmap = self.Config.Bases[color].File
 		else
 			thisImage.Base.Bitmap = "zzz"
 		end
