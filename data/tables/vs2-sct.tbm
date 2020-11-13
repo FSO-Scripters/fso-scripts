@@ -2451,10 +2451,12 @@ function VS2:SendMsg(t)
 	
 	end
 	
+	local voice = VS2:FindParam("voice", t)
+	
 	--Decide if we're going to be playing a sound
-	if t[3] and t[3] ~= "AUTO" then
+	if voice then
 		playsound = true
-		self.Sound = ad.loadSoundfile(t[3])
+		self.Sound = ad.loadSoundfile(voice)
 		--ba.print("Voice file is assigned\n")
 	elseif characters[sender] and characters[sender].DefaultVoice then
 		playsound = true
@@ -2476,15 +2478,11 @@ function VS2:SendMsg(t)
 	--No I don't know how fast this will go yet
 	AXMessage.Speed = self.Config.TextDraw
 		
-	--Pretty sure this is broken anyway
-	for i, v in ipairs(t) do
-		if string.find(string.upper(v), "TEXTSPEED") == 1 then
-			--ba.print("Custom speed specified: " .. t[i+2] .. "\n")
-			if t[i+2] then
-				AXMessage.Speed = t[i+2]
-			end
-			break
-		end		
+	--May be broken
+	local customspeed = VS2:FindParam("speed", t)
+
+	if customspeed then
+		AXMessage.Speed = customspeed	
 	end
 	
 	--Oh now we know
@@ -2507,19 +2505,10 @@ function VS2:SendMsg(t)
 	
 	local textinfo = self.GraphicInfo.Text
 	
-	local linefontoverride
-	
 	--Font override part 2
-	for i, v in ipairs(t) do
-		if string.find(string.upper(v), "FONT") == 1 then
-			--ba.print("Custom font specified: " .. t[i+2] .. "\n")
-			if t[i+2] then
-				linefontoverride = t[i+2]
-			end
-			break
-		end		
-	end
-				
+	
+	local linefontoverride = VS2:FindParam("font", t)
+
 	if linefontoverride then
 		if self.Config.OverrideFonts and self.Config.OverrideFonts[linefontoverride] and self.Config.OverrideFonts[linefontoverride][self.GraphicInfo.Key] then
 			linefontoverride = self.Config.OverrideFonts[linefontoverride][self.GraphicInfo.Key]
