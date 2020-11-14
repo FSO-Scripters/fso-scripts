@@ -7,7 +7,7 @@ SETVAR talkedTo 0
 # Setup a flag to see with whom we already talked. Yes, kind of redundant, but easier like this.
 SETVAR canTalkTo 0
 
-SETBG BG
+SETBG file=BG
 
 # Show and introduce
 SHOW a actor=a x=25 from=LEFT
@@ -35,8 +35,8 @@ ELSE
 		HIDE b
 		a "Ah, yes, hi!"
 		Self "That seems like all he had to say..."
-		WAIT 1
 		SHOW b actor=b x=75 fadetime=1
+		WAIT 1
 		
 		# Flag A as "talked to" and increase talked to count
 		SETFLAG canTalkTo 1
@@ -46,8 +46,8 @@ ELSE
 		HIDE a
 		b "I have little to talk about!"
 		Self "That seems like all he had to say..."
-		WAIT 1
 		SHOW a actor=a x=25 fadetime=1
+		WAIT 1
 		
 		# Flag B as "talked to" and increase talked to count
 		SETFLAG canTalkTo 2
