@@ -3304,6 +3304,62 @@ function VS2:CheckInterrupt(key)
 
 end
 
+function Freeze()
+
+	if not SLAF then
+
+		ba.print("FREEZE!!!!!!\n")
+
+		SLAF = {} --SEXP Library Axem Freeze
+		SLAFActions = {"immobile", "invulnerable", "protect-ship", "afterburners-locked", "primaries-locked", "secondaries-locked"}
+
+		for i = 1, #mn.Ships do
+			local name = mn.Ships[i].Name
+			local t = {}
+			
+			for __, action in ipairs(SLAFActions) do
+				if not mn.evaluateSEXP("(are-ship-flags-set !" .. name .. "! !" .. action .. "!)") then
+					mn.runSEXP("(alter-ship-flag !" .. action .. "! ( true ) ( false ) !" .. name .. "!)")
+					t[#t+1] = action
+				end
+			end
+			
+			SLAF[name] = t
+		
+		end
+		
+		for k,v in pairs(SLAF) do
+			ba.print(tostring(k) .. ", " .. tostring(v) .. "\n")
+				for k2, v2 in pairs(v) do
+					ba.print(tostring(k2) .. ", " .. tostring(v2) .. "\n")
+				end
+		end
+	
+	end
+	
+end
+
+function UnFreeze()
+
+	if SLAF then
+	
+	ba.print("UNFREEZE!!!!!!\n")
+		
+	for k, v in pairs(SLAF) do
+		ba.print(tostring(k) .. ", " .. tostring(v) .. "\n")
+			for k2, v2 in pairs(v) do
+				mn.runSEXP("(alter-ship-flag !" .. v2 .. "! ( false ) ( false ) !" .. k .. "!)")
+				ba.print("  Unsetting " .. tostring(v2) .." in " .. tostring(k) .. "\n")
+			end
+	end
+
+	SLAF = nil
+	SLAFActions = nil
+	
+	end
+
+end
+
 ]
 
 $State: GS_STATE_GAME_PLAY
