@@ -398,6 +398,13 @@ function VS2:ProcessLine()
 					VS2:Show(t)
 				end
 				self:NextLine()
+			elseif command == "SHOWIMAGE" then
+				if VS2.ParseVersion == 2 then
+					VS2:ShowImage(t)
+				else
+					VS2:Show(t)
+				end
+				self:NextLine()
 			elseif command == "SHOWICON" then
 				if VS2.ParseVersion == 2 then
 					VS2:ShowIcon2(t)
@@ -728,7 +735,6 @@ function VS2:Show2(t)
 	--ba.print("Number of passed arguments = " .. numargs .. "\n")
 
 	local id = t[2]
-	local filename = VS2:FindParam("file", t)
 	local x_pct = VS2:FindParam("x", t)
 	local x_flip = VS2:FindParam("xflip", t)
 	local y_pct = VS2:FindParam("y", t)
@@ -747,7 +753,40 @@ function VS2:Show2(t)
 	--if x_flip and string.lower(x_flip) == "true" then x_flip = true else x_flip = nil end
 	--if y_flip and string.lower(y_flip) == "true" then y_flip = true else y_flip = nil end
 	
-	local passedLine = {"SHOW",id,filename,x_pct,x_flip,y_pct,y_flip,play,layer,fadetime,actor,emote,from,base,scale,alpha,scalewithbg}
+	local passedLine = {"SHOW",id,nil,x_pct,x_flip,y_pct,y_flip,play,layer,fadetime,actor,emote,from,base,scale,alpha,scalewithbg}
+	
+	VS2:Show(passedLine)
+	
+	
+end
+
+function VS2:ShowImage(t)
+
+	--for i,v in ipairs(t) do
+	--	ba.print("t["..i.."]="..v.."\n")
+	--end
+	
+	--ba.print("Number of passed arguments = " .. numargs .. "\n")
+
+	local id = t[2]
+	local filename = VS2:FindParam("file", t)
+	local x_pct = VS2:FindParam("x", t)
+	local x_flip = VS2:FindParam("xflip", t)
+	local y_pct = VS2:FindParam("y", t)
+	local y_flip = VS2:FindParam("yflip", t)
+	local play = VS2:FindParam("repeat", t)
+	local layer = VS2:FindParam("layer", t)
+	local fadetime = VS2:FindParam("fadetime", t)
+	local from = VS2:FindParam("from", t)
+	local base = VS2:FindParam("base", t)
+	local scale = VS2:FindParam("scale", t)
+	local alpha = VS2:FindParam("alpha", t)
+	local scalewithbg = VS2:FindParam("scalewithbg", t)
+	
+	--if x_flip and string.lower(x_flip) == "true" then x_flip = true else x_flip = nil end
+	--if y_flip and string.lower(y_flip) == "true" then y_flip = true else y_flip = nil end
+	
+	local passedLine = {"SHOWIMAGE",id,filename,x_pct,x_flip,y_pct,y_flip,play,layer,fadetime,nil,nil,from,base,scale,alpha,scalewithbg}
 	
 	VS2:Show(passedLine)
 	
