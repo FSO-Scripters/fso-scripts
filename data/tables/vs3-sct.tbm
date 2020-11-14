@@ -2303,7 +2303,7 @@ function VS3:EvalArithmetic(t)
 			depth = depth - 1
 		end
 	
-		if depth == 0 and t[argN] == "§" then
+		if depth == 0 and t[argN] == "R" then
 			tokenN = argN
 		end
 	end

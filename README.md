@@ -195,11 +195,11 @@ Unless explicitly specified by the command, variables do not need to be prefixed
 ## Boolean and Arithmetic Expressions
 Some commands rely on arithmetic or Boolean data as a parameter. In this case, the following rules to evaluate these parameters are used.
 ### Arithmetic Expression
-Arithmetic expressions are expressions that evaluate to a number. They are equivalent to mathematical formulas comprised of +, -, *, /, as well as parenthesis. [Previously defined variables](#variable-access) are usable, as well as numeric literals. Usually known precedence of parenthesis before * and / before + and - applies. In addition to the commonly known operations, these arithmetic expressions define a random operator that returns a random integer x where a ≤ x ≤ b as ``a § b``. This operator has higher precedence than * and /, but less than parenthesis. This means that, for example, ``0 § 1 * 2`` can return 0 and 2, while ``0 § (1 * 2)`` can return 0, 1 and 2.
+Arithmetic expressions are expressions that evaluate to a number. They are equivalent to mathematical formulas comprised of +, -, *, /, as well as parenthesis. [Previously defined variables](#variable-access) are usable, as well as numeric literals. Usually known precedence of parenthesis before * and / before + and - applies. In addition to the commonly known operations, these arithmetic expressions define a random operator that returns a random integer x where a ≤ x ≤ b as ``a R b``. This operator has higher precedence than * and /, but less than parenthesis. This means that, for example, ``0 R 1 * 2`` can return 0 and 2, while ``0 R (1 * 2)`` can return 0, 1 and 2.
 Spaces inbetween operators and operands are mandatory for arithmetic expressions as ``+1`` is interpreted as the positive number 1, whereas ``+ 1`` means add 1.
 A formal definition of these expressions is:
 ```
-A:= A + A | A - A | A * A | A / A | A § A | (A) | <var> | <number>
+A:= A + A | A - A | A * A | A / A | A R A | (A) | <var> | <number>
 ```
 
 ### Boolean Expression
@@ -494,3 +494,4 @@ FILEVERSION <major version number>
 ## Errata
 - Changing the alpha of something while a fade is ongoing does not work
 - Placing a plus or a minus directly in front of a number causes it to sign the number and not evaluate as an operator. So while ``x + y`` evaluates properly. ``x+y`` would fail to and evaluate to x.
+- On rare occasions, hovering buttons in Maps removes the background.
