@@ -1,4 +1,5 @@
 
+# VS3 Documentation
 ## Load a Scene
 To load a scene, simply call the SEXP ``lua-vn-load``. As the first argument, pass the filename of the VN script to load from the fiction directory. As a second argument, pass the label from which execution should start. If no label to start execution from is given, the script will start at the top.
 
@@ -105,7 +106,7 @@ Loop | Name | Effect
 2 | ALWAYS | The animation in File will be permanently played.
 1 | TALKING | The animation in File will be played when the character is talking, the animation in Idle otherwise. If no idle animation exists, the talking animation will be paused.
 0 | ONCE | The animation in File will be played once starting the moment it is set or changed to this value. When the character stops talking or the animation looped once, the animation will permanently switch to idle until it is changed again. If no Idle animation exists, it will pause.
--1 | FORCEONCE | The animation in File will be played once starting the moment it is set or changed to this value. When the character stops talking or the animation looped once, the animation will permanently switch to idle until it is changed again. If no Idle animation exists, it will continue playing until it has completed one loop, after which it stops.
+-1 | FORCEONCE | The animation in File will be played once starting the moment it is set or changed to this value. When the animation looped once, the animation will permanently switch to idle until it is changed again. If no Idle animation exists, it will stop after looping once.
 -2 | PAUSED |  The animation in File will be paused and shown permanently.
 
 ### Configuring Bases
@@ -211,7 +212,7 @@ CMP:= A==A | A!=A | A<=A | A<A | A>=A | A>A
 
 ### Basic VN Behavior
 #### SHOW
-The SHOW command adds new actors to the scene. Syntax:
+The SHOW command adds new characters to the scene. Syntax:
 ```
 SHOW <id> actor=<actor> [list of options]
 ```
@@ -233,6 +234,16 @@ repeat | Overrides the configs Loop value of the selected sprite if set. See the
 scale | The value by which the image dimensions are scaled | 1
 scalewithbg | If set, scales the image to the size of the background | false
 
+#### SHOWIMAGE
+The SHOWIMAGE command adds generic images to the scene. Syntax:
+```
+SHOWIMAGE <id> file=<filename> [list of options]
+```
+Note, that this ID is shared with the ID of SHOW and SHOWICON. The file ``<filename>_b`` will be assumed to be an idle file (if it exists). This is needed, because generic images share IDs with SHOW and can thus technically speak.
+The following options from SHOW are available and behave comparably:
+``x``, ``y``, ``xflip``, ``yflip``, ``layer``, ``from``, ``fadetime``, ``alpha``, ``base``, ``repeat``, ``scale``, ``scalewithbg``.
+
+
 #### MOVE
 The MOVE command can modify some options of a character (mostly positional) set by it's SHOW command or a previous MOVE command. The time in seconds over which the options get applied (i.e. the time the actor needs to move to the new target) is specified by the additional option ``time``, which is 1 by default. ``xflip`` and ``yflip`` are exceptions to this, as they are applied at the start of the move. Syntax:
 ```
@@ -249,7 +260,7 @@ Available options to change: ``actor``, ``emote``. ``xflip``, ``yflip``, ``layer
 The most common use of this command is to change the emotions of actors in-between lines.
 
 #### SHOWICON
-SHOWICON works similarly to SHOW but is instead used to display generic images or icons with text. The file to be displayed is expected in the hud, interface or cbanims directory. Syntax:
+SHOWICON works similarly to SHOW but is instead used to display briefing icons with text. The file to be displayed is expected in the hud, interface or cbanims directory. Syntax:
 ```
 SHOWICON <id> file=<filename> [list of options]
 ```
@@ -274,7 +285,7 @@ Action | Result & Usage
 -|-
 FADEIN | Fades the screen from a solid color to the current image. The first parameter after the  FADEIN is the time in seconds (0 by default), the following three the color in RGB (black by default). Syntax:<br> ```ACTION FADEIN [time] [colorR] [colorG] [colorB]```
 FADEOUT | Fades the screen the current image to a solid color. Parameters equivalent to FADEIN. Syntax:<br> ```ACTION FADEOUT [time] [colorR] [colorG] [colorB]```
-LOCKDOWN | Locks the players ship (disables weapons, afterburner, ETS, gets taken over by AI with play dead command, as well as increases deceleration by a thousand). TODO ask Axem about Freeze. Syntax:<br> ```ACTION LOCKDOWN [EVERYTHING]```
+LOCKDOWN | Locks the players ship (disables weapons, afterburner, ETS, gets taken over by AI with play dead command, as well as increases deceleration by a thousand). With the everything flag set, it will also set the ship flags immobile, protect-ship, afterburners-locked, primaries-locked and secondaries-locked. Syntax:<br> ```ACTION LOCKDOWN [EVERYTHING]```
 UNLOCKDOWN | Undoes the player lock. Syntax:<br> ```ACTION UNLOCKDOWN```
 ENDMISSION | Ends the VN sequence and the mission. Syntax:<br> ```ACTION ENDMISSION```
 ENDSCENE | Ends the VN sequence and returns to the active mission. Can return to the VN via SEXP (the VN-internal variables will stay set). Use this after setting a trigger SEXP-variable to tell FRED the VN segment is over. Syntax:<br> ```ACTION ENDSCENE```
@@ -423,7 +434,7 @@ HIDEMAPICON <id>
 ```
 
 #### SHOWMAP
-The SHOWMAP command is what actually shows the map and blocks the script until the player made an input. It's first argument defines which variable will contain the index of the room the player clicked on. SHOWMAP can be called multiple times with the same map. This does not need multiple calls to LOADMAP. Do note though, that the position of the player icon (if it is displayed with SETMAPICON) will change to whichever room the player clicked last if SHOWMAP is called again. An optional second parameter can be NOFADE to indicate that the map should not fade in over time but rather be displayed immediately. Syntax:
+The SHOWMAP command is what actually shows the map and blocks the script until the player made an input. It's first argument defines which variable will contain the index of the room the player clicked on. SHOWMAP can be called multiple times with the same map. This does not need multiple calls to LOADMAP. Do note though, that the position of the player icon (if it is displayed with SETMAPICON) will change to whichever room the player clicked last if SHOWMAP is called again. An optional second parameter can be NOFADE to indicate that the map should not fade out after it. Currently, the buttons only get activated after 1.1 seconds after displaying the map to avoid accidental clicking. Syntax:
 ```
 SHOWMAP <target variable> [NOFADE]
 ```
@@ -440,11 +451,12 @@ NONE | This makes the interrupt exclusively triggerable by code with FORCEINT
 ``"@<button filename>"`` | This displays a button to trigger the interrupt. The button will be the specified filename, with (as with all buttons) ``<filename>_h`` being the image to be displayed if the button is hovered and ``<filename>_c`` the image to be displayed when the button is clicked.
 PAUSE | This hides the button until an INTRETURN command. This is recommended to execute at the beginning of an interrupt, as clicking the interrupt when already in an interrupt will overwrite the return position, trapping the player in an infinite loop in the interrupt.
 NULL | This clears the interrupt. Note that this only means the interrupt cannot be called anymore, but the player will stay in the interrupt until an INTRETURN command
-Except for NULL, all SETINT modes take the interrupt target label as the second argument. The third argument is where the player returns to after an INTRETURN, in relative line offset to the position where the interrupt was triggered. By default this is 1, meaning that after an INTRETURN, the script will continue executing with the first line that had not been executed by the time the interrupt was triggered. 
+Except for NULL and PAUSE, all SETINT modes take the interrupt target label as the second argument. The third argument is where the player returns to after an INTRETURN, in relative line offset to the position where the interrupt was triggered. By default this is 1, meaning that after an INTRETURN, the script will continue executing with the first line that had not been executed by the time the interrupt was triggered. 
 Note that only one interrupt can be active at any one time. Syntax:
 ```
 SETINT <mode> <target label> [return offset]
 SETINT NULL
+SETINT PAUSE
 ``` 
 
 #### FORCEINT
@@ -473,7 +485,7 @@ Major&nbsp;Version | Notes
 -|-
 Version&nbsp;3 | This is the version this documentation is about. It is not backwards compatible, so only files tagged with FILEVERSION 3 will be parsed. See [conversion guide](conversionguide.md) for more details.
 Version&nbsp;2 | This is the version most commonly known as it was shipped with WoD and JAD. It is backwards compatible to version 1, but only enables features of version 2 with FILEVERSION 2.
-Version&nbsp;1 | This version does not feature the FILEVERSION command, thus no FILEVERSION command will imply a version 1 script.
+Version&nbsp;1 | This version was entirely implemented in SEXPs and thus feature the FILEVERSION command, thus no FILEVERSION command will imply a version 1 script.
 Syntax:
 ```
 FILEVERSION <major version number>

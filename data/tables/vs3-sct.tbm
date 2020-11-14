@@ -311,16 +311,17 @@ function VS3:SeekStarts()
 			end
 		
 			if line[2] then
-				local content = string.lower(line[2])
-			
+				
 				if token == "LABEL" then
+					local content = string.lower(line[2])
 					ba.print("VN: LABEL FOUND!! " .. content .. " at line " ..  i .. "\n")
 					local lineEntry = {}
+					
 					lineEntry.Line = i
 					lineEntry.IfDepth = self.IfDepth
 					self.Starts[content] = lineEntry
 				elseif token == "FILEVERSION" then
-					VS3:SetVersion(content)
+					VS3:SetVersion(line[2])
 				end
 			end
 		end
@@ -558,7 +559,7 @@ function VS3:SetInterrupt(t)
 		self.IntOffset = t[4] or 1
 		self.IntDraw = true
 		
-		ba.print("VN: Interrupt Set: Button Filename: " .. filename .. " Line: " .. self.IntGoto .. "\n")
+		ba.print("VN: Interrupt Set: Button Filename: " .. filename .. " Line: " .. self.IntGoto.Line .. "\n")
 	--else
 	--	self.IntKey = t[2]
 	--	self.IntGoto = self.Scene.Starts[t[3]]
