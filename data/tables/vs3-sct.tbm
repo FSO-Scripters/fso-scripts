@@ -399,25 +399,13 @@ function VS3:ProcessLine()
 				VS3:StopMusic()
 				self:NextLine()
 			elseif command == "SHOW" then
-				if VS3.ParseVersion == 2 then
-					VS3:Show2(t)
-				else
-					VS3:Show(t)
-				end
+				VS3:Show2(t)
 				self:NextLine()
 			elseif command == "SHOWIMAGE" then
-				if VS3.ParseVersion == 2 then
-					VS3:ShowImage(t)
-				else
-					VS3:Show(t)
-				end
+				VS3:ShowImage(t)
 				self:NextLine()
 			elseif command == "SHOWICON" then
-				if VS3.ParseVersion == 2 then
-					VS3:ShowIcon2(t)
-				else
-					VS3:ShowIcon(t)
-				end
+				VS3:ShowIcon2(t)
 				self:NextLine()
 			elseif command == "SHOWDISPLAY" then
 				VS3:ShowDisplay(t)
@@ -426,18 +414,10 @@ function VS3:ProcessLine()
 				VS3:HideDisplay(t)
 				self:NextLine()
 			elseif command == "MOVE" then
-				if VS3.ParseVersion == 2 then
-					VS3:Move2(t)
-				else
-					VS3:Move(t)
-				end
+				VS3:Move2(t)
 				self:NextLine()
 			elseif command == "CHANGE" then
-				if VS3.ParseVersion == 2 then
-					VS3:Change2(t)
-				else
-					VS3:Change(t)
-				end
+				VS3:Change2(t)
 				self:NextLine()
 			elseif command == "HIDE" then
 				VS3:Hide(t)
@@ -468,9 +448,6 @@ function VS3:ProcessLine()
 				VS3:Wait(t[2], true)
 			elseif command == "SETVAR" then
 				VS3:SetVar(t)
-				self:NextLine()
-			elseif command == "SETSEXPVAR" then
-				VS3:SetVar(t, true)
 				self:NextLine()
 			elseif command == "SETFLAG" then
 				VS3:SetFlag(t)
@@ -2268,7 +2245,7 @@ function VS3:EvalArithmetic(t)
 		--Found a + or -
 		local a = VS3:EvalArithmetic({unpack(t, 1, tokenN - 1)})
 		local b = VS3:EvalArithmetic({unpack(t, tokenN + 1, evalMax)})
-		if t[argN] == "+" then
+		if t[tokenN] == "+" then
 			return a + b
 		else
 			return a - b
@@ -2295,7 +2272,7 @@ function VS3:EvalArithmetic(t)
 		--Found a * or /
 		local a = VS3:EvalArithmetic({unpack(t, 1, tokenN - 1)})
 		local b = VS3:EvalArithmetic({unpack(t, tokenN + 1, evalMax)})
-		if t[argN] == "*" then
+		if t[tokenN] == "*" then
 			return a * b
 		else
 			return a / b
@@ -2319,7 +2296,7 @@ function VS3:EvalArithmetic(t)
 	end
 	
 	if tokenN ~= -1 then
-		--Found a * or /
+		--Found a §
 		local a = VS3:EvalArithmetic({unpack(t, 1, tokenN - 1)})
 		local b = VS3:EvalArithmetic({unpack(t, tokenN + 1, evalMax)})
 		return math.random(a, b)
@@ -2413,7 +2390,7 @@ function VS3:Wait(length, auto)
 		
 end
 
-function VS3:SetVar(t, sexp)
+function VS3:SetVar(t)
 
 	local token = t[1]
 	local variableName = t[2]

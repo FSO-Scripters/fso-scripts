@@ -98,7 +98,7 @@ The rest of the actor is only a collection of an arbitrary number of emotions (e
 Key | Value | Optional
 -|-|-
 ``Actors.<actor>.<emote>.File`` | The filename of the image with the actor with this emote. If no Idle file is specified, the Idle file will be assumed to be located at ``<filename>_b``, but if no special idle animation is needed, the idle file does not need to exist.
-``Actors.<actor>.<emote>.Idle`` | The filename of the idle file depicting the actor with this emote when the character is not speaking | &#x2713;
+``Actors.<actor>.<emote>.Idle`` | The filename of the idle file depicting the actor with this emote when the character is not speaking (note that Idle files are only used with animated sprites)  | &#x2713;
 ``Actors.<actor>.<emote>.Loop`` | _This must ONLY be set for animated sprites!_<br/> This value defines when and which animation of this emotion is played.<br/> See following Loop-table:
 
 Loop | Name | Effect
@@ -195,10 +195,11 @@ Unless explicitly specified by the command, variables do not need to be prefixed
 ## Boolean and Arithmetic Expressions
 Some commands rely on arithmetic or Boolean data as a parameter. In this case, the following rules to evaluate these parameters are used.
 ### Arithmetic Expression
-Arithmetic expressions are expressions that evaluate to a number. They are equivalent to mathematical formulas comprised of +, -, *, /, as well as parenthesis. [Previously defined variables](#variable-access) are usable, as well as numeric literals. Usually known precedence of parenthesis before * and / before + and - applies. In addition to the commonly known operations, these arithmetic expressions define a random operator that returns a random integer x where a ≤ x ≤ b as ``a§b``. This operator has higher precedence than * and /, but less than parenthesis. This means that, for example, ``0§1*2`` can return 0 and 2, while ``0§(1*2)`` can return 0, 1 and 2.
+Arithmetic expressions are expressions that evaluate to a number. They are equivalent to mathematical formulas comprised of +, -, *, /, as well as parenthesis. [Previously defined variables](#variable-access) are usable, as well as numeric literals. Usually known precedence of parenthesis before * and / before + and - applies. In addition to the commonly known operations, these arithmetic expressions define a random operator that returns a random integer x where a ≤ x ≤ b as ``a § b``. This operator has higher precedence than * and /, but less than parenthesis. This means that, for example, ``0 § 1 * 2`` can return 0 and 2, while ``0 § (1 * 2)`` can return 0, 1 and 2.
+Spaces inbetween operators and operands are mandatory for arithmetic expressions as ``+1`` is interpreted as the positive number 1, whereas ``+ 1`` means add 1.
 A formal definition of these expressions is:
 ```
-A:= A+A | A-A | A*A | A/A | A§A | (A) | <var> | <number>
+A:= A + A | A - A | A * A | A / A | A § A | (A) | <var> | <number>
 ```
 
 ### Boolean Expression
