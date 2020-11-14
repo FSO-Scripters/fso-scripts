@@ -493,3 +493,4 @@ FILEVERSION <major version number>
 ```
 ## Errata
 - Changing the alpha of something while a fade is ongoing does not work
+- Placing a plus or a minus directly in front of a number causes it to sign the number and not evaluate as an operator. So while ``x + y`` evaluates properly. ``x+y`` would fail to and evaluate to x.
