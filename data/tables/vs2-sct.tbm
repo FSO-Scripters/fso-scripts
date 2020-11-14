@@ -4,9 +4,9 @@ $Application: FS2_Open
 $On Game Init:
 [
 
-VS2 = {}
+VS3 = {}
 
-function VS2:Init(ingame)
+function VS3:Init(ingame)
 
 	ba.print("*****Initializing Visual Novel System...\n")
 	
@@ -22,8 +22,8 @@ function VS2:Init(ingame)
 	self.Enabled = false
 	self.Debug = false
 	
-	if cf.fileExists("vs2.cfg","data/config",true) then
-		self.Config = axemParse:ReadJSON("vs2.cfg")
+	if cf.fileExists("vs3.cfg","data/config",true) then
+		self.Config = axemParse:ReadJSON("vs3.cfg")
 	else
 		ba.error("VN Script: Config file missing! Cannot proceed! :(\n")
 		return
@@ -93,10 +93,10 @@ function VS2:Init(ingame)
 	self.Ingame = true
 	
 	if not self.Message then
-		if (not mn.Messages["VS2Message"]:isValid()) then
-			self.Message = mn.addMessage("VS2Message", " ")
+		if (not mn.Messages["VS3Message"]:isValid()) then
+			self.Message = mn.addMessage("VS3Message", " ")
 		else
-			self.Message = mn.Messages["VS2Message"]
+			self.Message = mn.Messages["VS3Message"]
 		end
 	end
 	
@@ -112,17 +112,17 @@ end
 ;;FSO 3.8.1.20180119;;			filename = filename .. ext
 ;;FSO 3.8.1.20180119;;		end
 		
-;;FSO 3.8.1.20180119;;		VS2:LoadScene(filename, start)
+;;FSO 3.8.1.20180119;;		VS3:LoadScene(filename, start)
 
 ;;FSO 3.8.1.20180119;;  end
 
-function VS2:L(filename,start,stayInGame)
+function VS3:L(filename,start,stayInGame)
 
 	self:LoadScene(filename .. ".txt", start,stayInGame)
 	
 end
 
-function VS2:LoadScene(filename, start, stayInGame)
+function VS3:LoadScene(filename, start, stayInGame)
 
 	if not cf.fileExists(filename, "data/fiction", true) then
 		ba.error("VN Script: File " .. filename .. " was not found!\n")
@@ -133,7 +133,7 @@ function VS2:LoadScene(filename, start, stayInGame)
 			start = string.lower(start)
 		end
 	
-		VS2:Init()
+		VS3:Init()
 		
 		if Lockdown and self.Config.LockByDefault then Lockdown() end
 		
@@ -161,7 +161,7 @@ function VS2:LoadScene(filename, start, stayInGame)
 		AXMessage.RawString = nil
 		AXMessage.DisplayString = nil
 		AXMessage.Sender = nil
-		AXMessage.DrawControl = "VS2"
+		AXMessage.DrawControl = "VS3"
 		AXMessage.Monochrome = false
 		AXMessage.Speed = config.TextDraw or 0.03
 		
@@ -209,6 +209,10 @@ function VS2:LoadScene(filename, start, stayInGame)
 		
 		self.Scene:SeekStarts()
 				
+		if self.ParseVersion ~= 3 then
+			ba.error("VN: VS3 can only parse VN scripts of version 3. Found: Version " .. self.ParseVersion)
+		end
+				
 		if start then
 			if self.Scene.Starts[start] then
 				ba.print("VN: Using start " .. start .. "at line " .. self.Scene.Starts[start] .. "\n")
@@ -226,7 +230,7 @@ function VS2:LoadScene(filename, start, stayInGame)
 		
 end
 
-function VS2:BatchErrorCheck(...)
+function VS3:BatchErrorCheck(...)
 
 	self.DebugBatchMode = true
 
@@ -236,7 +240,7 @@ function VS2:BatchErrorCheck(...)
 
 end
 
-function VS2:GetGraphicInfo(t)
+function VS3:GetGraphicInfo(t)
 
 	local res = -1
 	local key
@@ -271,7 +275,7 @@ function VS2:GetGraphicInfo(t)
 
 end
 
-function VS2:ParseLine(s)
+function VS3:ParseLine(s)
 	
 	local t = {}
 	local index = 1
@@ -289,13 +293,13 @@ function VS2:ParseLine(s)
 
 end
 
-function VS2:SeekStarts()
+function VS3:SeekStarts()
 
 	self.Starts = {}
 
 	for i,v in ipairs(self) do
 	
-		local line = VS2:ParseLine(v)
+		local line = VS3:ParseLine(v)
 		if line and line[1] then
 		
 			local token = string.upper(line[1])
@@ -316,7 +320,7 @@ function VS2:SeekStarts()
 					lineEntry.IfDepth = self.IfDepth
 					self.Starts[content] = lineEntry
 				elseif token == "FILEVERSION" then
-					VS2:SetVersion(content)
+					VS3:SetVersion(content)
 				end
 			end
 		end
@@ -333,25 +337,25 @@ function VS2:SeekStarts()
 
 end
 
-function VS2:NextLine()
+function VS3:NextLine()
 
 	self.Line = self.Line + 1
 	self:ProcessLine()
 
 end
 
-function VS2:SetVersion(version)
+function VS3:SetVersion(version)
 
-	self.ParseVersion = 2 --version or 1
+	self.ParseVersion = version --version or 1
 
 end
 
-function VS2:ProcessLine()
+function VS3:ProcessLine()
 
 	local thisLine = self[self.Line]
 	
 	if thisLine then
-		local t = VS2:ParseLine(thisLine)
+		local t = VS3:ParseLine(thisLine)
 		if t then
 			local command = string.upper(t[1])
 			
@@ -370,87 +374,87 @@ function VS2:ProcessLine()
 				t[2] = string.lower(t[2])
 				self:GoToLine(self.Starts[t[2]], t[2])
 			elseif command == "SETINT" then
-				VS2:SetInterrupt(t)
+				VS3:SetInterrupt(t)
 				self:NextLine()
 			elseif command == "FORCEINT" then
-				VS2:Interrupt()
+				VS3:Interrupt()
 			elseif command == "INTRETURN" then
-				VS2:ReturnFromInterrupt()
+				VS3:ReturnFromInterrupt()
 			elseif command == "FILEVERSION" then
 				self:NextLine()
 			elseif command == "PRELOADGRAPHICS" then
-				VS2:PreloadGraphics(true)
+				VS3:PreloadGraphics(true)
 				self:NextLine()
 			elseif command == "LABEL" then
 				self:NextLine()
 			elseif command == "ACTION" then
-				VS2:Action(t)
+				VS3:Action(t)
 			elseif command == "PLAY" then
-				VS2:Play(t)
+				VS3:Play(t)
 				self:NextLine()
 			elseif command == "STOPMUSIC" then
-				VS2:StopMusic()
+				VS3:StopMusic()
 				self:NextLine()
 			elseif command == "SHOW" then
-				if VS2.ParseVersion == 2 then
-					VS2:Show2(t)
+				if VS3.ParseVersion == 2 then
+					VS3:Show2(t)
 				else
-					VS2:Show(t)
+					VS3:Show(t)
 				end
 				self:NextLine()
 			elseif command == "SHOWIMAGE" then
-				if VS2.ParseVersion == 2 then
-					VS2:ShowImage(t)
+				if VS3.ParseVersion == 2 then
+					VS3:ShowImage(t)
 				else
-					VS2:Show(t)
+					VS3:Show(t)
 				end
 				self:NextLine()
 			elseif command == "SHOWICON" then
-				if VS2.ParseVersion == 2 then
-					VS2:ShowIcon2(t)
+				if VS3.ParseVersion == 2 then
+					VS3:ShowIcon2(t)
 				else
-					VS2:ShowIcon(t)
+					VS3:ShowIcon(t)
 				end
 				self:NextLine()
 			elseif command == "SHOWDISPLAY" then
-				VS2:ShowDisplay(t)
+				VS3:ShowDisplay(t)
 				self:NextLine()
 			elseif command == "HIDEDISPLAY" then
-				VS2:HideDisplay(t)
+				VS3:HideDisplay(t)
 				self:NextLine()
 			elseif command == "MOVE" then
-				if VS2.ParseVersion == 2 then
-					VS2:Move2(t)
+				if VS3.ParseVersion == 2 then
+					VS3:Move2(t)
 				else
-					VS2:Move(t)
+					VS3:Move(t)
 				end
 				self:NextLine()
 			elseif command == "CHANGE" then
-				if VS2.ParseVersion == 2 then
-					VS2:Change2(t)
+				if VS3.ParseVersion == 2 then
+					VS3:Change2(t)
 				else
-					VS2:Change(t)
+					VS3:Change(t)
 				end
 				self:NextLine()
 			elseif command == "HIDE" then
-				VS2:Hide(t)
+				VS3:Hide(t)
 				self:NextLine()
 			elseif command == "SETBG" then
-				VS2:SetBG(t)
+				VS3:SetBG(t)
 				self:NextLine()
 			elseif command == "LOADMAP" then
-				VS2:LoadMap(t)
+				VS3:LoadMap(t)
 				self:NextLine()
 			elseif command == "SETMAPICON" then
-				VS2:SetMapIcon(t)
+				VS3:SetMapIcon(t)
 				self:NextLine()
 			elseif command == "HIDEMAPICON" then
-				VS2:HideMapIcon(t)
+				VS3:HideMapIcon(t)
 				self:NextLine()
 			elseif command == "SHOWMAP" then
-				VS2:ShowMap(t)
+				VS3:ShowMap(t)
 			elseif command == "MENU" then
-				VS2:CreateMenu(t)
+				VS3:CreateMenu(t)
 			elseif command == "IF" then
 				self.IfDepth = self.IfDepth + 1
 				self:EvalIf(t)
@@ -458,21 +462,21 @@ function VS2:ProcessLine()
 				self.IfDepth = self.IfDepth - 1
 				self:ScanToNextELSEIFOrENDIF(self.IfDepth, true)
 			elseif command == "WAIT" then
-				VS2:Wait(t[2], true)
+				VS3:Wait(t[2], true)
 			elseif command == "SETVAR" then
-				VS2:SetVar(t)
+				VS3:SetVar(t)
 				self:NextLine()
 			elseif command == "SETSEXPVAR" then
-				VS2:SetVar(t, true)
+				VS3:SetVar(t, true)
 				self:NextLine()
 			elseif command == "SETFLAG" then
-				VS2:SetFlag(t)
+				VS3:SetFlag(t)
 				self:NextLine()
 			elseif command == "SETFONT" then
-				VS2:SetFont(t)
+				VS3:SetFont(t)
 				self:NextLine()
 			else
-				VS2:SendMsg(t)
+				VS3:SendMsg(t)
 			end
 		else
 			self:NextLine()
@@ -483,7 +487,7 @@ function VS2:ProcessLine()
 
 end
 
-function VS2:WriteToVariable(name, value)
+function VS3:WriteToVariable(name, value)
 	--always give precedence to sexp. all variables shall be interacted with using this, except for internal variables (such as _vnLocation or f_ flags)
 	if mn.SEXPVariables[name] and mn.SEXPVariables[name]:isValid() then
 		mn.SEXPVariables[name].Value = value
@@ -492,29 +496,29 @@ function VS2:WriteToVariable(name, value)
 	end	
 end
 
-function VS2:ReadFromVariable(name)
+function VS3:ReadFromVariable(name)
 	--always give precedence to sexp. all variables shall be interacted with using this, except for internal variables (such as _vnLocation or f_ flags)
 	if mn.SEXPVariables[name] and mn.SEXPVariables[name]:isValid() then
 		return mn.SEXPVariables[name].Value
 	else
-		return VS2.Variables[name]
+		return VS3.Variables[name]
 	end
 end
 
-function VS2:GoToLine(line, payload)
+function VS3:GoToLine(line, payload)
 
 	if line then
 		self.Line = line.Line
 		self.IfDepth = line.IfDepth
 		self:ProcessLine()
 	else
-		local debugstring = "VN: Bad Label given! Problem with " .. payload .. " on line " .. self.Line .. " in " .. VS2.LoadedFile .. "\n"
-		if VS2.DebugBatchMode then ba.warning(debugstring) else ba.error(debugstring) end
+		local debugstring = "VN: Bad Label given! Problem with " .. payload .. " on line " .. self.Line .. " in " .. VS3.LoadedFile .. "\n"
+		if VS3.DebugBatchMode then ba.warning(debugstring) else ba.error(debugstring) end
 	end
 	
 end
 
-function VS2:SetInterrupt(t)
+function VS3:SetInterrupt(t)
 
 	--t[1] = token
 	--  2  = key or button name (prefixed with @)
@@ -566,7 +570,7 @@ function VS2:SetInterrupt(t)
 
 end
 
-function VS2:Interrupt()
+function VS3:Interrupt()
 
 	self.ReturnTo = {}
 	self.ReturnTo.Line = self.Scene.Line + self.IntOffset
@@ -575,7 +579,7 @@ function VS2:Interrupt()
 	
 end
 
-function VS2:ReturnFromInterrupt()
+function VS3:ReturnFromInterrupt()
 
 	if self.IntButton then
 		self.IntDraw = true
@@ -584,7 +588,7 @@ function VS2:ReturnFromInterrupt()
 
 end
 
-function VS2:Action(t)
+function VS3:Action(t)
 
 	--t[1] = token
 	--  2  = action
@@ -606,7 +610,7 @@ function VS2:Action(t)
 		self.Fade.StartTime = ba.getFrametimeOverall()
 		self.Fade.EndTime = ba.getFrametimeOverall() + (t[3] or 0)
 		self.Fade.Duration = t[3]
-		VS2:Wait(t[3] or 0, true)
+		VS3:Wait(t[3] or 0, true)
 		ba.print("VN: Fadein set!\n")
 	elseif action == "fadeout" then
 		local r, g, b = t[4] or 0, t[5] or 0, t[6] or 0
@@ -617,26 +621,26 @@ function VS2:Action(t)
 		self.Fade.StartTime = ba.getFrametimeOverall()
 		self.Fade.EndTime = ba.getFrametimeOverall() + 9999 --wat is this
 		self.Fade.Duration = t[3] or 0
-		VS2:Wait(t[3] or 0, true)
+		VS3:Wait(t[3] or 0, true)
 		ba.print("VN: Fadeout set!\n")
 	elseif action == "lockdown" then
 		if Lockdown then
 			Lockdown()
 			if t[3] and string.lower(t[3])=="everything" then Freeze() end
-			VS2:Wait(0,true)
+			VS3:Wait(0,true)
 		end
 	elseif action == "unlockdown" then
 		if UnLockdown then
 			UnLockdown()
 			UnFreeze()
-			VS2:Wait(0,true)
+			VS3:Wait(0,true)
 		end
 	elseif action == "endmission" then
 		ba.print("VN: Ending mission!\n")
-		if VS2.StayInGame then
+		if VS3.StayInGame then
 			ba.print("Trying to stay in the mission...\n")
-			VS2:Exit()
-			VS2.StayInGame = nil
+			VS3:Exit()
+			VS3.StayInGame = nil
 		else
 			ba.print("Endmission for real\n")
 			io.setCursorHidden(false)
@@ -644,51 +648,51 @@ function VS2:Action(t)
 		end
 	elseif action == "endscene" then
 		ba.print("VN: Ending Scene!\n")
-		if not VS2.StayInGame then
+		if not VS3.StayInGame then
 			io.setCursorHidden(true)
 		end
-		VS2:Exit(true)		--The true will keep variables alive
+		VS3:Exit(true)		--The true will keep variables alive
 	elseif action == "hidecursor" then
 		io.setCursorHidden(true)
-		VS2.ShowCursor = false
-		VS2:Wait(0,true)
+		VS3.ShowCursor = false
+		VS3:Wait(0,true)
 	elseif action == "showcursor" then
 		io.setCursorHidden(false)
-		VS2.ShowCursor = true
-		VS2:Wait(0,true)
+		VS3.ShowCursor = true
+		VS3:Wait(0,true)
 	elseif action == "hidebox" then
-		--VS2.ShowBox = false
-		VS2.HideFlag = true
-		VS2:Wait(0,true)
+		--VS3.ShowBox = false
+		VS3.HideFlag = true
+		VS3:Wait(0,true)
 	elseif action == "showbox" then
-		--VS2.ShowBox = true
-		VS2.HideFlag = false
-		VS2:Wait(0,true)
+		--VS3.ShowBox = true
+		VS3.HideFlag = false
+		VS3:Wait(0,true)
 	else
 		ba.print("VN: Invalid action given, ignoring...\n")
 	end
 
 end
 
-function VS2:StopMusic()
+function VS3:StopMusic()
 
-	if VS2.MusicHandle then
-		ad.stopMusic(VS2.MusicHandle, true)
-		VS2.MusicHandle = nil
+	if VS3.MusicHandle then
+		ad.stopMusic(VS3.MusicHandle, true)
+		VS3.MusicHandle = nil
 	end
 
 end
 
-function VS2:Play(t)
+function VS3:Play(t)
 
-	if not VS2.DebugBatchMode then		--This will save your eardrums
+	if not VS3.DebugBatchMode then		--This will save your eardrums
 		if string.lower(t[2]) == "music" then
-			if VS2.MusicHandle then ad.stopMusic(VS2.MusicHandle, true) end
+			if VS3.MusicHandle then ad.stopMusic(VS3.MusicHandle, true) end
 			ba.print("VN: Attempting to play " .. t[2] .."\n")
 			if t[4] and string.lower(t[4]) == "once" then
-				VS2.MusicHandle = ad.playMusic(t[3],1,false)
+				VS3.MusicHandle = ad.playMusic(t[3],1,false)
 			else
-				VS2.MusicHandle = ad.playMusic(t[3])
+				VS3.MusicHandle = ad.playMusic(t[3])
 			end
 		elseif string.lower(t[2]) == "gamesound" then
 			ad.playGameSound(t[3])
@@ -701,7 +705,7 @@ function VS2:Play(t)
 
 end
 
-function VS2:FindParam(name, t)
+function VS3:FindParam(name, t)
 
 	-- local numargs = (#t-2)/3
 	
@@ -726,7 +730,7 @@ function VS2:FindParam(name, t)
 
 end
 
-function VS2:Show2(t)
+function VS3:Show2(t)
 
 	--for i,v in ipairs(t) do
 	--	ba.print("t["..i.."]="..v.."\n")
@@ -735,32 +739,32 @@ function VS2:Show2(t)
 	--ba.print("Number of passed arguments = " .. numargs .. "\n")
 
 	local id = t[2]
-	local x_pct = VS2:FindParam("x", t)
-	local x_flip = VS2:FindParam("xflip", t)
-	local y_pct = VS2:FindParam("y", t)
-	local y_flip = VS2:FindParam("yflip", t)
-	local play = VS2:FindParam("repeat", t)
-	local layer = VS2:FindParam("layer", t)
-	local fadetime = VS2:FindParam("fadetime", t)
-	local actor = VS2:FindParam("actor", t)
-	local emote = VS2:FindParam("emote", t)
-	local from = VS2:FindParam("from", t)
-	local base = VS2:FindParam("base", t)
-	local scale = VS2:FindParam("scale", t)
-	local alpha = VS2:FindParam("alpha", t)
-	local scalewithbg = VS2:FindParam("scalewithbg", t)
+	local x_pct = VS3:FindParam("x", t)
+	local x_flip = VS3:FindParam("xflip", t)
+	local y_pct = VS3:FindParam("y", t)
+	local y_flip = VS3:FindParam("yflip", t)
+	local play = VS3:FindParam("repeat", t)
+	local layer = VS3:FindParam("layer", t)
+	local fadetime = VS3:FindParam("fadetime", t)
+	local actor = VS3:FindParam("actor", t)
+	local emote = VS3:FindParam("emote", t)
+	local from = VS3:FindParam("from", t)
+	local base = VS3:FindParam("base", t)
+	local scale = VS3:FindParam("scale", t)
+	local alpha = VS3:FindParam("alpha", t)
+	local scalewithbg = VS3:FindParam("scalewithbg", t)
 	
 	--if x_flip and string.lower(x_flip) == "true" then x_flip = true else x_flip = nil end
 	--if y_flip and string.lower(y_flip) == "true" then y_flip = true else y_flip = nil end
 	
 	local passedLine = {"SHOW",id,nil,x_pct,x_flip,y_pct,y_flip,play,layer,fadetime,actor,emote,from,base,scale,alpha,scalewithbg}
 	
-	VS2:Show(passedLine)
+	VS3:Show(passedLine)
 	
 	
 end
 
-function VS2:ShowImage(t)
+function VS3:ShowImage(t)
 
 	--for i,v in ipairs(t) do
 	--	ba.print("t["..i.."]="..v.."\n")
@@ -769,31 +773,31 @@ function VS2:ShowImage(t)
 	--ba.print("Number of passed arguments = " .. numargs .. "\n")
 
 	local id = t[2]
-	local filename = VS2:FindParam("file", t)
-	local x_pct = VS2:FindParam("x", t)
-	local x_flip = VS2:FindParam("xflip", t)
-	local y_pct = VS2:FindParam("y", t)
-	local y_flip = VS2:FindParam("yflip", t)
-	local play = VS2:FindParam("repeat", t)
-	local layer = VS2:FindParam("layer", t)
-	local fadetime = VS2:FindParam("fadetime", t)
-	local from = VS2:FindParam("from", t)
-	local base = VS2:FindParam("base", t)
-	local scale = VS2:FindParam("scale", t)
-	local alpha = VS2:FindParam("alpha", t)
-	local scalewithbg = VS2:FindParam("scalewithbg", t)
+	local filename = VS3:FindParam("file", t)
+	local x_pct = VS3:FindParam("x", t)
+	local x_flip = VS3:FindParam("xflip", t)
+	local y_pct = VS3:FindParam("y", t)
+	local y_flip = VS3:FindParam("yflip", t)
+	local play = VS3:FindParam("repeat", t)
+	local layer = VS3:FindParam("layer", t)
+	local fadetime = VS3:FindParam("fadetime", t)
+	local from = VS3:FindParam("from", t)
+	local base = VS3:FindParam("base", t)
+	local scale = VS3:FindParam("scale", t)
+	local alpha = VS3:FindParam("alpha", t)
+	local scalewithbg = VS3:FindParam("scalewithbg", t)
 	
 	--if x_flip and string.lower(x_flip) == "true" then x_flip = true else x_flip = nil end
 	--if y_flip and string.lower(y_flip) == "true" then y_flip = true else y_flip = nil end
 	
 	local passedLine = {"SHOWIMAGE",id,filename,x_pct,x_flip,y_pct,y_flip,play,layer,fadetime,nil,nil,from,base,scale,alpha,scalewithbg}
 	
-	VS2:Show(passedLine)
+	VS3:Show(passedLine)
 	
 	
 end
 
-function VS2:WasCached(filename)
+function VS3:WasCached(filename)
 
 	local result
 	
@@ -805,7 +809,7 @@ function VS2:WasCached(filename)
 
 end
 
-function VS2:PreloadGraphics(keepinmemory)
+function VS3:PreloadGraphics(keepinmemory)
 
 	gr.setColor(0,0,0,255)
 	gr.drawRectangle(0,0,AXUI.Screen.w,AXUI.Screen.h)
@@ -823,7 +827,7 @@ function VS2:PreloadGraphics(keepinmemory)
 	
 	for i,v in ipairs(self.Scene) do
 			
-		local line = VS2:ParseLine(v)
+		local line = VS3:ParseLine(v)
 		
 		if line then
 			local token = string.upper(line[1])
@@ -835,10 +839,10 @@ function VS2:PreloadGraphics(keepinmemory)
 			if (token == "SHOW") or (token == "CHANGE") then
 					
 				local id = line[2]
-				local anim = VS2:FindParam("anim", line)
-				local file = VS2:FindParam("file", line)
-				local actor = VS2:FindParam("actor", line)
-				local emote = VS2:FindParam("emote", line)
+				local anim = VS3:FindParam("anim", line)
+				local file = VS3:FindParam("file", line)
+				local actor = VS3:FindParam("actor", line)
+				local emote = VS3:FindParam("emote", line)
 			
 				if not tmpImages[id] then
 					tmpImages[id] = {}
@@ -846,7 +850,7 @@ function VS2:PreloadGraphics(keepinmemory)
 				
 				local tmp
 				
-				tmp, _, filename, _, idle = VS2:AssignActor(id, actor, emote, tmpImages)
+				tmp, _, filename, _, idle = VS3:AssignActor(id, actor, emote, tmpImages)
 				
 				tmpImages[id].Actor = tmp
 			
@@ -877,7 +881,7 @@ function VS2:PreloadGraphics(keepinmemory)
 		
 end
 
-function VS2:LoadGraphic(filename, cache, idle)
+function VS3:LoadGraphic(filename, cache, idle)
 
 	if not filename then
 		ba.error("VN Script: nil filename given!\n")
@@ -915,7 +919,7 @@ function VS2:LoadGraphic(filename, cache, idle)
 			graphic:unload()
 			if not idle then
 				local debugstring = "VN: Failed to load image with filename '" .. filename .. "' in " .. self.LoadedFile .. " (probably doesn't exist)\nReport this to the mod author!"
-				if VS2.DebugBatchMode then ba.warning(debugstring) else ba.error(debugstring) end
+				if VS3.DebugBatchMode then ba.warning(debugstring) else ba.error(debugstring) end
 			end
 		end
 				
@@ -930,7 +934,7 @@ function VS2:LoadGraphic(filename, cache, idle)
 	
 end
 
-function VS2:UnloadGraphic(graphic)
+function VS3:UnloadGraphic(graphic)
 
 	if graphic and graphic.Handle and graphic.Handle:isValid() then
 		ba.print("VN: Unloading " .. graphic.Filename .. "...\n")
@@ -939,7 +943,7 @@ function VS2:UnloadGraphic(graphic)
 
 end
 
-function VS2:AssignActor(id, actorName, emote, cache)
+function VS3:AssignActor(id, actorName, emote, cache)
 
 	if not id then
 		return
@@ -970,7 +974,7 @@ function VS2:AssignActor(id, actorName, emote, cache)
 	if not thisActor then
 	
 		local debugstring = "VN: Script attempting to call an actor not in the config. Tried to call " .. actorName  .. " in " .. self.LoadedFile .. "\n"
-		if VS2.DebugBatchMode then ba.warning(debugstring) else ba.error(debugstring) end
+		if VS3.DebugBatchMode then ba.warning(debugstring) else ba.error(debugstring) end
 		
 	else
 	
@@ -1000,14 +1004,14 @@ function VS2:AssignActor(id, actorName, emote, cache)
 			return actorName, emote, entry.File, entry.Loop, entry.Idle
 		else --if we can't, we have a problem
 			local debugstring = "VN: Had trouble assigning actor " .. actorName .. " with emote " .. emote  .. " in " .. self.LoadedFile .. "\n"
-			if VS2.DebugBatchMode then ba.warning(debugstring) else ba.error(debugstring) end
+			if VS3.DebugBatchMode then ba.warning(debugstring) else ba.error(debugstring) end
 		end
 	
 	end
 
 end
 
-function VS2:Show(t)
+function VS3:Show(t)
 
 	--t[1] = token
 	--  2  = id
@@ -1066,7 +1070,7 @@ function VS2:Show(t)
 	if not filename then 
 		if not actor then
 			local debugstring = "VN Script Error: No Filename or Actor specified for " .. id  .. " in " .. self.LoadedFile .. "\n"
-			if VS2.DebugBatchMode then ba.warning(debugstring) else ba.error(debugstring) end
+			if VS3.DebugBatchMode then ba.warning(debugstring) else ba.error(debugstring) end
 		end
 		thisImage.Actor, thisImage.Emote, filename, thisImage.Repeat, idleOverride = self:AssignActor(id,actor,emote)
 	end
@@ -1204,18 +1208,18 @@ function VS2:Show(t)
 	self.Images[id] = thisImage
 
 	if create then
-		VS2:ImageEffect(id, "fadein", fadetime, thisImage.TargetAlpha)
+		VS3:ImageEffect(id, "fadein", fadetime, thisImage.TargetAlpha)
 	else
-		VS2:ImageEffect(id, "move", 0)
+		VS3:ImageEffect(id, "move", 0)
 	end
 	
 	if from and thisImage.X_0 then
-		VS2:ImageEffect(id, "move", 1)
+		VS3:ImageEffect(id, "move", 1)
 	end
 
 end
 
-function VS2:ShowIcon2(t)
+function VS3:ShowIcon2(t)
 
 	--for i,v in ipairs(t) do
 	--	ba.print("t["..i.."]="..v.."\n")
@@ -1224,24 +1228,24 @@ function VS2:ShowIcon2(t)
 	--ba.print("Number of passed arguments = " .. numargs .. "\n")
 
 	local id = t[2]
-	local filename = VS2:FindParam("file", t)
-	local text = VS2:FindParam("text",t)
-	local color = VS2:FindParam("color",t)
-	local x_pct = VS2:FindParam("x", t)
-	local x_flip = VS2:FindParam("xflip", t)
-	local y_pct = VS2:FindParam("y", t)
-	local y_flip = VS2:FindParam("yflip", t)
-	local layer = VS2:FindParam("layer", t)
-	local scale = VS2:FindParam("scale", t)
+	local filename = VS3:FindParam("file", t)
+	local text = VS3:FindParam("text",t)
+	local color = VS3:FindParam("color",t)
+	local x_pct = VS3:FindParam("x", t)
+	local x_flip = VS3:FindParam("xflip", t)
+	local y_pct = VS3:FindParam("y", t)
+	local y_flip = VS3:FindParam("yflip", t)
+	local layer = VS3:FindParam("layer", t)
+	local scale = VS3:FindParam("scale", t)
 	
 	local passedLine = {"SHOWICON",id,filename,text,color,x_pct,x_flip,y_pct,y_flip,layer, scale}
 	
-	VS2:ShowIcon(passedLine)
+	VS3:ShowIcon(passedLine)
 	
 	
 end
 
-function VS2:ShowIcon(t)
+function VS3:ShowIcon(t)
 
 	--t[1] = token
 	--  2  = id
@@ -1375,14 +1379,14 @@ function VS2:ShowIcon(t)
 	self.Images[id] = thisImage
 
 	if create then
-		VS2:ImageEffect(id, "fadein", 0.5)
+		VS3:ImageEffect(id, "fadein", 0.5)
 	else
-		VS2:ImageEffect(id, "move", 0)
+		VS3:ImageEffect(id, "move", 0)
 	end
 
 end
 
-function VS2:Move2(t)
+function VS3:Move2(t)
 
 	--for i,v in ipairs(t) do
 	--	ba.print("t["..i.."]="..v.."\n")
@@ -1391,22 +1395,22 @@ function VS2:Move2(t)
 	--ba.print("Number of passed arguments = " .. numargs .. "\n")
 
 	local id = t[2]
-	local duration = VS2:FindParam("time", t) or 1
-	local x_pct = VS2:FindParam("x", t)
-	local x_flip = VS2:FindParam("xflip", t)
-	local y_pct = VS2:FindParam("y", t)
-	local y_flip = VS2:FindParam("yflip", t)
-	local scale = VS2:FindParam("scale",t)
-	local alpha = VS2:FindParam("alpha",t)
+	local duration = VS3:FindParam("time", t) or 1
+	local x_pct = VS3:FindParam("x", t)
+	local x_flip = VS3:FindParam("xflip", t)
+	local y_pct = VS3:FindParam("y", t)
+	local y_flip = VS3:FindParam("yflip", t)
+	local scale = VS3:FindParam("scale",t)
+	local alpha = VS3:FindParam("alpha",t)
 	
 	local passedLine = {"MOVE",id,duration,x_pct,x_flip,y_pct,y_flip,scale,alpha}
 	
-	VS2:Move(passedLine)
+	VS3:Move(passedLine)
 	
 	
 end
 
-function VS2:Move(t)
+function VS3:Move(t)
 
 	local thisImage = {}
 	local id = t[2]
@@ -1480,22 +1484,22 @@ function VS2:Move(t)
 
 		--self.Images[id] = thisImage
 		
-		VS2:ImageEffect(id, "move", duration)
+		VS3:ImageEffect(id, "move", duration)
 		
 		if customscale then
-			VS2:ImageEffect(id, "scale", duration)
+			VS3:ImageEffect(id, "scale", duration)
 		end
 		
 		if targetAlpha then
 			thisImage.OldAlpha = thisImage.Alpha
 			thisImage.TargetAlpha = targetAlpha
-			VS2:ImageEffect(id, "alpha", duration)
+			VS3:ImageEffect(id, "alpha", duration)
 		end
 	end
 
 end
 
-function VS2:Change2(t)
+function VS3:Change2(t)
 
 	--for i,v in ipairs(t) do
 	--	ba.print("t["..i.."]="..v.."\n")
@@ -1504,24 +1508,24 @@ function VS2:Change2(t)
 	--ba.print("Number of passed arguments = " .. numargs .. "\n")
 
 	local id = t[2]
-	local filename = VS2:FindParam("file", t)
-	local x_flip = VS2:FindParam("xflip", t)
-	local y_flip = VS2:FindParam("yflip", t)
-	local play = VS2:FindParam("repeat", t)
-	local layer = VS2:FindParam("layer", t)
-	local actor = VS2:FindParam("actor", t)
-	local emote = VS2:FindParam("emote", t)
-	local base = VS2:FindParam("base", t)
-	--local scale = VS2:FindParam("scale", t)
+	local filename = VS3:FindParam("file", t)
+	local x_flip = VS3:FindParam("xflip", t)
+	local y_flip = VS3:FindParam("yflip", t)
+	local play = VS3:FindParam("repeat", t)
+	local layer = VS3:FindParam("layer", t)
+	local actor = VS3:FindParam("actor", t)
+	local emote = VS3:FindParam("emote", t)
+	local base = VS3:FindParam("base", t)
+	--local scale = VS3:FindParam("scale", t)
 	
 	local passedLine = {"CHANGE",id,filename,x_flip,y_flip,play,layer, actor, emote, base}
 	
-	VS2:Change(passedLine)
+	VS3:Change(passedLine)
 	
 	
 end
 
-function VS2:Change(t)
+function VS3:Change(t)
 
 	--t[1] = token
 	--  2  = id
@@ -1554,7 +1558,7 @@ function VS2:Change(t)
 	local oldActor = thisImage.Actor
 	
 	if not filename and (actor or emote) then 
-		thisImage.Actor, thisImage.Emote, filename, thisImage.Repeat, idleOverride = VS2:AssignActor(id,actor,emote)
+		thisImage.Actor, thisImage.Emote, filename, thisImage.Repeat, idleOverride = VS3:AssignActor(id,actor,emote)
 	end
 	
 	local changedActor = (oldActor ~= thisImage.Actor)
@@ -1656,7 +1660,7 @@ function VS2:Change(t)
 		
 end
 
-function VS2:GetBaseInfo(base, imageinfo, scale)
+function VS3:GetBaseInfo(base, imageinfo, scale)
 
 	local t = {}
 
@@ -1690,7 +1694,7 @@ function VS2:GetBaseInfo(base, imageinfo, scale)
 
 end
 
-function VS2:ImageEffect(img, style, duration, endvalue)
+function VS3:ImageEffect(img, style, duration, endvalue)
 
 	--TO DO: If Fadein is long enough and alpha is called soon enough, the later alpha's final value won't be the image's final alpha. I need to figure out if there is a fade in transition for the image, and if so, overwrite the alpha
 
@@ -1741,7 +1745,7 @@ function VS2:ImageEffect(img, style, duration, endvalue)
 
 end
 
-function VS2:Hide(t)
+function VS3:Hide(t)
 
 	--t[1] = token
 	--  2  = id
@@ -1752,27 +1756,27 @@ function VS2:Hide(t)
 	
 	if id and string.upper(id) == "ALL" then
 		if now then
-			for k,v in pairs(VS2.Images) do
+			for k,v in pairs(VS3.Images) do
 				ba.print("VN: Hiding " .. k .. "without fadeout\n")
-				VS2:ImageEffect(k, "fadeout", 0.01)
-				VS2.Images[k].Expire = true
+				VS3:ImageEffect(k, "fadeout", 0.01)
+				VS3.Images[k].Expire = true
 			end
 		else
-			for k,v in pairs(VS2.Images) do
+			for k,v in pairs(VS3.Images) do
 				ba.print("VN: Hiding " .. k .. "...\n")
-				VS2:ImageEffect(k, "fadeout", 0.5)
-				VS2.Images[k].Expire = true
+				VS3:ImageEffect(k, "fadeout", 0.5)
+				VS3.Images[k].Expire = true
 			end
 		end
-	elseif VS2.Images[id] then
+	elseif VS3.Images[id] then
 		if now then
 			ba.print("VN: Hiding " .. id .. "without fadeout\n")
-			VS2:ImageEffect(id, "fadeout", 0.01)
-			VS2.Images[id].Expire = true
+			VS3:ImageEffect(id, "fadeout", 0.01)
+			VS3.Images[id].Expire = true
 		else
 			ba.print("VN: Hiding " .. id .. "...\n")
-			VS2:ImageEffect(id, "fadeout", 0.5)
-			VS2.Images[id].Expire = true
+			VS3:ImageEffect(id, "fadeout", 0.5)
+			VS3.Images[id].Expire = true
 		end
 	else
 		ba.print("VN: Bad id given, ignoring...\n")
@@ -1780,7 +1784,7 @@ function VS2:Hide(t)
 	
 end
 
-function VS2:SetBG(t)
+function VS3:SetBG(t)
 
 	--for i,v in ipairs(t) do
 	--	ba.print("t["..i.."]="..v.."\n")
@@ -1788,23 +1792,23 @@ function VS2:SetBG(t)
 	
 	--ba.print("Number of passed arguments = " .. numargs .. "\n")
 
-	local filename = VS2:FindParam("file", t)
-	local scaling = VS2:FindParam("scaling", t)
-	local crossfade = VS2:FindParam("time", t)
-	--local xanchor = VS2:FindParam("xanchor", t)
-	--local yanchor = VS2:FindParam("yanchor", t)
-	--local xscroll = VS2:FindParam("xscroll", t)
-	--local yscroll = VS2:FindParam("yscroll", t)
-	--local scrolltime = VS2:FindParam("scrolltime", t)
+	local filename = VS3:FindParam("file", t)
+	local scaling = VS3:FindParam("scaling", t)
+	local crossfade = VS3:FindParam("time", t)
+	--local xanchor = VS3:FindParam("xanchor", t)
+	--local yanchor = VS3:FindParam("yanchor", t)
+	--local xscroll = VS3:FindParam("xscroll", t)
+	--local yscroll = VS3:FindParam("yscroll", t)
+	--local scrolltime = VS3:FindParam("scrolltime", t)
 	
 	local passedLine = {"SETBG",filename,scaling,crossfade}
 	
-	VS2:SetBG2(passedLine)
+	VS3:SetBG2(passedLine)
 	
 	
 end
 
-function VS2:SetBG2(t)
+function VS3:SetBG2(t)
 
 	--t[1] = token
 	--  2  = filename
@@ -1905,7 +1909,7 @@ function VS2:SetBG2(t)
 
 end
 
-function VS2:LoadMap(t)
+function VS3:LoadMap(t)
 
 	--t[2] = Map Entry in the config file
 	
@@ -1927,12 +1931,12 @@ function VS2:LoadMap(t)
 
 end
 
-function VS2:SetMapIcon(t)
+function VS3:SetMapIcon(t)
 
 	local iconid = t[2]
-	local mapicon = VS2:FindParam("file", t)
-	local maplocation = VS2:FindParam("location", t)
-	--local selficon = VS2:FindParam("self", t)
+	local mapicon = VS3:FindParam("file", t)
+	local maplocation = VS3:FindParam("location", t)
+	--local selficon = VS3:FindParam("self", t)
 	
 	--[[ba.print("VN SETMAPICON:\n")
 	ba.print("   ID = " .. tostring(iconid) .. "\n")
@@ -1948,7 +1952,7 @@ function VS2:SetMapIcon(t)
 
 end
 
-function VS2:HideMapIcon(t)
+function VS3:HideMapIcon(t)
 
 	local iconid = t[2]
 	
@@ -1960,7 +1964,7 @@ function VS2:HideMapIcon(t)
 
 end
 
-function VS2:ShowMap(t)
+function VS3:ShowMap(t)
 
 	if self.LocationMap then
 	
@@ -1981,7 +1985,7 @@ function VS2:ShowMap(t)
 		self.CurrentLocation = self.Variables["_vnLocation"]
 		self.OkayTime = ba.getFrametimeOverall() + 1.1
 		
-		VS2:SetBG2({0,self.LocationMap.Data.Bitmap,"BESTFIT"})
+		VS3:SetBG2({0,self.LocationMap.Data.Bitmap,"BESTFIT"})
 		
 		self.LocationMap.Buttons = {}
 		self.LocationMap.resultVariable = t[2]
@@ -2036,13 +2040,13 @@ function VS2:ShowMap(t)
 
 end
 
-function VS2:ShowDisplay(t)
+function VS3:ShowDisplay(t)
 
 	local id = t[2]
-	local displaytype = VS2:FindParam("type", t)
-	local x = VS2:FindParam("x", t) or 0.5
-	local y = VS2:FindParam("y", t) or 0.5
-	local align = VS2:FindParam("align",t)
+	local displaytype = VS3:FindParam("type", t)
+	local x = VS3:FindParam("x", t) or 0.5
+	local y = VS3:FindParam("y", t) or 0.5
+	local align = VS3:FindParam("align",t)
 	
 	if id and self.Config.Displays[displaytype] then
 	
@@ -2079,20 +2083,20 @@ function VS2:ShowDisplay(t)
 
 end
 
-function VS2:HideDisplay(t)
+function VS3:HideDisplay(t)
 
 	self.Displays[t[2]] = nil
 
 end
 
-function VS2:CreateMenu(t)
+function VS3:CreateMenu(t)
 
 	--t[1] = The Token
 	--t[2-6] = The Choices
 	--variable  = The Variable the result will get saved too
-	local variable = VS2:FindParam("variable", t)
+	local variable = VS3:FindParam("variable", t)
 	--flag  = The Flag containing which options are shown
-	local flag = VS2:FindParam("flag", t)
+	local flag = VS3:FindParam("flag", t)
 	
 	local choices = {}
 	local index = 1
@@ -2110,7 +2114,7 @@ function VS2:CreateMenu(t)
 		if t[i] then
 		
 			if (t[i]:find("$") == 1) then
-				t[i] = VS2:ReadFromVariable(t[i]:sub(2))
+				t[i] = VS3:ReadFromVariable(t[i]:sub(2))
 			end
 		
 			choices[index] = "> " .. t[i]
@@ -2125,7 +2129,7 @@ function VS2:CreateMenu(t)
 	self.Menu:UpdateList(0)
 	self.Menu.Variable = variable
 	
-	local flagVariable = VS2:ReadFromVariable(flag)
+	local flagVariable = VS3:ReadFromVariable(flag)
 	
 	if flagVariable then
 		for i, v in ipairs(self.Menu.Item) do
@@ -2141,7 +2145,7 @@ function VS2:CreateMenu(t)
 	
 end
 
-function VS2:EvalLogic(t)
+function VS3:EvalLogic(t)
 	local evalMax = #t
 	
 	--Precedence for Logic recursive parsing: | < & < () < Compare
@@ -2165,7 +2169,7 @@ function VS2:EvalLogic(t)
 	
 	if tokenN ~= -1 then
 		--Found an or
-		return VS2:EvalLogic({unpack(t, 1, tokenN - 1)}) or VS2:EvalLogic({unpack(t, tokenN + 1, evalMax)})
+		return VS3:EvalLogic({unpack(t, 1, tokenN - 1)}) or VS3:EvalLogic({unpack(t, tokenN + 1, evalMax)})
 	end
 	
 	--Not needed with correct script.
@@ -2186,21 +2190,21 @@ function VS2:EvalLogic(t)
 	
 	if tokenN ~= -1 then
 		--Found an and
-		return VS2:EvalLogic({unpack(t, 1, tokenN - 1)}) and VS2:EvalLogic({unpack(t, tokenN + 1, evalMax)})
+		return VS3:EvalLogic({unpack(t, 1, tokenN - 1)}) and VS3:EvalLogic({unpack(t, tokenN + 1, evalMax)})
 	end
 	
 	--No Binary Operator. Either we should see a not, start and end with brackets, or have a comparative expression
 	
 	if t[1] == "!" then
-		return not VS2:EvalLogic({unpack(t, 2, evalMax)})
+		return not VS3:EvalLogic({unpack(t, 2, evalMax)})
 	elseif t[1] == "(" and t[evalMax] == ")" then
-		return VS2:EvalLogic({unpack(t, 2, evalMax - 1)})
+		return VS3:EvalLogic({unpack(t, 2, evalMax - 1)})
 	else
-		return VS2:EvalCompare(t)
+		return VS3:EvalCompare(t)
 	end
 end
 
-function VS2:EvalCompare(t)
+function VS3:EvalCompare(t)
 	--Grammar CMP:= A == A | A != A | A <= A | A >= A | A < A | A > A
 	local evalMax = #t
 	local tokenN = -1
@@ -2217,8 +2221,8 @@ function VS2:EvalCompare(t)
 	local a = 0
 	local b = 0
 	
-	a = VS2:EvalArithmetic({unpack(t, 1, tokenN - 1)})
-	b = VS2:EvalArithmetic({unpack(t, tokenN + 1, evalMax)})
+	a = VS3:EvalArithmetic({unpack(t, 1, tokenN - 1)})
+	b = VS3:EvalArithmetic({unpack(t, tokenN + 1, evalMax)})
 
 	if op == "==" then
 		return a == b
@@ -2235,7 +2239,7 @@ function VS2:EvalCompare(t)
 	end
 end
 
-function VS2:EvalArithmetic(t)
+function VS3:EvalArithmetic(t)
 	local evalMax = #t
 	
 	--Precedence for Arithmetic recursive parsing: +|- < *|/ < § < () < var|n
@@ -2259,8 +2263,8 @@ function VS2:EvalArithmetic(t)
 	
 	if tokenN ~= -1 then
 		--Found a + or -
-		local a = VS2:EvalArithmetic({unpack(t, 1, tokenN - 1)})
-		local b = VS2:EvalArithmetic({unpack(t, tokenN + 1, evalMax)})
+		local a = VS3:EvalArithmetic({unpack(t, 1, tokenN - 1)})
+		local b = VS3:EvalArithmetic({unpack(t, tokenN + 1, evalMax)})
 		if t[argN] == "+" then
 			return a + b
 		else
@@ -2286,8 +2290,8 @@ function VS2:EvalArithmetic(t)
 	
 	if tokenN ~= -1 then
 		--Found a * or /
-		local a = VS2:EvalArithmetic({unpack(t, 1, tokenN - 1)})
-		local b = VS2:EvalArithmetic({unpack(t, tokenN + 1, evalMax)})
+		local a = VS3:EvalArithmetic({unpack(t, 1, tokenN - 1)})
+		local b = VS3:EvalArithmetic({unpack(t, tokenN + 1, evalMax)})
 		if t[argN] == "*" then
 			return a * b
 		else
@@ -2313,33 +2317,33 @@ function VS2:EvalArithmetic(t)
 	
 	if tokenN ~= -1 then
 		--Found a * or /
-		local a = VS2:EvalArithmetic({unpack(t, 1, tokenN - 1)})
-		local b = VS2:EvalArithmetic({unpack(t, tokenN + 1, evalMax)})
+		local a = VS3:EvalArithmetic({unpack(t, 1, tokenN - 1)})
+		local b = VS3:EvalArithmetic({unpack(t, tokenN + 1, evalMax)})
 		return math.random(a, b)
 	end
 
 	
 	--No Arithmetic Operator. Either we should start and end with brackets, or have a variable or a number
 	if t[1] == "(" and t[evalMax] == ")" then
-		return VS2:EvalArithmetic({unpack(t, 2, evalMax - 1)})
+		return VS3:EvalArithmetic({unpack(t, 2, evalMax - 1)})
 	else
 		--let's hope there is only one token left...
 		if type(t[1]) == "string" then
-			return VS2:ReadFromVariable(t[1])
+			return VS3:ReadFromVariable(t[1])
 		end
 		
 		return t[1]
 	end
 end
 
-function VS2:EvalIf(t)
+function VS3:EvalIf(t)
 
 	--So let me get this straight, you're parsing an IF statement, which will get parsed by Lua's IF functions, which will get parsed by C++'s IF functions... Wow.
 
 	local token = string.upper(t[1])
 	
 	ba.print("VN: Evaluating IF statment...\n")
-	local result = (token == "ELSE") or VS2:EvalLogic({unpack(t,2,#t)})
+	local result = (token == "ELSE") or VS3:EvalLogic({unpack(t,2,#t)})
 
 	ba.print("VN: Line " .. self.Line .. " was evaluated to " .. tostring(result) .. "\n")
 
@@ -2353,12 +2357,12 @@ function VS2:EvalIf(t)
 	end
 end
 
-function VS2:ScanToNextELSEIFOrENDIF(depth, endifonly)
+function VS3:ScanToNextELSEIFOrENDIF(depth, endifonly)
 	
 	--Assume that current line is relevant IF / ELSEIF to Scan away from
 	--And don't worry, we break from this loop with returns
 	while true do
-		local line = VS2:ParseLine(self[self.Line])
+		local line = VS3:ParseLine(self[self.Line])
 		if line and line[1] then
 		
 			local token = string.upper(line[1])
@@ -2392,7 +2396,7 @@ function VS2:ScanToNextELSEIFOrENDIF(depth, endifonly)
 	
 end
 
-function VS2:Wait(length, auto)
+function VS3:Wait(length, auto)
 
 	if length then
 		self.OkayTime = ba.getFrametimeOverall() + length
@@ -2406,7 +2410,7 @@ function VS2:Wait(length, auto)
 		
 end
 
-function VS2:SetVar(t, sexp)
+function VS3:SetVar(t, sexp)
 
 	local token = t[1]
 	local variableName = t[2]
@@ -2416,15 +2420,15 @@ function VS2:SetVar(t, sexp)
 	
 	--axemParse:Validate("line " .. self.Scene.Line .. ": argument 1", t[2], "string")
 	
-	variable = VS2:EvalArithmetic({unpack(t, 3)})
+	variable = VS3:EvalArithmetic({unpack(t, 3)})
 			
-	VS2:WriteToVariable(variableName, variable)
+	VS3:WriteToVariable(variableName, variable)
 	
 	ba.print("VN: " .. variableName .. " was set to " .. variable .. "\n")
 
 end
 
-function VS2:SetFlag(t)
+function VS3:SetFlag(t)
 
 	--t[1] = The Token
 	--  2  = The variable to associate with
@@ -2433,14 +2437,14 @@ function VS2:SetFlag(t)
 	
 	axemParse:Validate("line " .. self.Scene.Line .. ": argument 1", t[2], "string")
 	
-	local flag = VS2:ReadFromVariable(t[2]) or 0
+	local flag = VS3:ReadFromVariable(t[2]) or 0
 	flag = bit.toggleBit(flag, t[3] - 1)
 	
-	VS2:WriteToVariable(t[2], flag)
+	VS3:WriteToVariable(t[2], flag)
 
 end
 
-function VS2:SetFont(t)
+function VS3:SetFont(t)
 
 	--t[2] = Font to use
 	
@@ -2456,7 +2460,7 @@ function VS2:SetFont(t)
 
 end
 
-function VS2:SendMsg(t)
+function VS3:SendMsg(t)
 
 	--t[1] = The Sender
 	--  2  = The Message Text
@@ -2490,7 +2494,7 @@ function VS2:SendMsg(t)
 	
 	end
 	
-	local voice = VS2:FindParam("voice", t)
+	local voice = VS3:FindParam("voice", t)
 	
 	--Decide if we're going to be playing a sound
 	if voice then
@@ -2518,7 +2522,7 @@ function VS2:SendMsg(t)
 	AXMessage.Speed = self.Config.TextDraw
 		
 	--May be broken
-	local customspeed = VS2:FindParam("speed", t)
+	local customspeed = VS3:FindParam("speed", t)
 
 	if customspeed then
 		AXMessage.Speed = customspeed	
@@ -2546,7 +2550,7 @@ function VS2:SendMsg(t)
 	
 	--Font override part 2
 	
-	local linefontoverride = VS2:FindParam("font", t)
+	local linefontoverride = VS3:FindParam("font", t)
 
 	if linefontoverride then
 		if self.Config.OverrideFonts and self.Config.OverrideFonts[linefontoverride] and self.Config.OverrideFonts[linefontoverride][self.GraphicInfo.Key] then
@@ -2631,7 +2635,7 @@ function VS2:SendMsg(t)
 
 end
 
-function VS2:ProcessTransition(eff)
+function VS3:ProcessTransition(eff)
 	
 	local thisImage = self.Images[eff.Handle]
 	
@@ -2641,48 +2645,48 @@ function VS2:ProcessTransition(eff)
 		local d = eff.Duration
 		
 		if eff.A1 and eff.A2 then
-			thisImage.Alpha = VS2:Ease(t, eff.A1, eff.A2-eff.A1, d)
+			thisImage.Alpha = VS3:Ease(t, eff.A1, eff.A2-eff.A1, d)
 		end
 		
 		if eff.S1 and eff.S2 then
-			thisImage.CustomScale = VS2:Ease(t, eff.S1, eff.S2-eff.S1, d)
+			thisImage.CustomScale = VS3:Ease(t, eff.S1, eff.S2-eff.S1, d)
 		end
 		
 		if eff.X1 and eff.X2 then
 			--thisImage.Alpha = 1
-			thisImage.X = VS2:Ease(t, eff.X1, eff.X2-eff.X1, d)
+			thisImage.X = VS3:Ease(t, eff.X1, eff.X2-eff.X1, d)
 		end
 		
 		if eff.Y1 and eff.Y2 then
 			--thisImage.Alpha = 1
-			thisImage.Y = VS2:Ease(t, eff.Y1, eff.Y2-eff.Y1, d)
+			thisImage.Y = VS3:Ease(t, eff.Y1, eff.Y2-eff.Y1, d)
 		end
 	
 	end
 	
 end
 
-function VS2:ProcessBGCrossfade(bg)
+function VS3:ProcessBGCrossfade(bg)
 
 	local t = ba.getFrametimeOverall() - bg.FadeStartTime
 	local d = bg.FadeDuration
 	local b = 1
 	local c = -1
 	
-	bg.Alpha = VS2:LinearEase(t, b, c, d)
+	bg.Alpha = VS3:LinearEase(t, b, c, d)
 
 end
 
-function VS2:LinearEase(t, b, c, d)
+function VS3:LinearEase(t, b, c, d)
   return c * t / d + b
 end
 
-function VS2:Ease(t,b,c,d)
+function VS3:Ease(t,b,c,d)
   t = t / d
   return -c * t * (t - 2) + b
 end
 
-function VS2:DrawMapIcon(icon, button, iconnum, spacing)
+function VS3:DrawMapIcon(icon, button, iconnum, spacing)
 
 	local x1 = button.BitmapX + (spacing * iconnum)
 	local y1 = button.BitmapY + button.BitmapHeight - (gr.getImageHeight(icon) * self.BG.Scaling)
@@ -2694,7 +2698,7 @@ function VS2:DrawMapIcon(icon, button, iconnum, spacing)
 
 end
 
-function VS2:Draw()
+function VS3:Draw()
 
 	if self.BG then
 		if self.BG.SolidBlack then
@@ -2794,7 +2798,7 @@ function VS2:Draw()
 					if v then
 						local image = v.Handle
 						if ba.getFrametimeOverall() < v.EndTime then
-							VS2:ProcessTransition(v)
+							VS3:ProcessTransition(v)
 						else
 							ba.print("VN: Transition time is up for " .. image .. "\n")
 							if self.Images[image] then
@@ -2861,7 +2865,7 @@ function VS2:Draw()
 				end
 			end
 				
-			if AXMessage.Enabled and AXMessage.DrawControl == "VS2" and self.ShowBox then
+			if AXMessage.Enabled and AXMessage.DrawControl == "VS3" and self.ShowBox then
 				AXMessage:UpdateString()
 				if not self.HideFlag then
 					AXMessage:Draw()
@@ -2924,7 +2928,7 @@ function VS2:Draw()
 
 end
 
-function VS2:DrawBitmap(entry, speaking)
+function VS3:DrawBitmap(entry, speaking)
 
 		local bitmap, bitmapAlt
 		local alpha = 1
@@ -3103,7 +3107,7 @@ function VS2:DrawBitmap(entry, speaking)
 		
 end
 
-function VS2:DrawDisplay(display)
+function VS3:DrawDisplay(display)
 
 	gr.drawImage(display.Background, display.X, display.Y)
 	
@@ -3128,7 +3132,7 @@ function VS2:DrawDisplay(display)
 
 end
 
-function VS2:Actions(mouse, pressed)
+function VS3:Actions(mouse, pressed)
 
 	local button
 
@@ -3186,7 +3190,7 @@ function VS2:Actions(mouse, pressed)
 				for i, v in ipairs(self.Menu.Item) do
 					if v:Clicked() or key == tostring(i) then
 						ad.playInterfaceSound(0)
-						VS2:WriteToVariable(self.Menu.Variable, i)
+						VS3:WriteToVariable(self.Menu.Variable, i)
 						self.Menu = nil
 						self.Scene:NextLine()
 					end
@@ -3211,11 +3215,11 @@ function VS2:Actions(mouse, pressed)
 						ad.playInterfaceSound(0)
 						--ba.print("VN: Map Button clicked, value selected was " .. tostring(v.Value) .. "\n")
 						self.Variables["_vnLocation"] = v.Value
-						VS2:WriteToVariable(self.LocationMap.resultVariable, v.Value)
+						VS3:WriteToVariable(self.LocationMap.resultVariable, v.Value)
 						
 						--ba.print("VN: Double checking vnLocation... " .. tostring(self.Variables["vnLocation"]) .. "\n")
 						if self.LocationMap.OldBG then
-							VS2:SetBG2({"SETBG",self.LocationMap.OldBG})
+							VS3:SetBG2({"SETBG",self.LocationMap.OldBG})
 						end
 												
 						self.LocationMap.Enabled = nil
@@ -3226,10 +3230,10 @@ function VS2:Actions(mouse, pressed)
 			end
 						
 			if button == "right" then
-				if VS2.ShowBox then
-					VS2.ShowBox = false
+				if VS3.ShowBox then
+					VS3.ShowBox = false
 				else
-					VS2.ShowBox = true
+					VS3.ShowBox = true
 				end
 			end
 									
@@ -3238,7 +3242,7 @@ function VS2:Actions(mouse, pressed)
 
 end
 
-function VS2:CheckTimers(currentTime)
+function VS3:CheckTimers(currentTime)
 
 	if currentTime > self.OkayTime and not AXMessage.Drawing and not self.Menu and self.Auto then
 		self.Auto = false
@@ -3247,7 +3251,7 @@ function VS2:CheckTimers(currentTime)
 				
 end
 
-function VS2:Exit(keepvars, initflag)
+function VS3:Exit(keepvars, initflag)
 
 	if self.Enabled then
 		ba.print("Exiting Visual Novel Script...\n")
@@ -3290,9 +3294,9 @@ function VS2:Exit(keepvars, initflag)
 		self.OkayTime = 0
 	end
 		
-	if VS2.MusicHandle then
-		ad.stopMusic(VS2.MusicHandle, true)
-		VS2.MusicHandle = nil
+	if VS3.MusicHandle then
+		ad.stopMusic(VS3.MusicHandle, true)
+		VS3.MusicHandle = nil
 	end
 	
 	if self.StayInGame then
@@ -3321,7 +3325,7 @@ function VS2:Exit(keepvars, initflag)
 	
 end
 
-function VS2:FreeToTalk()
+function VS3:FreeToTalk()
 
 	local result = 0
 
@@ -3334,7 +3338,7 @@ function VS2:FreeToTalk()
 
 end
 
-function VS2:CheckInterrupt(key)
+function VS3:CheckInterrupt(key)
 
 	if self.IntKey and self.IntKey == key then
 		ba.print("VN: INTERRUPT HIT!!!\n")
@@ -3404,23 +3408,23 @@ end
 $State: GS_STATE_GAME_PLAY
 $On Gameplay Start:
 [
-	--if VS2.Enabled then
-		VS2:Exit(false, true)
+	--if VS3.Enabled then
+		VS3:Exit(false, true)
 	--end
 ]
 
 $On State Start:
 [
-	if VS2.Running and VS2.ShowCursor then
+	if VS3.Running and VS3.ShowCursor then
 		io.setCursorHidden(false)
 	end	
 ]
 
 $On State End:
 [
-	if VS2.Running then
-		VS2.StayInGame = false
-		VS2:Exit()
+	if VS3.Running then
+		VS3.StayInGame = false
+		VS3:Exit()
 		AXUI.Ingame = false
 		AXUI:ScreenInit()
 	end
@@ -3429,29 +3433,29 @@ $On State End:
 $On Message Received:
 [
 
-	if VS2.Enabled and AXMessage.DrawControl == "VS2" then
+	if VS3.Enabled and AXMessage.DrawControl == "VS3" then
 		AXMessage:SetupMessage(hv.SenderString, hv.Name, hv.Message)
 	end
 ]
 
 $On Frame:
 [
-	if VS2.Enabled then
-		if not VS2.SDL2 then
+	if VS3.Enabled then
+		if not VS3.SDL2 then
 			io.setCursorHidden(false)
 		end
-		VS2:CheckTimers(ba.getFrametimeOverall())
-		VS2:Draw()
+		VS3:CheckTimers(ba.getFrametimeOverall())
+		VS3:Draw()
 		
-		if (not VS2.Lockdown) and mn.getMissionTime() < 0.1 then
+		if (not VS3.Lockdown) and mn.getMissionTime() < 0.1 then
 			if Lockdown then
 				Lockdown()
-				VS2.Lockdown = true
+				VS3.Lockdown = true
 			end
 		end
 		
-		--if VS2.Debug then
-			--PrintDebug(VS2.BGAlt)
+		--if VS3.Debug then
+			--PrintDebug(VS3.BGAlt)
 		--end
 
 	end
@@ -3460,14 +3464,14 @@ $On Frame:
 		Scroll:Draw()
 	end
 	
-	if VS2.ExpireTalk then
-		VS2.ExpireTalk = nil
-		VS2.CanTalk = nil
+	if VS3.ExpireTalk then
+		VS3.ExpireTalk = nil
+		VS3.CanTalk = nil
 		ba.print("VN: expiring talk status\n")
 	end
 	
-	if VS2.CanTalk then
-		VS2.ExpireTalk = true
+	if VS3.CanTalk then
+		VS3.ExpireTalk = true
 		ba.print("VN: expire talk next frame\n")
 	end
 			
@@ -3475,47 +3479,47 @@ $On Frame:
 
 $On Mouse Released:
 [
-	if VS2.Enabled then
-		VS2:Actions(hv.MouseButton, false)
+	if VS3.Enabled then
+		VS3:Actions(hv.MouseButton, false)
 	end
 ]
 
 $On Mouse Pressed:
 [
-	if VS2.Enabled then
-		VS2:Actions(hv.MouseButton, true)
+	if VS3.Enabled then
+		VS3:Actions(hv.MouseButton, true)
 	end
 ]
 
 $On Key Released:
 [
 	if hv.Key == "Alt-C" then
-		VS2.CanTalk = true
+		VS3.CanTalk = true
 	end
 		
-	if VS2.Enabled then
+	if VS3.Enabled then
 	
-		VS2:CheckInterrupt(hv.Key)
+		VS3:CheckInterrupt(hv.Key)
 	
 		if hv.Key == "0" then
-			if VS2.Debug then
-				VS2.Debug = false
+			if VS3.Debug then
+				VS3.Debug = false
 			else
-				VS2.Debug = true
+				VS3.Debug = true
 			end
 		end
 		
 		if hv.Key == "-" then
-			if VS2.ShowBox then
-				VS2.ShowBox = false
+			if VS3.ShowBox then
+				VS3.ShowBox = false
 			else
-				VS2.ShowBox = true
+				VS3.ShowBox = true
 			end
 		end
 		
 		--Break in case of emergency
 		--if hv.Key == "=" then
-		--	DumpToFile(VS2, "VNS")
+		--	DumpToFile(VS3, "VNS")
 		--	DumpToFile(AXMessage, "AXM")
 		--end
 	end
