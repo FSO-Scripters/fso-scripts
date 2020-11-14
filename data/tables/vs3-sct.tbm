@@ -210,7 +210,7 @@ function VS3:LoadScene(filename, start, stayInGame)
 		self.Scene:SeekStarts()
 				
 		if self.ParseVersion ~= 3 then
-			ba.error("VN: VS3 can only parse VN scripts of version 3. Found: Version " .. self.ParseVersion)
+			ba.error("VN: VS3 can only parse VN scripts of version 3. Found: Version " .. self.ParseVersion .. "!\n")
 		end
 				
 		if start then
