@@ -1,0 +1,14 @@
+FILEVERSION 3
+GOTO Start
+LABEL Start
+
+Self "Show Display?"
+SHOWDISPLAY disp type=Display align=CENTER y=0.1
+Self "Hide Display?"
+HIDEDISPLAY disp
+
+SETVAR shown shown + 1
+GOTO Start
+
+LABEL END
+ACTION ENDMISSION
