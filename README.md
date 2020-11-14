@@ -315,7 +315,7 @@ MENU <choice1> [choice2] [choice3] [choice4] [choice5] variable=<variable> [flag
 ```
 
 #### SETFLAG
-SETFLAG can be used to easily control the bitfields needed for the MENU command. It toggles (so not only sets!) individual bits of a variable. Count for the least significant bit starts at bit 1, not bit 0, because lua. Bit 1 also is the one that corresponds to choice 1. The first argument is the name of the variable to be changed (created and initialized to 0 if it does not exist). The second is the number of the bit to be changed. Syntax:
+SETFLAG can be used to easily control the bitfields needed for the MENU command. It toggles (so not only sets!) individual bits of a variable. Count for the least significant bit starts at bit 1, not bit 0, because lua. Bit 1 also is the one that corresponds to choice 1. The first argument is the name of the variable to be changed (created and initialized to 0 if it does not exist). The second is the number of the bit to be changed, or a the name of a variable specifying the bit number. Syntax:
 ```
 SETFLAG <variable> <bit number>
 ```
@@ -435,9 +435,9 @@ HIDEMAPICON <id>
 ```
 
 #### SHOWMAP
-The SHOWMAP command is what actually shows the map and blocks the script until the player made an input. It's first argument defines which variable will contain the index of the room the player clicked on. SHOWMAP can be called multiple times with the same map. This does not need multiple calls to LOADMAP. Do note though, that the position of the player icon (if it is displayed with SETMAPICON) will change to whichever room the player clicked last if SHOWMAP is called again. An optional second parameter can be NOFADE to indicate that the map should not fade out after it. Currently, the buttons only get activated after 1.1 seconds after displaying the map to avoid accidental clicking. Syntax:
+The SHOWMAP command is what actually shows the map and blocks the script until the player made an input. It's first argument defines which variable will contain the index of the room the player clicked on. SHOWMAP can be called multiple times with the same map. This does not need multiple calls to LOADMAP. Do note though, that the position of the player icon (if it is displayed with SETMAPICON) will change to whichever room the player clicked last if SHOWMAP is called again. An optional second parameter can be NOFADE to indicate that the map should not fade out after it. The flag option defined which buttons are clickable, equivalent to MENU. Note that this only works to up to 32 buttons. Currently, the buttons only get activated after 0.5 seconds after displaying the map to avoid accidental clicking. Syntax:
 ```
-SHOWMAP <target variable> [NOFADE]
+SHOWMAP <target variable> [NOFADE] [flag=<flag>]
 ```
 
 ### Interrupts
