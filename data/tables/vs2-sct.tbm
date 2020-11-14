@@ -2910,7 +2910,7 @@ function VS2:DrawBitmap(entry, speaking)
 			if self.Debug then debugString2 = debugString2 .. " Alt Filename: " .. bitmapAlt.Filename .. "\n" end
 			
 				if (entry.Repeat == 0) or (entry.Repeat == -1) then
-					if speaking then
+					if speaking or (entry.Repeat == -1) then
 						if bitmap.Handle:timeLeft() > 0.01 then
 							alpha = 1
 							alphaAlt = 0
