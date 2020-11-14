@@ -1963,7 +1963,7 @@ function VS3:ShowMap(t)
 		--ba.print("VN: Old Filename was " .. self.LocationMap.OldBG .. "\n")
 		self.Variables["_vnLocation"] = self.Variables["_vnLocation"] or 0
 		self.CurrentLocation = self.Variables["_vnLocation"]
-		self.OkayTime = ba.getFrametimeOverall() + 1.1
+		self.OkayTime = ba.getFrametimeOverall() + 0.5
 		
 		VS3:SetBG2({0,self.LocationMap.Data.Bitmap,"BESTFIT"})
 		
