@@ -1,5 +1,5 @@
 # Visual Script Versioning Guide
-The current version of the script is version 3.0.0-alpha
+The current version of the script is version 3.0.0
 ## On Versioning
 From version 3.0.0 onwards, the Visual Script follows semantic versioning. This means, a new major version (the first number) represents a new version that is not backwards compatible, and old scripts must be modified. A new minor version (the second number) means that new features were added but the script is still fully backwards compatible, while the patch (the third number) represents bugfixes within the current scope of the API.
 ## Conversion Guides
