@@ -1954,6 +1954,12 @@ function VS3:ShowMap(t)
 			self.MapNoFade = nil
 		end
 	
+		local flag = VS3:FindParam("flag", t)
+		local flagVariable = nil
+		if flag then
+			flagVariable = VS3:ReadFromVariable(flag)
+		end
+		
 		self.HideFlag = true
 		self.LocationMap.Enabled = true
 		if self.BG then
@@ -1986,6 +1992,13 @@ function VS3:ShowMap(t)
 			end
 		
 			local newButton = AXUI:CreateButton(nil, v.Bitmap.X, v.Bitmap.Y, nil, nil, "grey", "silver", "bright_white", v.Bitmap.Filename, 0, 0, bitmapHilite, bitmapClicked, false, 0, 1)
+		
+			if flagVariable then
+				if bit.checkBit(flagVariable, v.Index - 1) then
+					newButton.Hoverable = false
+					newButton.Clickable = false
+				end
+			end
 		
 			newButton.BitmapX = (newButton.BitmapX * self.BG.Scaling) + self.BG.Offsets.X
 			newButton.BitmapY = (newButton.BitmapY * self.BG.Scaling) + self.BG.Offsets.Y
@@ -2418,7 +2431,14 @@ function VS3:SetFlag(t)
 	axemParse:Validate("line " .. self.Scene.Line .. ": argument 1", t[2], "string")
 	
 	local flag = VS3:ReadFromVariable(t[2]) or 0
-	flag = bit.toggleBit(flag, t[3] - 1)
+	local bitNo = 1
+	if type(t[3]) == "string" then
+		bitNo = VS3:ReadFromVariable(t[3])
+	else
+		bitNo = t[3]
+	end
+	
+	flag = bit.toggleBit(flag, bitNo - 1)
 	
 	VS3:WriteToVariable(t[2], flag)
 
