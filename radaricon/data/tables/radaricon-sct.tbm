@@ -52,7 +52,7 @@ function RadarIcon:Init()
 end
 
 function RadarIcon:MaybeAddShip(ship)
-	if not ship.Class or not self.Teams[ship.Team.Name] then
+	if ship:getBreedName() ~= "Ship" or not self.Teams[ship.Team.Name] then
 		return
 	end
 
@@ -93,6 +93,7 @@ end
 
 function RadarIcon:EvaluateAlpha(ship, x, y) 
 	--Asteroth: Idea to make smaller ships switch to icon faster
+	--Mito: Shorter fade range in Nebulas
 	local alpha = 255
 	local dist = math.abs((ship.Position - hv.Player.Position):getDotProduct(hv.Player:getfvec(true)))
 	
