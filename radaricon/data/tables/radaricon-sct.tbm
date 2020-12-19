@@ -1,0 +1,218 @@
+#Conditional Hooks
+$Application: FS2_Open
+$On Game Init:
+[
+
+RadarIcon = {}
+
+function RadarIcon:Init()
+
+	self.Enabled = false
+	
+	self.ShipIconClasses = {}
+	self.WeaponIconClasses = {}
+	
+	self.ShipIcons = {}
+	self.WeaponIcons = {}
+	
+	self.Teams = {}
+	
+	if cf.fileExists("radaricon.cfg","data/config",true) then
+		self.Config = axemParse:ReadJSON("radaricon.cfg")
+	else
+		ba.error("RadarIcon: Config file missing! Cannot proceed!\n")
+		return
+	end
+	
+	for ship,textureName in pairs(self.Config.Ships) do
+		self.ShipIconClasses[ship] = gr.loadTexture(textureName)
+	end
+
+	for weapon,textureName in pairs(self.Config.Weapons) do
+		self.WeaponIconClasses[weapon] = gr.loadTexture(textureName)
+	end
+
+	self.Alpha = self.Config.Alpha
+	self.Alpha.ReticleNear = self.Alpha.ReticleNear * self.Alpha.ReticleNear
+	self.Alpha.ReticleFar = self.Alpha.ReticleFar * self.Alpha.ReticleFar
+	self.CenterX = gr.getScreenWidth() / 2
+	self.CenterY = gr.getScreenHeight() / 2
+
+end
+
+function RadarIcon:MaybeAddShip(ship)
+	if not ship.Class or not self.Teams[ship.Team.Name] then
+		return
+	end
+
+	local texture = self.ShipIconClasses[ship.Class.Name]
+	if texture ~= nil then
+		self.ShipIcons[ship] = texture
+	end
+end
+
+function RadarIcon:MaybeDeleteShip(ship)
+	if not ship.Class then
+		return
+	end
+
+	if self.ShipIcons[ship] ~= nil then
+		self.ShipIcons[ship] = nil
+	end
+end
+
+function RadarIcon:MaybeAddWeapon(weapon)
+	if not self.Teams[weapon.Team.Name] then
+		return
+	end
+
+	local texture = self.WeaponIconClasses[weapon.Class.Name]
+	if texture ~= nil then
+		self.WeaponIcons[weapon] = texture
+	end
+end
+
+function RadarIcon:MaybeDeleteWeapon(weapon)
+	if self.WeaponIcons[weapon] ~= nil then
+		self.WeaponIcons[weapon] = nil
+	end
+end
+
+-----------------------------
+
+function RadarIcon:EvaluateAlpha(ship, x, y) 
+	local alpha = 255
+	local dist = math.abs((ship.Position - hv.Player.Position):getDotProduct(hv.Player:getfvec(true)))
+	
+	if dist < self.Alpha.Near then
+		alpha = 0
+	elseif dist < self.Alpha.Far then
+		alpha = alpha * (dist - self.Alpha.Near) / (self.Alpha.Far - self.Alpha.Near)
+	end
+	
+	x = x - self.CenterX
+	y = y - self.CenterY
+	
+	local crosshairdist = math.sqrt(x * x + y * y) / self.CenterY
+
+	if crosshairdist < self.Alpha.ReticleNear then
+		alpha = 0
+	elseif crosshairdist < self.Alpha.ReticleFar then
+		alpha = alpha * (crosshairdist - self.Alpha.ReticleNear) / (self.Alpha.ReticleFar - self.Alpha.ReticleNear)
+	end
+	
+	return alpha
+end
+
+function RadarIcon:DrawIcon(obj, texture) 
+	local x, y = obj.Position:getScreenCoords()
+		
+	-- getScreenCoords returns one false insead of two coords if offscreen
+	if x ~= false then
+			
+		local alpha = RadarIcon:EvaluateAlpha(obj, x, y)
+		local r, g, b = obj.Team:getColor()
+		gr.setColor(r, g, b, alpha)
+		local wHalf = texture:getWidth() / 2
+		local hHalf = texture:getHeight() / 2
+		gr.drawMonochromeImage(texture, x - wHalf, y - hHalf, x + wHalf, y + hHalf, alpha)
+			
+	end
+end
+
+function RadarIcon:Draw() 
+	for ship, texture in pairs(self.ShipIcons) do
+		-- Only Draw when fully visible on Radar
+		-- This is an evil hack since evaluateNumericSEXP seems to have trouble with OPF_POSITIVE SEXPs 
+		if mn.evaluateSEXP("( = 2 ( is-ship-visible !" .. ship.Name .. "! ) )") then
+			RadarIcon:DrawIcon(ship, texture) 
+		end
+	end
+	
+	for weapon, texture in pairs(self.WeaponIcons) do
+		RadarIcon:DrawIcon(weapon, texture) 
+	end
+end
+
+mn.LuaSEXPs["lua-radaricon-activate"].Action = function(...)
+	RadarIcon.Enabled = true
+	
+	for k,val in ipairs(arg) do
+		RadarIcon.Teams[val[1]] = true
+	end
+	
+	local number = #mn.Ships
+	for i = 1, number, 1 do
+		RadarIcon:MaybeAddShip(mn.Ships[i])
+	end
+	number = #mn.Weapons
+	for i = 1, number, 1 do
+		RadarIcon:MaybeAddWeapon(mn.Weapons[i])
+	end
+end
+
+mn.LuaSEXPs["lua-radaricon-deactivate"].Action = function() 
+	RadarIcon.Enabled = false
+	RadarIcon.ShipIcons = {}
+	RadarIcon.WeaponIcons = {}
+	RadarIcon.Teams = {}
+end
+
+]
+
+$State: GS_STATE_GAME_PLAY
+$On Gameplay Start:
+[
+	RadarIcon:Init()
+]
+
+$On State End:
+[
+	RadarIcon.Enabled = false
+]
+
+$On Weapon Created:
+[
+	if RadarIcon.Enabled then
+		RadarIcon:MaybeAddWeapon(hv.Weapon)
+	end
+]
+
+$On Weapon Delete:
+[
+	if RadarIcon.Enabled then
+		RadarIcon:MaybeDeleteWeapon(hv.Weapon)
+	end
+]
+
+$On Ship Arrive:
+[
+	if RadarIcon.Enabled then
+		RadarIcon:MaybeAddShip(hv.Self)
+	end
+]
+
+$On Ship Depart:
+[
+	if RadarIcon.Enabled then
+		RadarIcon:MaybeDeleteShip(hv.Self)
+	end
+]
+
+$On Death:
+[
+	if RadarIcon.Enabled then
+		RadarIcon:MaybeDeleteShip(hv.Self)
+	end
+]
+
+$On HUD Draw:
+[
+	if RadarIcon.Enabled and hu.HUDDrawn and not hu.HUDDisabledExceptMessages and (gr.hasViewmode(VM_INTERNAL) or gr.hasViewmode(VM_CHASE)) then
+		if mn.getMissionTime() > 1 then
+			RadarIcon:Draw()
+		end
+	end
+]
+
+#End
