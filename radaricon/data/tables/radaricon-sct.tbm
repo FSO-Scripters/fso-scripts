@@ -36,6 +36,18 @@ function RadarIcon:Init()
 	self.CenterX = gr.getScreenWidth() / 2
 	self.CenterY = gr.getScreenHeight() / 2
 
+	if self.Config.AlwaysOn then
+	
+		self.Teams["Friendly"] = true
+		self.Teams["Hostile"] = true
+		self.Teams["Neutral"] = true
+		self.Teams["Traitor"] = true
+		self.Teams["Unknown"] = true
+		self.Enabled = true
+		RadarIcon:LoadShips()
+		
+	end
+
 end
 
 function RadarIcon:MaybeAddShip(ship)
@@ -79,6 +91,7 @@ end
 -----------------------------
 
 function RadarIcon:EvaluateAlpha(ship, x, y) 
+	--Asteroth: Idea to make smaller ships switch to icon faster
 	local alpha = 255
 	local dist = math.abs((ship.Position - hv.Player.Position):getDotProduct(hv.Player:getfvec(true)))
 	
@@ -136,13 +149,17 @@ function RadarIcon:Draw()
 	end
 end
 
-mn.LuaSEXPs["lua-radaricon-activate"].Action = function(...)
-	RadarIcon.Enabled = true
+function RadarIcon:Enable(...)
+	self.Enabled = true
 	
 	for k,val in ipairs(arg) do
-		RadarIcon.Teams[val[1]] = true
+		self.Teams[val[1]] = true
 	end
 	
+	RadarIcon:LoadShips()
+end 
+
+function RadarIcon:LoadShips()
 	local number = #mn.Ships
 	for i = 1, number, 1 do
 		RadarIcon:MaybeAddShip(mn.Ships[i])
@@ -153,12 +170,16 @@ mn.LuaSEXPs["lua-radaricon-activate"].Action = function(...)
 	end
 end
 
-mn.LuaSEXPs["lua-radaricon-deactivate"].Action = function() 
+function RadarIcon:Disable()
 	RadarIcon.Enabled = false
 	RadarIcon.ShipIcons = {}
 	RadarIcon.WeaponIcons = {}
 	RadarIcon.Teams = {}
 end
+
+mn.LuaSEXPs["lua-radaricon-activate"].Action = function(...) RadarIcon:Enable(...) end
+
+mn.LuaSEXPs["lua-radaricon-deactivate"].Action = function() RadarIcon:Disable() end
 
 ]
 
@@ -170,7 +191,7 @@ $On Gameplay Start:
 
 $On State End:
 [
-	RadarIcon.Enabled = false
+	RadarIcon:Disable()
 ]
 
 $On Weapon Created:
