@@ -105,6 +105,10 @@ function RadarIcon:EvaluateAlpha(ship, x, y)
 end
 
 function RadarIcon:DrawIcon(obj, texture) 
+	if hv.Player.Target == obj then
+		return
+	end
+
 	local x, y = obj.Position:getScreenCoords()
 		
 	-- getScreenCoords returns one false insead of two coords if offscreen
