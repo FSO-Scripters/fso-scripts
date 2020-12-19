@@ -33,8 +33,6 @@ function RadarIcon:Init()
 	end
 
 	self.Alpha = self.Config.Alpha
-	self.Alpha.ReticleNear = self.Alpha.ReticleNear * self.Alpha.ReticleNear
-	self.Alpha.ReticleFar = self.Alpha.ReticleFar * self.Alpha.ReticleFar
 	self.CenterX = gr.getScreenWidth() / 2
 	self.CenterY = gr.getScreenHeight() / 2
 
