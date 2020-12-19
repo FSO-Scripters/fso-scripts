@@ -24,18 +24,42 @@ function RadarIcon:Init()
 		return
 	end
 	
-	for ship,textureName in pairs(self.Config.Ships) do
-		self.ShipIconClasses[ship] = gr.loadTexture(textureName)
-	end
-
-	for weapon,textureName in pairs(self.Config.Weapons) do
-		self.WeaponIconClasses[weapon] = gr.loadTexture(textureName)
-	end
-
-	self.Alpha = self.Config.Alpha
 	self.Scalings = self.Config.Scale
 	self.CenterX = gr.getScreenWidth() / 2
 	self.CenterY = gr.getScreenHeight() / 2
+	
+	for ship,textureName in pairs(self.Config.Ships) do
+	
+		local scale = self.CenterY / 540 --Built for 1080p
+		
+		if self.Scalings[tb.ShipClasses[ship].Type.Name] ~= nil then
+			local locscale = self.Scalings[tb.ShipClasses[ship].Type.Name]
+			
+			scale = scale * locscale
+		end
+		
+		if scale > 1 then
+			scale = 1
+		end
+	
+		local loadedTex = gr.loadTexture(textureName)
+		local x = loadedTex:getWidth() * scale
+		local y = loadedTex:getHeight() * scale
+		local renderTex = gr.createTexture(128, 128, TEXTURE_STATIC)
+		gr.setTarget(renderTex)
+		gr.drawImage(loadedTex, 64-x/2, 64-y/2, 64+x/2, 64+y/2)
+		gr.setTarget()
+		
+		self.ShipIconClasses[ship] = renderTex
+	end
+
+	for weapon,textureName in pairs(self.Config.Weapons) do
+		local loadedTex = gr.loadTexture(textureName)
+		
+		self.WeaponIconClasses[weapon] = loadedTex
+	end
+
+	self.Alpha = self.Config.Alpha
 
 	if self.Config.AlwaysOn then
 	
@@ -91,11 +115,12 @@ end
 
 -----------------------------
 
-function RadarIcon:EvaluateAlpha(ship, x, y) 
+function RadarIcon:EvaluateAlpha(position, x, y) 
 	--Asteroth: Idea to make smaller ships switch to icon faster
 	--Mito: Shorter fade range in Nebulas
+	--EatThePath: Stack of icons
 	local alpha = 255
-	local dist = math.abs((ship.Position - hv.Player.Position):getDotProduct(hv.Player:getfvec(true)))
+	local dist = math.abs((position - hv.Player.Position):getDotProduct(hv.Player:getfvec(true)))
 	
 	if dist < self.Alpha.Near then
 		alpha = 0
@@ -122,19 +147,18 @@ function RadarIcon:DrawIcon(obj, texture)
 		return
 	end
 
-	local x, y = obj.Position:getScreenCoords()
+	local pos = obj.Position
+		
+	if obj:getBreedName() == "Ship" then
+		pos = obj:getCenterPosition()
+	end
+	local x, y = pos:getScreenCoords()
 		
 	-- getScreenCoords returns one false insead of two coords if offscreen
 	if x ~= false then
-			
-		local alpha = RadarIcon:EvaluateAlpha(obj, x, y)
+		local alpha = RadarIcon:EvaluateAlpha(pos, x, y)
 		local r, g, b = obj.Team:getColor()
 		gr.setColor(r, g, b, alpha)
-		
-		local scale = 1
-		if obj.Class.Type ~= nil and self.Scalings[obj.Class.Type.Name] ~= nil then
-			scale = self.Scalings[obj.Class.Type.Name]
-		end
 		
 		local wHalf = texture:getWidth() / 2 --* scale
 		local hHalf = texture:getHeight() / 2 --* scale
