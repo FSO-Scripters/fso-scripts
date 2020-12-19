@@ -33,6 +33,7 @@ function RadarIcon:Init()
 	end
 
 	self.Alpha = self.Config.Alpha
+	self.Scalings = self.Config.Scale
 	self.CenterX = gr.getScreenWidth() / 2
 	self.CenterY = gr.getScreenHeight() / 2
 
@@ -128,8 +129,14 @@ function RadarIcon:DrawIcon(obj, texture)
 		local alpha = RadarIcon:EvaluateAlpha(obj, x, y)
 		local r, g, b = obj.Team:getColor()
 		gr.setColor(r, g, b, alpha)
-		local wHalf = texture:getWidth() / 2
-		local hHalf = texture:getHeight() / 2
+		
+		local scale = 1
+		if obj.Class.Type ~= nil and self.Scalings[obj.Class.Type.Name] ~= nil then
+			scale = self.Scalings[obj.Class.Type.Name]
+		end
+		
+		local wHalf = texture:getWidth() / 2 --* scale
+		local hHalf = texture:getHeight() / 2 --* scale
 		gr.drawMonochromeImage(texture, x - wHalf, y - hHalf, x + wHalf, y + hHalf, alpha)
 			
 	end
@@ -211,14 +218,14 @@ $On Weapon Delete:
 $On Ship Arrive:
 [
 	if RadarIcon.Enabled then
-		RadarIcon:MaybeAddShip(hv.Self)
+		RadarIcon:MaybeAddShip(hv.Ship)
 	end
 ]
 
 $On Ship Depart:
 [
 	if RadarIcon.Enabled then
-		RadarIcon:MaybeDeleteShip(hv.Self)
+		RadarIcon:MaybeDeleteShip(hv.Ship)
 	end
 ]
 
