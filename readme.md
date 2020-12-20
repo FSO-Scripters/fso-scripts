@@ -8,7 +8,14 @@ Toggle this on or off in the mission with the lua-radaricon-activate and lua-rad
 To modify which ship is assigned to which radar icon, modify ``radaricon/data/config/radaricon.cfg``. If a ship should not be displayed with it's icon, remove the ship entry.
 In a similar fashion, weapons can have icons to be rendered on top of them.
 
-The RadarIcon Config file also defines where the icons start to fade. If a ship is (in flight direction) closer than ``Near`` (in meters), the icon will be transparent. If a ship is further away than ``Far``, it will be Opaque. Inbetween, the transparency is linerarly interpolated.
+The Alpha-Section configures more detail about how the icons are displayed or when they fade out of view.
+First off, the ``MaxOpacity`` value determines, how opaque the icons can be.
+If a ship is (in flight direction) closer than ``Near`` (in meters), the icon will become transparent. If a ship is further away than ``Far``, it will be Opaque (as defined by ``MaxOpacity``). Inbetween, the transparency is linerarly interpolated.
 If a ship is closer to the screen center than ``ReticleNear`` (in factor of screen height), the icon will be transparent. If a ship is further away from the screen center than ``ReticleFar``, it will be Opaque. Inbetween, the transparency is linerarly interpolated.
+The ``ClassMultiplier`` list then determines if these values should be multiplied for certain types of craft. In the default configuration, it makes fighter and bomber icons be visible closer to the player, and (super) cap icons only visible further away. More types can be added as needed.
+
+In a similar fashion, the ``Scale`` list determines the size of the icons by type.
+
+The ``AlwaysOn`` flag determines, if the script should run for all missions (``true``, useful for tacking it onto existing mods), or if it should only run when called by SEXP (``false``, useful for integrating it into a new mod as it allows for finer control of the script).
 
 The RadarIcon-Script uses Axems AxemParse module (though in reduced form, so if you depend on AxemParse, use your version!) for the config, and Svedalrain's radar icons.
