@@ -45,10 +45,17 @@ function RadarIcon:Init()
 		local loadedTex = gr.loadTexture(textureName)
 		local x = loadedTex:getWidth() * scale
 		local y = loadedTex:getHeight() * scale
-		local renderTex = gr.createTexture(128, 128, TEXTURE_STATIC)
+		local size = 32
+		
+		while size < x or size < y do
+			size = size * 2
+		end
+		
+		local renderTex = gr.createTexture(size, size, TEXTURE_STATIC)
 		gr.setTarget(renderTex)
-		gr.drawImage(loadedTex, 64-x/2, 64-y/2, 64+x/2, 64+y/2)
+		gr.drawImage(loadedTex, (size - x ) / 2, (size - y) / 2, (size + x) / 2, (size + y) / 2)
 		gr.setTarget()
+		loadedTex:unload()
 		
 		self.ShipIconClasses[ship] = renderTex
 	end
@@ -115,17 +122,26 @@ end
 
 -----------------------------
 
-function RadarIcon:EvaluateAlpha(position, x, y) 
-	--Asteroth: Idea to make smaller ships switch to icon faster
+function RadarIcon:EvaluateAlpha(position, x, y, typename) 
 	--Mito: Shorter fade range in Nebulas
 	--EatThePath: Stack of icons
+	--EatThePath: Default for species
+	--bogus: default max opacity
 	local alpha = 255
 	local dist = math.abs((position - hv.Player.Position):getDotProduct(hv.Player:getfvec(true)))
 	
-	if dist < self.Alpha.Near then
+	local multiplier = 1
+	if self.Alpha.ClassMultiplier[typename] ~= nil then
+		multiplier = self.Alpha.ClassMultiplier[typename]
+	end
+	
+	local near = self.Alpha.Near * multiplier
+	local far = self.Alpha.Far * multiplier
+	
+	if dist < near then
 		alpha = 0
-	elseif dist < self.Alpha.Far then
-		alpha = alpha * (dist - self.Alpha.Near) / (self.Alpha.Far - self.Alpha.Near)
+	elseif dist < far then
+		alpha = alpha * (dist - near) / (far - near)
 	end
 	
 	x = x - self.CenterX
@@ -148,20 +164,22 @@ function RadarIcon:DrawIcon(obj, texture)
 	end
 
 	local pos = obj.Position
+	local typename = ""
 		
 	if obj:getBreedName() == "Ship" then
 		pos = obj:getCenterPosition()
+		typename = obj.Class.Type.Name
 	end
 	local x, y = pos:getScreenCoords()
 		
 	-- getScreenCoords returns one false insead of two coords if offscreen
 	if x ~= false then
-		local alpha = RadarIcon:EvaluateAlpha(pos, x, y)
+		local alpha = RadarIcon:EvaluateAlpha(pos, x, y, typename)
 		local r, g, b = obj.Team:getColor()
 		gr.setColor(r, g, b, alpha)
 		
-		local wHalf = texture:getWidth() / 2 --* scale
-		local hHalf = texture:getHeight() / 2 --* scale
+		local wHalf = texture:getWidth() / 2
+		local hHalf = texture:getHeight() / 2
 		gr.drawMonochromeImage(texture, x - wHalf, y - hHalf, x + wHalf, y + hHalf, alpha)
 			
 	end
