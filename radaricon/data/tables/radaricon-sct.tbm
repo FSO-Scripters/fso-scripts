@@ -17,14 +17,6 @@ function RadarIcon:Init()
 	
 	self.Teams = {}
 	
-	self.DistanceMult = 1
-	
-	--Uncommenting this reduces the distance-based fade effect in a nebula
-	--Required SCP change is currently a PR (#2997) and may be included in one of the next nightlies
-	--if mn.isNebula() then
-	--	self.DistanceMult = 0.5
-	--end
-	
 	if cf.fileExists("radaricon.cfg","data/config",true) then
 		self.Config = axemParse:ReadJSON("radaricon.cfg")
 	else
@@ -75,6 +67,13 @@ function RadarIcon:Init()
 	end
 
 	self.Alpha = self.Config.Alpha
+	self.DistanceMult = 1
+	
+	--Uncommenting this reduces the distance-based fade effect in a nebula
+	--Required SCP change is currently a PR (#2997) and may be included in one of the next nightlies
+	--if mn.isNebula() then
+	--	self.DistanceMult = self.Alpha.NebulaMultiplier
+	--end
 
 	if self.Config.AlwaysOn then
 	
@@ -133,8 +132,7 @@ end
 function RadarIcon:EvaluateAlpha(position, x, y, typename) 
 	--EatThePath: Stack of icons
 	--EatThePath: Default for species
-	--bogus: default max opacity
-	local alpha = 255
+	local alpha = self.Alpha.MaxOpacity
 	local dist = math.abs((position - hv.Player.Position):getDotProduct(hv.Player:getfvec(true)))
 	
 	local multiplier = self.DistanceMult
