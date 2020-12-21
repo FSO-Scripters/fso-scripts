@@ -275,7 +275,7 @@ function RadarIcon:EvaluatePosition(obj, texture)
 			self.PositionMaps[name].Team = obj.Team
 		end
 		
-		table.insert(self.PositionMaps[name].Map, {x, y, pos, obj.Name})
+		table.insert(self.PositionMaps[name].Map, {x, y, pos})
 	end
 end
 
