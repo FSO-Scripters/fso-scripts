@@ -15,11 +15,10 @@ The ``ClassMultiplier`` list then determines if the Near / Far values should be 
 ``NebulaMultiplier`` has an additional effect on these values, if the mission is in a nebula (only enabled with new-engine flag, see below).
 An addition, if a ship is closer to the screen center than ``ReticleNear`` (in factor of screen height), the icon will be transparent. If a ship is further away from the screen center than ``ReticleFar``, it will be Opaque. Inbetween, the transparency is linerarly interpolated.
 
-
 In a similar fashion to the ``ClassMultiplier`` list, the ``Scale`` list determines the size of the icons by type.
 
 The ``AlwaysOn`` flag determines, if the script should run for all missions (``true``, useful for tacking it onto existing mods), or if it should only run when called by SEXP (``false``, useful for integrating it into a new mod as it allows for finer control of the script).
 
 The ``AtLeastNightly20201222`` flag must be set to false when using an engine prior to nightly 20.1.0-20201222, and should be true otherwise. Setting this flag to true enables the ``NebulaMultiplier``, as well as increases stability on low-end GPUs.
 
-The RadarIcon-Script uses Axems AxemParse module (though in reduced form, so if you depend on AxemParse, use your version!) for the config, and Svedalrain's radar icons.
+The RadarIcon-Script uses Axems AxemParse module (though in reduced form, so if you depend on AxemParse, use your version!) for the config, and Svedalrain's radar icons. Further thanks to Mito and EatThePath for testing and bugfixing.
