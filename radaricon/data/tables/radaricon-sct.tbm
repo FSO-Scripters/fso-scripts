@@ -31,7 +31,7 @@ function RadarIcon:Load()
 	end
 
 	for weapon,textureName in pairs(self.Config.Weapons) do
-		self.WeaponIconClasses[weapon] =  RadarIcon:BakeTexture(textureName, 1)
+		self.WeaponIconClasses[weapon] =  RadarIcon:BakeTexture(textureName, self.Scalings.Weapons)
 	end
 	
 	for species,types in pairs(self.Config.Species) do
@@ -71,7 +71,7 @@ function RadarIcon:Rebake()
 	end
 
 	for weapon,textureName in pairs(self.Config.Weapons) do
-		local tex = RadarIcon:BakeTexture(textureName, 1)
+		local tex = RadarIcon:BakeTexture(textureName, self.Scalings.Weapons)
 		self.WeaponIconClasses[weapon].Texture = tex.Texture
 		self.WeaponIconClasses[weapon].TextureMany = tex.TextureMany
 		self.WeaponIconClasses[weapon].Radius = tex.Radius
@@ -207,7 +207,7 @@ function RadarIcon:DrawIcon(team, species, actualtexture, pos, x, y)
 	local alpha = RadarIcon:EvaluateAlpha(pos, x, y, typename)
 	local r, g, b = team:getColor()
 	
-	if species and self.Colors[species.Name][team.Name] ~= nil then
+	if species and self.Colors[species.Name]~= nil and self.Colors[species.Name][team.Name] ~= nil then
 		r, g, b = unpack(self.Colors[species.Name][team.Name])
 	end
 	
@@ -262,8 +262,8 @@ function RadarIcon:MaybeAddWeapon(weapon, team)
 end
 
 function RadarIcon:MaybeDeleteWeapon(weapon)
-	if self.WeaponIcons[weapon] ~= nil then
-		self.WeaponIcons[weapon] = nil
+	if self.WeaponIcons[weapon:getSignature()] ~= nil then
+		self.WeaponIcons[weapon:getSignature()] = nil
 	end
 end
 
