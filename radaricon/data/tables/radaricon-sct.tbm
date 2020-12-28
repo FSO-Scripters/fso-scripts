@@ -49,7 +49,7 @@ function RadarIcon:Load()
 	self.Alpha = self.Config.Alpha
 	self.DistanceMult = 1
 	
-	if self.Config.AtLeastNightly20201225 then
+	if self.Config.AtLeast_20_1_0_RC1 then
 		if mn.isNebula() then
 			self.DistanceMult = self.Alpha.NebulaMultiplier
 		end
@@ -148,7 +148,7 @@ function RadarIcon:BakeTexture(filename, locscale)
 		
 	loadedTex:unload()
 	loadedTexBorder:unload()
-	if self.Config.AtLeastNightly20201225 then
+	if self.Config.AtLeast_20_1_0_RC1 then
 		renderTex:destroyRenderTarget()
 		renderTexMany:destroyRenderTarget()
 	end
@@ -196,7 +196,7 @@ function RadarIcon:GetObjSpecies(obj)
 end  
 
 function RadarIcon:DrawImageMonochrome(texture, x1, y1, x2, y2, alpha) 
-	if self.Config.AtLeastNightly20201225 then
+	if self.Config.AtLeast_20_1_0_RC1 then
 		gr.drawImage(texture, x1, y1, x2, y2, 0, 0, 1, 1, alpha, true)
 	else
 		gr.drawMonochromeImage(texture, x1, y1, x2, y2, alpha)
