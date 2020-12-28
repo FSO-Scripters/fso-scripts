@@ -476,8 +476,16 @@ $On Weapon Created:
 [
 	if RadarIcon.Enabled then
 		local team = hv.Weapon.Team
-		if hv.Weapon.Parent ~= nil then
-			team = hv.Weapon.Parent.Team
+		local parent = hv.Weapon.Parent
+		while parent ~= nil and parent:getBreedName() ~= "Ship" do
+			if parent:getSignature() == parent.Parent:getSignature() then
+				break
+			end
+			parent = parent.Parent
+		end
+
+		if parent ~= nil and parent:getBreedName() == "Ship" then
+			team = parent.Team
 		end
 		
 		if team then
