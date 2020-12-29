@@ -19,6 +19,6 @@ In a similar fashion to the ``ClassMultiplier`` list, the ``Scale`` list determi
 
 The ``AlwaysOn`` flag determines, if the script should run for all missions (``true``, useful for tacking it onto existing mods), or if it should only run when called by SEXP (``false``, useful for integrating it into a new mod as it allows for finer control of the script).
 
-The ``AtLeastNightly20201222`` flag must be set to false when using an engine prior to nightly 20.1.0-20201222, and should be true otherwise. Setting this flag to true enables the ``NebulaMultiplier``, as well as increases stability on low-end GPUs.
+The ``AtLeast_20_1_0_RC1`` flag must be set to false when using an engine prior to the first 20.1 release candidate or nightly 20.1.0-20201225, and should be true otherwise. Setting this flag to true enables the ``NebulaMultiplier``, as well as increases stability on low-end GPUs.
 
 The RadarIcon-Script uses Axems AxemParse module (though in reduced form, so if you depend on AxemParse, use your version!) for the config, and Svedalrain's radar icons. Further thanks to Mito and EatThePath for testing and bugfixing.
