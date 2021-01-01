@@ -170,6 +170,7 @@ function RadarIcon:Init()
 	self.WeaponIcons = {}
 	
 	self.Teams = {}
+	self.ColorCache = {}
 
 	if self.Config.AlwaysOn then
 	
@@ -203,12 +204,24 @@ function RadarIcon:DrawImageMonochrome(texture, x1, y1, x2, y2, alpha)
 	end
 end
 
-function RadarIcon:DrawIcon(team, species, actualtexture, pos, x, y) 
-	local alpha = RadarIcon:EvaluateAlpha(pos, x, y, typename)
-	local r, g, b = team:getColor()
+function RadarIcon:GetColor(species, team)
 	
+	local r, g, b = team:getColor()
 	if species and self.Colors[species.Name]~= nil and self.Colors[species.Name][team.Name] ~= nil then
 		r, g, b = unpack(self.Colors[species.Name][team.Name])
+	end
+
+	return r, g, b
+end
+
+function RadarIcon:DrawIcon(obj, team, species, actualtexture, pos, x, y) 
+	local alpha = RadarIcon:EvaluateAlpha(pos, x, y, typename)
+	local r, g, b
+
+	if team then
+		r, g, b = unpack(self.ColorCache[team])
+	else
+		r, g, b = RadarIcon:GetColor(species, obj.Team)
 	end
 	
 	if not r or not g or not b then
@@ -221,6 +234,22 @@ function RadarIcon:DrawIcon(team, species, actualtexture, pos, x, y)
 	local wHalf = actualtexture:getWidth() / 2
 	local hHalf = actualtexture:getHeight() / 2
 	RadarIcon:DrawImageMonochrome(actualtexture, x - wHalf, y - hHalf, x + wHalf, y + hHalf, alpha)
+end
+
+function RadarIcon:GetTeamColor(weapon, team, species)
+	local name = team.Name
+	
+	if species then
+		name = name .. species.Name
+	end
+	
+	if self.ColorCache[name] then
+		return name
+	end
+
+	self.ColorCache[name] = {RadarIcon:GetColor(species, team)}
+	
+	return name
 end
 
 function RadarIcon:MaybeAddShip(ship)
@@ -250,14 +279,14 @@ function RadarIcon:MaybeDeleteShip(ship)
 	end
 end
 
-function RadarIcon:MaybeAddWeapon(weapon, team)
-	if not self.Teams[weapon.Team.Name] then
+function RadarIcon:MaybeAddWeapon(weapon, team, colorteam)
+	if not self.Teams[team.Name] then
 		return
 	end
 
 	local texture = self.WeaponIconClasses[weapon.Class.Name]
 	if texture ~= nil then
-		self.WeaponIcons[weapon:getSignature()] = {weapon, texture, team}
+		self.WeaponIcons[weapon:getSignature()] = {weapon, texture, colorteam}
 	end
 end
 
@@ -275,11 +304,26 @@ function RadarIcon:LoadShips()
 	number = #mn.Weapons
 	for i = 1, number, 1 do
 		local team = mn.Weapons[i].Team
-		if mn.Weapons[i].Parent ~= nil then
-			team = mn.Weapons[i].Parent.Team
+		local parent = mn.Weapons[i].Parent
+		while parent ~= nil and parent:getBreedName() ~= "Ship" do
+			if parent:getSignature() == parent.Parent:getSignature() then
+				break
+			end
+			parent = parent.Parent
+		end
+
+		if parent ~= nil and parent:getBreedName() == "Ship" then
+			team = parent.Team
 		end
 		
-		RadarIcon:MaybeAddWeapon(mn.Weapons[i], team)
+		if team then
+			local species = nil
+			if parent ~= nil and parent:getBreedName() == "Ship" then
+				species = parent.Class.Species
+			end
+			
+			RadarIcon:MaybeAddWeapon(mn.Weapons[i], team, RadarIcon:GetTeamColor(mn.Weapons[i], team, species))
+		end
 	end
 end
 
@@ -298,6 +342,7 @@ function RadarIcon:Disable()
 	RadarIcon.ShipIcons = {}
 	RadarIcon.WeaponIcons = {}
 	RadarIcon.Teams = {}
+	RadarIcon.ColorCache = {}
 end
 
 -----------------------------
@@ -353,15 +398,11 @@ function RadarIcon:EvaluatePosition(obj, texture, team)
 			self.PositionMaps[name] = {}
 			self.PositionMaps[name].Map = {}
 			self.PositionMaps[name].Texture = texture
-			if not team then
-				self.PositionMaps[name].Team = obj.Team
-			else
-				self.PositionMaps[name].Team = team
-			end
+			self.PositionMaps[name].Team = team
 			self.PositionMaps[name].Species = RadarIcon:GetObjSpecies(obj)
 		end
 		
-		table.insert(self.PositionMaps[name].Map, {x, y, pos})
+		table.insert(self.PositionMaps[name].Map, {x, y, pos, obj})
 	end
 end
 
@@ -369,7 +410,7 @@ function RadarIcon:Cluster(map)
 	
 	if not self.Config.Merge.Active then
 		for i = 1, #map.Map, 1 do
-			RadarIcon:DrawIcon(map.Team, map.Species, map.Texture.Texture, map.Map[i][3], map.Map[i][1], map.Map[i][2])
+			RadarIcon:DrawIcon(map.Map[i][4], map.Team, map.Species, map.Texture.Texture, map.Map[i][3], map.Map[i][1], map.Map[i][2])
 		end
 		return
 	end
@@ -386,34 +427,34 @@ function RadarIcon:Cluster(map)
 					local dx = map.Map[i][1] - iconMap[j][1]
 					local dy = map.Map[i][2] - iconMap[j][2]
 					
-					if dx * dx + dy * dy < map.Texture.Radius * map.Texture.Radius * self.Config.Merge.Subsequent then
+					if dx * dx + dy * dy < map.Texture.Radius * map.Texture.Radius * self.Config.Merge.Subsequent and map.Map[i][3]:getDistance(hv.Player.Position) > self.Config.Merge.Near then
 						local closer = nil
 						if map.Map[i][3]:getDistance(hv.Player.Position) < iconMap[j][3]:getDistance(hv.Player.Position) then
-							closer = map.Map[i][3]
+							closer = map.Map[i]
 						else
-							closer = iconMap[j][3]
+							closer = iconMap[j]
 						end
-						iconMap[j] = {(map.Map[i][1] + iconMap[j][1]) / 2, (map.Map[i][2] + iconMap[j][2]) / 2, closer}
+						iconMap[j] = {(map.Map[i][1] + iconMap[j][1]) / 2, (map.Map[i][2] + iconMap[j][2]) / 2, closer[3], closer[4]}
 						map.Map[i] = nil
 						found = true
 					end
 				end
 			end
 			
-			if not found then
+			if not found and map.Map[i][3]:getDistance(hv.Player.Position) > self.Config.Merge.Near then
 				for j = i + 1, numPoints, 1 do
-					if not found and map.Map[j] ~= nil then
+					if not found and map.Map[j] ~= nil and map.Map[j][3]:getDistance(hv.Player.Position) > self.Config.Merge.Near then
 						local dx = map.Map[i][1] - map.Map[j][1]
 						local dy = map.Map[i][2] - map.Map[j][2]
 					
 						if dx * dx + dy * dy < map.Texture.Radius * map.Texture.Radius * self.Config.Merge.First then
 							local closer = nil
 							if map.Map[i][3]:getDistance(hv.Player.Position) < map.Map[j][3]:getDistance(hv.Player.Position) then
-								closer = map.Map[i][3]
+								closer = map.Map[i]
 							else
-								closer = map.Map[j][3]
+								closer = map.Map[j]
 							end
-							table.insert(iconMap, {(map.Map[i][1] + map.Map[j][1]) / 2, (map.Map[i][2] + map.Map[j][2]) / 2, closer})
+							table.insert(iconMap, {(map.Map[i][1] + map.Map[j][1]) / 2, (map.Map[i][2] + map.Map[j][2]) / 2, closer[3], closer[4]})
 							
 							map.Map[i] = nil
 							map.Map[j] = nil
@@ -425,13 +466,13 @@ function RadarIcon:Cluster(map)
 			
 			if not found then
 				--Our Icon has not found any cluster or other Icon in range. Render it
-				RadarIcon:DrawIcon(map.Team, map.Species, map.Texture.Texture, map.Map[i][3], map.Map[i][1], map.Map[i][2])
+				RadarIcon:DrawIcon(map.Map[i][4], map.Team, map.Species, map.Texture.Texture, map.Map[i][3], map.Map[i][1], map.Map[i][2])
 			end
 		end
 	end
 	
 	for i = 1, #iconMap, 1 do
-		RadarIcon:DrawIcon(map.Team, map.Species, map.Texture.TextureMany, iconMap[i][3], iconMap[i][1], iconMap[i][2])
+		RadarIcon:DrawIcon(iconMap[i][4], map.Team, map.Species, map.Texture.TextureMany, iconMap[i][3], iconMap[i][1], iconMap[i][2])
 	end
 end
 
@@ -489,7 +530,12 @@ $On Weapon Created:
 		end
 		
 		if team then
-			RadarIcon:MaybeAddWeapon(hv.Weapon, team)
+			local species = nil
+			if parent ~= nil and parent:getBreedName() == "Ship" then
+				species = parent.Class.Species
+			end
+			
+			RadarIcon:MaybeAddWeapon(hv.Weapon, team, RadarIcon:GetTeamColor(hv.Weapon, team, species))
 		end
 	end
 ]
