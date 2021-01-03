@@ -112,7 +112,7 @@ function RadarIcon:BakeTexture(filename, locscale)
 	local scale = self.Scale * locscale
 
 	local loadedTex = gr.loadTexture(filename)
-	local loadedTexBorder = gr.loadTexture(filename .. "-outline")
+	local loadedTexBorder = gr.loadTexture(filename .. "-o")
 	local x = loadedTex:getWidth() * scale
 	local y = loadedTex:getHeight() * scale
 	local size = 32
