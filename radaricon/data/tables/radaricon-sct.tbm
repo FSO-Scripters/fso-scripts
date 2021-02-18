@@ -48,6 +48,8 @@ function RadarIcon:Load()
 	
 	self.Alpha = self.Config.Alpha
 	self.DistanceMult = 1
+
+	self.IconOffset = self.Config.IconOffset
 	
 	if self.Config.AtLeast_20_1_0_RC1 then
 		if mn.isNebula() then
@@ -388,7 +390,13 @@ function RadarIcon:EvaluatePosition(obj, texture, team)
 		
 	if obj:getBreedName() == "Ship" then
 		pos = obj:getCenterPosition()
+			
+		if self.IconOffset[obj.Class.Name] then
+			local offset = self.IconOffset[obj.Class.Name]
+			pos = pos + obj.Orientation:unrotateVector(ba.createVector(offset[1], offset[2], offset[3]))
+		end
 	end
+	
 	local x, y = pos:getScreenCoords()
 		
 	-- getScreenCoords returns one false insead of two coords if offscreen
