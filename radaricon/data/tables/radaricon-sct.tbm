@@ -391,7 +391,7 @@ function RadarIcon:EvaluatePosition(obj, texture, team)
 	if obj:getBreedName() == "Ship" then
 		pos = obj:getCenterPosition()
 			
-		if self.IconOffset[obj.Class.Name] then
+		if self.IconOffset ~= nil and self.IconOffset[obj.Class.Name] then
 			local offset = self.IconOffset[obj.Class.Name]
 			pos = pos + obj.Orientation:unrotateVector(ba.createVector(offset[1], offset[2], offset[3]))
 		end
