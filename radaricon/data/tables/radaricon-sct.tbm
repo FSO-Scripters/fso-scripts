@@ -510,6 +510,13 @@ mn.LuaSEXPs["lua-radaricon-deactivate"].Action = function() RadarIcon:Disable() 
 
 ]
 
+$On Briefing Stage:
+[
+	if not RadarIcon.Loaded then
+		RadarIcon:Load()
+	end
+]
+
 $State: GS_STATE_GAME_PLAY
 $On Gameplay Start:
 [
