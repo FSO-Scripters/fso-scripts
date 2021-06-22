@@ -1,0 +1,17 @@
+#Lua SEXPs
+
+$Operator: lua-count-turrets
+$Category: Status
+$Subcategory: Weapons, Shields, and Engines
+$Minimum Arguments: 1
+$Maximum Arguments: 2
+$Return Type: Number
+$Description: Returns an the number of turrets left of a particular ship.
+$Parameter:
+	+Description: The ship to check
+	+Type: Ship
+$Parameter:
+	+Description: Which weapon the turret needs to carry at least one of to count. Counts all turrets by default.
+	+Type: String
+	
+#End

@@ -22,3 +22,10 @@ The ``AlwaysOn`` flag determines, if the script should run for all missions (``t
 The ``AtLeast_20_1_0_RC1`` flag must be set to false when using an engine prior to the first 20.1 release candidate or nightly 20.1.0-20201225, and should be true otherwise. Setting this flag to true enables the ``NebulaMultiplier``, as well as increases stability on low-end GPUs.
 
 The RadarIcon-Script uses Axems AxemParse module (though in reduced form, so if you depend on AxemParse, use your version!) for the config, and Svedalrain's radar icons. Further thanks to Mito and EatThePath for testing and bugfixing.
+
+## Additional SEXPs
+Located in ``additional_sexps/data``.
+
+This will be a collection of convenience SEXPs to make fredding easier.
+
+``Status > Weapons, Shields, and Engines > lua-count-turrets``: Meant to simplify displaying the number of turrets for a disarm objective without having to count, this sexp is intended to be used as the argument for ``directive-value``. It takes a ship whose turrets are to be counted, as well as the name of a weapon the turret needs to have to count (e.g. to only count certain Anti-Capital turrets, defaults to all turrets). 
