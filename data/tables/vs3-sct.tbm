@@ -7,7 +7,7 @@ $On Game Init:
 VS3 = {}
 
 function VS3:Init(ingame)
-	--THIS IS VERSION 3.0.0
+	--THIS IS VERSION 3.0.1
 
 
 	ba.print("*****Initializing Visual Novel System...\n")
@@ -140,8 +140,6 @@ function VS3:LoadScene(filename, start, stayInGame)
 		if Lockdown and self.Config.LockByDefault then Lockdown() end
 		
 		local config = self.Config
-		
-		self.LocationMap = nil
 
 		self.Scene = axemParse:Open(filename, "data/fiction")
 		
@@ -217,7 +215,7 @@ function VS3:LoadScene(filename, start, stayInGame)
 				
 		if start then
 			if self.Scene.Starts[start] then
-				ba.print("VN: Using start " .. start .. "at line " .. self.Scene.Starts[start] .. "\n")
+				ba.print("VN: Using start " .. start .. "at line " .. self.Scene.Starts[start].Line .. "\n")
 				self.Scene.Line = self.Scene.Starts[start].Line
 				self.Scene.IfDepth = self.Scene.Starts[start].IfDepth
 			else
@@ -3220,6 +3218,8 @@ function VS3:Actions(mouse, pressed)
 						--ba.print("VN: Double checking vnLocation... " .. tostring(self.Variables["vnLocation"]) .. "\n")
 						if self.LocationMap.OldBG then
 							VS3:SetBG2({"SETBG",self.LocationMap.OldBG})
+						else
+							VS3:SetBG2({"SETBG","NONE"})
 						end
 												
 						self.LocationMap.Enabled = nil
