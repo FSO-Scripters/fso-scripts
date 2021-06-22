@@ -80,6 +80,7 @@ Key | Value | Optional
 ``Graphics.<name>.MsgBox.Position.x`` | The relative x position of the message box (0 to 1)
 ``Graphics.<name>.MsgBox.Position.y`` | The relative y position of the message box (0 to 1)
 ``Graphics.<name>.DefaultBase`` | The filename denoting the default base (the background) for actors. ``<filename>_f`` will be shown in the foreground of the actors if it exists | &#x2713;
+
 Note that in JAD and WoD, two such configurations are used. One for screens with a horizontal resolution of more than 1280, and one for the rest.
 
 ### Configuring Actors & Characters
@@ -90,16 +91,20 @@ Key | Value | Optional
 ``Characters.<name>.Name`` | The name of the character displayed in the title bar of the message box (this one can contain spaces)
 ``Characters.<name>.Color[]`` | The R, G, B, A values of the name of this character in the title bar
 ``Characters.<name>.DefaultVoice`` | The filename of a voice clip to be played with each line this character speaks. Use this if your characters have generic mumbling sounds | &#x2713;
+
 For the actors, similarly a name must be assigned. This name corresponds to the actor option in the SHOW command. Note that the config never specifies which actor belongs to which character. This can be used to assign an actor to multiple characters in the VN script, but the use cases are limited for this. The actors as defined in the 
 Key | Value | Optional
 -|-|-
 ``Actors.<actor>.Base`` | The filename denoting the base (the background) for this actor. ``<filename>_f`` will be shown in the foreground if it exists | &#x2713;
+
 The rest of the actor is only a collection of an arbitrary number of emotions (each with their own name). The default emotion for an actor is expected to be called "neutral".
 Key | Value | Optional
 -|-|-
 ``Actors.<actor>.<emote>.File`` | The filename of the image with the actor with this emote. If no Idle file is specified, the Idle file will be assumed to be located at ``<filename>_b``, but if no special idle animation is needed, the idle file does not need to exist.
 ``Actors.<actor>.<emote>.Idle`` | The filename of the idle file depicting the actor with this emote when the character is not speaking (note that Idle files are only used with animated sprites)  | &#x2713;
-``Actors.<actor>.<emote>.Loop`` | _This must ONLY be set for animated sprites!_<br/> This value defines when and which animation of this emotion is played.<br/> See following Loop-table:
+``Actors.<actor>.<emote>.Loop`` | _This must ONLY be set for animated sprites!_<br/> This value defines when and which animation of this emotion is played.<br/> See following 
+
+Loop-table:
 
 Loop | Name | Effect
 -|-|-
@@ -180,7 +185,7 @@ To write a message to the screen, simply write the ID of the character that spea
 <sender> <text> [list of options] [AUTO]
 ```
 option | effect
--|-|-
+-|-
 voice | If set, plays the specified sound file when showing this line 
 font | If set, overrides the text font with the specified font from the OverrideFonts font
 speed | If set, overrides the default speed this line is unveiled at
@@ -294,6 +299,7 @@ HIDECURSOR | Hides the player's cursor. Syntax:<br> ```ACTION HIDECURSOR```
 SHOWCURSOR | Unhides the player's cursor. Syntax:<br> ```ACTION SHOWCURSOR```
 HIDEBOX | Hides the dialog box. Syntax:<br> ```ACTION HIDEBOX```
 SHOWBOX | Unhides the dialog box. Syntax:<br> ```ACTION SHOWBOX```
+
 #### WAIT
 The WAIT command pauses execution of the VN script for a specified duration of time in seconds. With four exceptions, all commands don't take time to execute and the script will continue evaluating the next lines even if the initiated result of a command (for example a MOVE command) is not yet finished. These exceptions are:
 - The ``ACTION FADEIN`` and ``ACTION FADEOUT`` commands block the script for their duration.
@@ -379,6 +385,7 @@ option | effect | default
 x | The x coordinate of the display relative to the screen size. | 0.5
 y | The y coordinate of the display relative to the screen size. | 0.5
 align | Where the x coordinate refers to on the display. Can be LEFT (edge of it's background image), RIGHT (edge of it's background image) or CENTER. | LEFT
+
 #### HIDEDISPLAY
 HIDEDISPLAY hides a previously shown display with a defined ID. Syntax:
 ```
@@ -452,6 +459,7 @@ NONE | This makes the interrupt exclusively triggerable by code with FORCEINT
 ``"@<button filename>"`` | This displays a button to trigger the interrupt. The button will be the specified filename, with (as with all buttons) ``<filename>_h`` being the image to be displayed if the button is hovered and ``<filename>_c`` the image to be displayed when the button is clicked.
 PAUSE | This hides the button until an INTRETURN command. This is recommended to execute at the beginning of an interrupt, as clicking the interrupt when already in an interrupt will overwrite the return position, trapping the player in an infinite loop in the interrupt.
 NULL | This clears the interrupt. Note that this only means the interrupt cannot be called anymore, but the player will stay in the interrupt until an INTRETURN command
+
 Except for NULL and PAUSE, all SETINT modes take the interrupt target label as the second argument. The third argument is where the player returns to after an INTRETURN, in relative line offset to the position where the interrupt was triggered. By default this is 1, meaning that after an INTRETURN, the script will continue executing with the first line that had not been executed by the time the interrupt was triggered. 
 Note that only one interrupt can be active at any one time. Syntax:
 ```
@@ -487,6 +495,7 @@ Major&nbsp;Version | Notes
 Version&nbsp;3 | This is the version this documentation is about. It is not backwards compatible, so only files tagged with FILEVERSION 3 will be parsed. See [conversion guide](conversionguide.md) for more details.
 Version&nbsp;2 | This is the version most commonly known as it was shipped with WoD and JAD. It is backwards compatible to version 1, but only enables features of version 2 with FILEVERSION 2.
 Version&nbsp;1 | This version was entirely implemented in SEXPs and thus feature the FILEVERSION command, thus no FILEVERSION command will imply a version 1 script.
+
 Syntax:
 ```
 FILEVERSION <major version number>
