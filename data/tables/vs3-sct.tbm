@@ -7,7 +7,7 @@ $On Game Init:
 VS3 = {}
 
 function VS3:Init(ingame)
-	--THIS IS VERSION 3.0.1
+	--THIS IS VERSION 3.0.2
 
 
 	ba.print("*****Initializing Visual Novel System...\n")
@@ -2777,7 +2777,10 @@ function VS3:Draw()
 					local b = self.Fade.A1
 					local c = self.Fade.A2 - self.Fade.A1
 					local d = self.Fade.Duration
-					local alpha = (c * t / d + b)
+					local alpha = self.Fade.A2
+					if d > 0.01 then
+						alpha = (c * t / d + b)
+					end
 					--ba.print(alpha.."\n")
 					gr.setColor(self.Fade.Color[1], self.Fade.Color[2], self.Fade.Color[3], alpha)
 					gr.drawRectangle(0,0,AXUI.Screen.w, AXUI.Screen.h)
@@ -2907,7 +2910,10 @@ function VS3:Draw()
 					local b = self.Fade.A1
 					local c = self.Fade.A2 - self.Fade.A1
 					local d = self.Fade.Duration
-					local alpha = (c * t / d + b)
+					local alpha = self.Fade.A2
+					if d > 0.01 then
+						alpha = (c * t / d + b)
+					end
 					--ba.print(alpha.."\n")
 					gr.setColor(self.Fade.Color[1], self.Fade.Color[2], self.Fade.Color[3], alpha)
 					gr.drawRectangle(0,0,AXUI.Screen.w, AXUI.Screen.h)
