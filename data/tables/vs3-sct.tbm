@@ -7,7 +7,7 @@ $On Game Init:
 VS3 = {}
 
 function VS3:Init(ingame)
-	--THIS IS VERSION 3.0.2
+	--THIS IS VERSION 3.0.3
 
 
 	ba.print("*****Initializing Visual Novel System...\n")
@@ -2120,7 +2120,10 @@ function VS3:CreateMenu(t)
 	self.Menu:UpdateList(0)
 	self.Menu.Variable = variable
 	
-	local flagVariable = VS3:ReadFromVariable(flag)
+	local flagVariable = nil
+	if flag then
+		flagVariable = VS3:ReadFromVariable(flag)
+	end
 	
 	if flagVariable then
 		for i, v in ipairs(self.Menu.Item) do
