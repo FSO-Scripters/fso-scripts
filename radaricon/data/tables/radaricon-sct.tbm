@@ -44,6 +44,10 @@ function RadarIcon:Load()
 		end
 	end
 	
+	if self.Config.FuzzyIcon then
+		self.FuzzyIcon = RadarIcon:BakeTexture(self.Config.FuzzyIcon, 1)
+	end
+	
 	self.Colors = self.Config.Colors
 	
 	self.Alpha = self.Config.Alpha
@@ -91,22 +95,31 @@ function RadarIcon:Rebake()
 			self.GenericIconClasses[species .. typename].Radius = tex.Radius
 		end
 	end
+	
+	if self.Config.FuzzyIcon then
+		self.FuzzyIcon = RadarIcon:BakeTexture(self.Config.FuzzyIcon, 1)
+	end
 end
 
 function RadarIcon:Cleanup()
 	for ship,texture in pairs(self.ShipIconClasses) do
 		texture.Texture:unload()
-		texture.TextureMany:unload();
+		texture.TextureMany:unload()
 	end
 	
 	for weapon,texture in pairs(self.WeaponIconClasses) do
 		texture.Texture:unload()
-		texture.TextureMany:unload();
+		texture.TextureMany:unload()
 	end
 	
 	for generic,texture in pairs(self.GenericIconClasses) do
 		texture.Texture:unload()
-		texture.TextureMany:unload();
+		texture.TextureMany:unload()
+	end
+	
+	if self.FuzzyIcon then
+		self.FuzzyIcon.Texture:unload()
+		self.FuzzyIcon.TextureMany:unload()
 	end
 end
 
@@ -416,7 +429,7 @@ function RadarIcon:EvaluateAlpha(position, x, y, typename)
 	return alpha
 end
 
-function RadarIcon:EvaluatePosition(obj, texture, team) 
+function RadarIcon:EvaluatePosition(obj, texture, team, hidden) 
 	if hv.Player.Target == obj then
 		return
 	end
@@ -437,6 +450,9 @@ function RadarIcon:EvaluatePosition(obj, texture, team)
 	-- getScreenCoords returns one false insead of two coords if offscreen
 	if x ~= false then
 		local name = obj.Class.Name .. obj.Team.Name
+		if hidden then
+			name = name .. ";hid"
+		end
 		if not self.PositionMaps[name] then
 			self.PositionMaps[name] = {}
 			self.PositionMaps[name].Map = {}
@@ -527,13 +543,15 @@ function RadarIcon:Draw()
 		-- This is an evil hack since evaluateNumericSEXP seems to have trouble with OPF_POSITIVE SEXPs 
 		local name = texture[1].Name:gsub("!", "!!")
 		
-		if mn.evaluateSEXP("( = 2 ( is-ship-visible !" .. name .. "! ) )") then
-			RadarIcon:EvaluatePosition(texture[1], texture[2], nil)
+		if mn.evaluateSEXP("( = 2 ( is-ship-visible !" .. name .. "! ) )") and not texture[1].HiddenFromSensors then
+			RadarIcon:EvaluatePosition(texture[1], texture[2], nil, false)
+		elseif self.FuzzyIcon and (texture[1].HiddenFromSensors or mn.evaluateSEXP("( = 1 ( is-ship-visible !" .. name .. "! ) )")) then
+			RadarIcon:EvaluatePosition(texture[1], self.FuzzyIcon, nil, true)
 		end
 	end
 	
 	for weapon, texture in pairs(self.WeaponIcons) do
-		RadarIcon:EvaluatePosition(texture[1], texture[2], texture[3])
+		RadarIcon:EvaluatePosition(texture[1], texture[2], texture[3], false)
 	end
 	
 	for k,map in pairs(self.PositionMaps) do
