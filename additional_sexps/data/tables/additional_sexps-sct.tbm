@@ -1,0 +1,55 @@
+#Conditional Hooks
+$Application: FS2_Open
+
+$On Game Init:
+[
+
+function CountTurrets(ship, weaponname)
+	
+	if not ship or not ship:isValid() or ship.HitpointsLeft <= 0 then
+		return 0
+	end
+
+	local numSubsys = #ship
+	
+	local turrCnt = 0
+	
+	local weaponclass = nil
+	
+	if weaponname ~= nil then
+		weaponclass = tb.WeaponClasses[weaponname]
+	end
+	
+	for i = 1, numSubsys, 1 do
+		local subsys = ship[i]
+		
+		if subsys:isValid() and subsys:isTurret() and subsys.HitpointsLeft > 0 then
+			if not weaponclass then
+				turrCnt = turrCnt + 1
+			else
+				local bank = subsys.PrimaryBanks
+				local wpnum = #bank
+				local hasWeapon = false
+				
+				for j = 1, wpnum, 1 do
+					if bank[j].WeaponClass == weaponclass then
+						hasWeapon = true
+						break
+					end
+				end
+				
+				if hasWeapon then
+					turrCnt = turrCnt + 1
+				end				
+			end
+		end
+	end
+
+	return turrCnt
+end
+
+mn.LuaSEXPs["lua-count-turrets"].Action = CountTurrets
+
+]
+
+#End

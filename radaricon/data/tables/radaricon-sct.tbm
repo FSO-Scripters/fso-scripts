@@ -44,10 +44,16 @@ function RadarIcon:Load()
 		end
 	end
 	
+	if self.Config.FuzzyIcon then
+		self.FuzzyIcon = RadarIcon:BakeTexture(self.Config.FuzzyIcon, 1)
+	end
+	
 	self.Colors = self.Config.Colors
 	
 	self.Alpha = self.Config.Alpha
 	self.DistanceMult = 1
+
+	self.IconOffset = self.Config.IconOffset
 	
 	if self.Config.AtLeast_20_1_0_RC1 then
 		if mn.isNebula() then
@@ -89,22 +95,31 @@ function RadarIcon:Rebake()
 			self.GenericIconClasses[species .. typename].Radius = tex.Radius
 		end
 	end
+	
+	if self.Config.FuzzyIcon then
+		self.FuzzyIcon = RadarIcon:BakeTexture(self.Config.FuzzyIcon, 1)
+	end
 end
 
 function RadarIcon:Cleanup()
 	for ship,texture in pairs(self.ShipIconClasses) do
 		texture.Texture:unload()
-		texture.TextureMany:unload();
+		texture.TextureMany:unload()
 	end
 	
 	for weapon,texture in pairs(self.WeaponIconClasses) do
 		texture.Texture:unload()
-		texture.TextureMany:unload();
+		texture.TextureMany:unload()
 	end
 	
 	for generic,texture in pairs(self.GenericIconClasses) do
 		texture.Texture:unload()
-		texture.TextureMany:unload();
+		texture.TextureMany:unload()
+	end
+	
+	if self.FuzzyIcon then
+		self.FuzzyIcon.Texture:unload()
+		self.FuzzyIcon.TextureMany:unload()
 	end
 end
 
@@ -214,7 +229,7 @@ function RadarIcon:GetColor(species, team)
 	return r, g, b
 end
 
-function RadarIcon:DrawIcon(obj, team, species, actualtexture, pos, x, y) 
+function RadarIcon:DrawIcon(obj, team, species, actualtexture, pos, x, y, texrad) 
 	local alpha = RadarIcon:EvaluateAlpha(pos, x, y, typename)
 	local r, g, b
 
@@ -228,11 +243,46 @@ function RadarIcon:DrawIcon(obj, team, species, actualtexture, pos, x, y)
 		--Panic, we have no color!
 		return
 	end
-	
+		
+	local adaptScale = 1
+		
+	if self.Config.AtLeast_20_1_0_RC1 and self.Config.AdaptiveScale then
+		local l, t, ri, bo = gr.drawTargetingBrackets(obj, false, 0)
+		
+		if l~= nil and t ~= nil and ri~= nil and bo ~= nil then		
+			local h = bo - t
+			local w = ri - l
+		
+			--if h < w then
+			--	adaptScale = h / texrad * self.Config.AdaptiveScaleMult
+			--else
+			--  adaptScale = w / texrad * self.Config.AdaptiveScaleMult
+			--end
+			adaptScale = ((w + h)/2) / texrad * self.Config.AdaptiveScaleMult
+		
+			if adaptScale < self.Config.AdaptiveScale then
+				adaptScale = self.Config.AdaptiveScale
+			end
+			
+			local onscreensize = texrad * adaptScale / self.CenterY
+			
+			if onscreensize > self.Config.AdaptiveScaleMaxSize1 then
+				if onscreensize > self.Config.AdaptiveScaleMaxSize2 then
+					alpha = 0
+				else
+					alpha = alpha * (1 - (onscreensize - self.Config.AdaptiveScaleMaxSize1) / (self.Config.AdaptiveScaleMaxSize2 - self.Config.AdaptiveScaleMaxSize1))
+				end
+			end
+		elseif obj:getBreedName() == "Ship" then
+			alpha = 0
+		end
+	end
+		
 	gr.setColor(r, g, b, alpha)
 		
-	local wHalf = actualtexture:getWidth() / 2
-	local hHalf = actualtexture:getHeight() / 2
+	local wHalf = actualtexture:getWidth() / 2 * adaptScale
+	local hHalf = actualtexture:getHeight() / 2 * adaptScale
+	
 	RadarIcon:DrawImageMonochrome(actualtexture, x - wHalf, y - hHalf, x + wHalf, y + hHalf, alpha)
 end
 
@@ -379,7 +429,7 @@ function RadarIcon:EvaluateAlpha(position, x, y, typename)
 	return alpha
 end
 
-function RadarIcon:EvaluatePosition(obj, texture, team) 
+function RadarIcon:EvaluatePosition(obj, texture, team, hidden) 
 	if hv.Player.Target == obj then
 		return
 	end
@@ -388,12 +438,21 @@ function RadarIcon:EvaluatePosition(obj, texture, team)
 		
 	if obj:getBreedName() == "Ship" then
 		pos = obj:getCenterPosition()
+			
+		if self.IconOffset ~= nil and self.IconOffset[obj.Class.Name] then
+			local offset = self.IconOffset[obj.Class.Name]
+			pos = pos + obj.Orientation:unrotateVector(ba.createVector(offset[1], offset[2], offset[3]))
+		end
 	end
+	
 	local x, y = pos:getScreenCoords()
 		
 	-- getScreenCoords returns one false insead of two coords if offscreen
 	if x ~= false then
 		local name = obj.Class.Name .. obj.Team.Name
+		if hidden then
+			name = name .. ";hid"
+		end
 		if not self.PositionMaps[name] then
 			self.PositionMaps[name] = {}
 			self.PositionMaps[name].Map = {}
@@ -410,7 +469,7 @@ function RadarIcon:Cluster(map)
 	
 	if not self.Config.Merge.Active then
 		for i = 1, #map.Map, 1 do
-			RadarIcon:DrawIcon(map.Map[i][4], map.Team, map.Species, map.Texture.Texture, map.Map[i][3], map.Map[i][1], map.Map[i][2])
+			RadarIcon:DrawIcon(map.Map[i][4], map.Team, map.Species, map.Texture.Texture, map.Map[i][3], map.Map[i][1], map.Map[i][2], map.Texture.Radius)
 		end
 		return
 	end
@@ -466,13 +525,13 @@ function RadarIcon:Cluster(map)
 			
 			if not found then
 				--Our Icon has not found any cluster or other Icon in range. Render it
-				RadarIcon:DrawIcon(map.Map[i][4], map.Team, map.Species, map.Texture.Texture, map.Map[i][3], map.Map[i][1], map.Map[i][2])
+				RadarIcon:DrawIcon(map.Map[i][4], map.Team, map.Species, map.Texture.Texture, map.Map[i][3], map.Map[i][1], map.Map[i][2], map.Texture.Radius)
 			end
 		end
 	end
 	
 	for i = 1, #iconMap, 1 do
-		RadarIcon:DrawIcon(iconMap[i][4], map.Team, map.Species, map.Texture.TextureMany, iconMap[i][3], iconMap[i][1], iconMap[i][2])
+		RadarIcon:DrawIcon(iconMap[i][4], map.Team, map.Species, map.Texture.TextureMany, iconMap[i][3], iconMap[i][1], iconMap[i][2], map.Texture.Radius)
 	end
 end
 
@@ -482,13 +541,17 @@ function RadarIcon:Draw()
 	for ship, texture in pairs(self.ShipIcons) do
 		-- Only Draw when fully visible on Radar
 		-- This is an evil hack since evaluateNumericSEXP seems to have trouble with OPF_POSITIVE SEXPs 
-		if mn.evaluateSEXP("( = 2 ( is-ship-visible !" .. texture[1].Name .. "! ) )") then
-			RadarIcon:EvaluatePosition(texture[1], texture[2], nil)
+		local name = texture[1].Name:gsub("!", "!!")
+		
+		if mn.evaluateSEXP("( = 2 ( is-ship-visible !" .. name .. "! ) )") and not texture[1].HiddenFromSensors then
+			RadarIcon:EvaluatePosition(texture[1], texture[2], nil, false)
+		elseif self.FuzzyIcon and (texture[1].HiddenFromSensors or mn.evaluateSEXP("( = 1 ( is-ship-visible !" .. name .. "! ) )")) then
+			RadarIcon:EvaluatePosition(texture[1], self.FuzzyIcon, nil, true)
 		end
 	end
 	
 	for weapon, texture in pairs(self.WeaponIcons) do
-		RadarIcon:EvaluatePosition(texture[1], texture[2], texture[3])
+		RadarIcon:EvaluatePosition(texture[1], texture[2], texture[3], false)
 	end
 	
 	for k,map in pairs(self.PositionMaps) do
@@ -500,6 +563,13 @@ mn.LuaSEXPs["lua-radaricon-activate"].Action = function(...) RadarIcon:Enable(..
 
 mn.LuaSEXPs["lua-radaricon-deactivate"].Action = function() RadarIcon:Disable() end
 
+]
+
+$On Briefing Stage:
+[
+	if not RadarIcon.Loaded then
+		RadarIcon:Load()
+	end
 ]
 
 $State: GS_STATE_GAME_PLAY
