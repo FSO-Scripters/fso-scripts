@@ -6,6 +6,31 @@ $On Game Init:
 
 VS3 = {}
 
+-- use better random functions than the Lua-supplied C ones
+;;FSO 20.1.0.20200727;; VS3.rand32 = ba.rand32
+;;FSO 20.1.0.20200727;; !*
+VS3.rand32 = function(a, b)
+	if a and b then
+		return math.random(a, b)
+	elseif a then
+		return math.random(a) - 1
+	else
+		return math.random(0, 0x7fffffff)
+	end
+end
+;;FSO 20.1.0.20200727;; *!
+
+;;FSO 21.5.0.20211107;;	VS3.rand32f = ba.rand32f
+;;FSO 21.5.0.20211107;; !*
+VS3.rand32f = function(max)
+	local result = math.random()
+	if max then
+		result = result * max
+	end
+	return result
+end
+;;FSO 21.5.0.20211107;; *!
+
 function VS3:Init(hideCursor)
 	--THIS IS VERSION 3.0.3
 	
@@ -581,6 +606,39 @@ function VS3:ReturnFromInterrupt()
 
 end
 
+-- This function essentially duplicates the "fadeout" action
+function VS3:SetFadeout(r, g, b, t)
+	r = r or 0
+	g = g or 0
+	b = b or 0
+	t = (t or 2000) / 1000
+
+	if not self.Enabled then
+		return
+	end
+	if r < 0 or r > 255 or g < 0 or g > 255 or b < 0 or b > 255 then
+		ba.warning("RGB values must be from 0 to 255!")
+		return
+	end
+	if t < 0 then
+		ba.warning("Fade out time must be positive!")
+		return
+	end
+
+	self.Fade = {}
+	self.Fade.Color = {r,g,b}
+	self.Fade.A1 = 0
+	self.Fade.A2 = 255
+	self.Fade.StartTime = ba.getFrametimeOverall()
+	self.Fade.EndTime = ba.getFrametimeOverall() + 9999 --wat is this
+	self.Fade.Duration = t
+	VS3:Wait(t, true)
+	ba.print("VN: Fadeout set!\n")
+end
+mn.LuaSEXPs["lua-vn-fade-out"].Action = function(r, g, b, t)
+	VS3:SetFadeout(r, g, b, t)
+end
+
 function VS3:Action(t)
 
 	--t[1] = token
@@ -619,7 +677,9 @@ function VS3:Action(t)
 	elseif action == "lockdown" then
 		if Lockdown then
 			Lockdown()
-			if t[3] and string.lower(t[3])=="everything" then Freeze() end
+			if t[3] and string.lower(t[3])=="everything" then
+				Freeze()
+			end
 			VS3:Wait(0,true)
 		end
 	elseif action == "unlockdown" then
@@ -2328,7 +2388,7 @@ function VS3:EvalArithmetic(t)
 		--Found a §
 		local a = VS3:EvalArithmetic({unpack(t, 1, tokenN - 1)})
 		local b = VS3:EvalArithmetic({unpack(t, tokenN + 1, evalMax)})
-		return math.random(a, b)
+		return VS3.rand32(a, b)
 	end
 
 	
@@ -2606,7 +2666,6 @@ function VS3:SendMsg(t)
 		local titleFont = textinfo.Title.Color
 		AXMessage.Color.Title = {titleFont[1],titleFont[2],titleFont[3],255}
 	end
-	
 
 	if mn.Ships[self.Speaking]:isValid() then
 		self.Speaking = self.Speaking .. "  " --This is a dumb hack, but the game has an issue with the speaker matching a real ship
@@ -2883,7 +2942,7 @@ function VS3:Draw()
 					end		
 				end
 			end
-				
+			
 			if AXMessage.Enabled and AXMessage.DrawControl == "VS3" and self.ShowBox then
 				AXMessage:UpdateString()
 				if not self.HideFlag then
@@ -3456,7 +3515,6 @@ $On State End:
 
 $On Message Received:
 [
-
 	if VS3.Enabled and AXMessage.DrawControl == "VS3" then
 		AXMessage:SetupMessage(hv.SenderString, hv.Name, hv.Message)
 	end
