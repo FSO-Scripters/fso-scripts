@@ -4,14 +4,17 @@ $Operator: lua-vn-load
 $Category: Change
 $Subcategory: Scripted
 $Minimum Arguments: 1
-$Maximum Arguments: 2
+$Maximum Arguments: 3
 $Return Type: Nothing
 $Description: It began with the forging of the great SEXPs. Three were given to the coders, wisest and fairest of all beings. Seven to the model-lords, great mappers and texturers of the nebula halls. And nine, and nine sexps were gifted to the race of FREDders, who above all else desire power. For within these SEXPs was bound the strength and will to make new missions and campaigns. But they were all of them deceived... For another SEXP was made. In the land of Anime Mods, in the fires of Mount Lazy, the Dark Scripter Axem forged in secret a master SEXP, to control all words. And into this SEXP, he poured his text, his sprites, and his will to dominate the player's attention. ONE SEXP TO RULE THEM ALL. ONE SEXP TO READ THEM. ONE SEXP TO BRING THEM ALL, AND IN THE WORDS, BIND THEM.
 $Parameter:
 	+Description: VN file to load stored in the /fiction/ folder. Does not need the .txt extension (but can if you want)
 	+Type: string
 $Parameter:
-	+Description: VN label to begin at (optional, if left out, the VN file will start at the top)
+	+Description: VN label to begin at (optional$semicolon if left out, or blank, or 'none', the VN file will start at the top)
 	+Type: string
+$Parameter:
+	+Description: Whether to hide the cursor when the VN starts (optional$semicolon defaults to false)
+	+Type: boolean
 
 #End
