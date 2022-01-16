@@ -6,19 +6,21 @@ $On Game Init:
 
 VS3 = {}
 
-function VS3:Init(ingame)
+function VS3:Init(hideCursor)
 	--THIS IS VERSION 3.0.3
-
-
+	
+	
 	ba.print("*****Initializing Visual Novel System...\n")
 	
-	io.setCursorHidden(false)
+	-- if nil (not specified), assume false
+	hideCursor = hideCursor or false
+	io.setCursorHidden(hideCursor)
 	
 	self.Lexer = require ("lexer.lua")
 	--self.Ease = require ("easing.lua")
 	
 	self.SDL2 = true
-
+	
 	self.CanTalk = nil
 	self.Running = true
 	self.Enabled = false
@@ -72,7 +74,7 @@ function VS3:Init(ingame)
 	
 	self.Fade = nil	
 	
-	self.ShowCursor = true
+	self.ShowCursor = (not hideCursor)
 	self.ShowBox = false
 	self.HideFlag = false
 	
@@ -106,25 +108,38 @@ function VS3:Init(ingame)
 
 end
 
-;;FSO 3.8.1.20180119;;  mn.LuaSEXPs["lua-vn-load"].Action = function(filename, start)
+mn.LuaSEXPs["lua-vn-load"].Action = function(filename, start, hideCursor)
 
-;;FSO 3.8.1.20180119;;		local ext = ".txt"
+	local ext = ".txt"
 	
-;;FSO 3.8.1.20180119;;		if not filename:ends(ext) then
-;;FSO 3.8.1.20180119;;			filename = filename .. ext
-;;FSO 3.8.1.20180119;;		end
-		
-;;FSO 3.8.1.20180119;;		VS3:LoadScene(filename, start)
+	if not filename:ends(ext) then
+		filename = filename .. ext
+	end
 
-;;FSO 3.8.1.20180119;;  end
+	-- simulate not supplying the "start" argument if we're forced to supply it
+	if start then
+		if start == "" or start:lower() == "none" then
+			start = nil
+		end
+	end
+	
+	VS3:LoadScene{filename=filename, start=start, hideCursor=hideCursor}
 
-function VS3:L(filename,start,stayInGame)
+end
 
-	self:LoadScene(filename .. ".txt", start,stayInGame)
+function VS3:L(filename, start, stayInGame)
+
+	self:LoadScene{filename=filename .. ".txt", start=start, stayInGame=stayInGame}
 	
 end
 
-function VS3:LoadScene(filename, start, stayInGame)
+function VS3:LoadScene(args)
+
+	-- use table syntax in case one or more of the args isn't specified
+	local filename = args.filename
+	local start = args.start
+	local stayInGame = args.stayInGame
+	local hideCursor = args.hideCursor
 
 	if not cf.fileExists(filename, "data/fiction", true) then
 		ba.error("VN Script: File " .. filename .. " was not found!\n")
@@ -135,7 +150,7 @@ function VS3:LoadScene(filename, start, stayInGame)
 			start = string.lower(start)
 		end
 	
-		VS3:Init()
+		VS3:Init(hideCursor)
 		
 		if Lockdown and self.Config.LockByDefault then Lockdown() end
 		
@@ -235,7 +250,7 @@ function VS3:BatchErrorCheck(...)
 	self.DebugBatchMode = true
 
 	for i,v in ipairs(arg) do
-		self:LoadScene(v, nil, true)
+		self:LoadScene{filename=v, start=nil, stayInGame=true}
 	end
 
 end
