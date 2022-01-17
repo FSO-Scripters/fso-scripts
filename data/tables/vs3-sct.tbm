@@ -31,6 +31,16 @@ VS3.rand32f = function(max)
 end
 ;;FSO 21.5.0.20211107;; *!
 
+function VS3.randomItem(list)
+    if not list or #list == 0 then
+        return nil
+    elseif #list == 1 then
+        return list[1]
+    else
+        return list[VS3.rand32(1, #list)]
+    end
+end
+
 function VS3:Init(hideCursor)
 	--THIS IS VERSION 3.0.3
 	
@@ -96,6 +106,25 @@ function VS3:Init(hideCursor)
 	self.ImgCache = {} --Images loaded
 	self.Transitions = {}
 	self.Displays = {}
+	
+	-- Stuff for sending a character message as a "standard" message
+	self.StandardMessage = nil
+	
+	self.StandardTextPosition = {}
+	self.StandardTextPosition.x, self.StandardTextPosition.y = 8, 5 + 4 * 17
+	
+	self.StandardHead = {}
+	self.StandardHead.x, self.StandardHead.y = 20, 100
+	self.StandardHead.w, self.StandardHead.h = 256, 206
+	self.StandardHead.header_dx, self.StandardHead.header_dy = 6, 3
+	self.StandardHead.anim_dx, self.StandardHead.anim_dy = 3, 16
+	self.StandardHead.anim_w, self.StandardHead.anim_h = 250, 187
+	self.StandardHead.FrameHandle = gr.loadTexture("2_head1", true)
+	
+	self.HUDHeadColor = {}
+	self.HUDHeadColor[1], self.HUDHeadColor[2], self.HUDHeadColor[3], self.HUDHeadColor[4] = hu.getHUDGaugeColor(27) --27 is message lines!
+	self.HUDTextColor = {}
+	self.HUDTextColor[1], self.HUDTextColor[2], self.HUDTextColor[3], self.HUDTextColor[4] = hu.getHUDGaugeColor(25) --25 is the talking head!
 	
 	self.Fade = nil	
 	
@@ -2549,7 +2578,7 @@ function VS3:SendMsg(t)
 	
 	axemParse:Validate("line " .. self.Scene.Line .. ": argument 1", t[2], "string")
 	
-	--If sender if self we don't need to print a sender
+	--If sender is self we don't need to print a sender
 	if string.upper(t[1]) ~= "SELF" then
 		sender = t[1]
 	else
@@ -2656,28 +2685,60 @@ function VS3:SendMsg(t)
 		AXMessage.Offsets.Text.y = textinfo.Message.Offset.y + AXMessage.Fonts.Title.Height - AXMessage.Fonts.Text.Height
 	end
 	
+	local doStandard = (characters[sender] and characters[sender].StandardHUDMessage)
+	
 	--Color override
-	if characters[sender] and characters[sender].Color then
-		AXMessage.Color.Title = {characters[sender].Color[1],characters[sender].Color[2],characters[sender].Color[3],characters[sender].Color[4] or 255}
-	elseif mn.Ships[self.Speaking]:isValid() then
-		local r,g,b = mn.Ships[self.Speaking].Team:getColor()
-		AXMessage.Color.Title = {r,g,b,255}
-	else
-		local titleFont = textinfo.Title.Color
-		AXMessage.Color.Title = {titleFont[1],titleFont[2],titleFont[3],255}
+	if not doStandard then
+		if characters[sender] and characters[sender].Color then
+			AXMessage.Color.Title = {characters[sender].Color[1],characters[sender].Color[2],characters[sender].Color[3],characters[sender].Color[4] or 255}
+		elseif mn.Ships[self.Speaking]:isValid() then
+			local r,g,b = mn.Ships[self.Speaking].Team:getColor()
+			AXMessage.Color.Title = {r,g,b,255}
+		else
+			local titleFont = textinfo.Title.Color
+			AXMessage.Color.Title = {titleFont[1],titleFont[2],titleFont[3],255}
+		end
 	end
 
+	-- Set up some info if this is a standard message
+	if doStandard then
+		local std = self.StandardMessage
+		if not std then
+			std = {}
+		end
+
+		std.Text = self.Speaking .. ": " .. self.Message.Message
+		std.TextDisappearTime = mn.getMissionTime() + 14
+
+		if std.ANIHandle then
+			std.ANIHandle:unload()
+			std.ANIHandle = nil
+		end
+
+		if characters[sender].ANIs then
+			local ani = VS3.randomItem(characters[sender].ANIs)
+			local handle = gr.loadStreamingAnim(ani, false, false, false, false, true)
+			if handle:isValid() then
+				std.ANIHandle = handle
+			end
+		end
+
+		self.StandardMessage = std
+	else
+		self.StandardMessage = nil
+	end
+	
 	if mn.Ships[self.Speaking]:isValid() then
 		self.Speaking = self.Speaking .. "  " --This is a dumb hack, but the game has an issue with the speaker matching a real ship
 	end
-		
+	
 	--ba.print("Voice file: " .. tostring(self.Message.VoiceFile.Filename) .. "\n")
 	ba.print("VN: Sending message: '" .. sender .. "': '" .. self.Message.Message .."'\n")
 	
 	--THE MAGICAL AND CRITICAL STEP!!!
-		
+	
 	mn.sendMessage(self.Speaking, self.Message)
-		
+	
 	if self.Sound then
 		self.PlayingSound = self.Sound:play()
 	end
@@ -2943,10 +3004,14 @@ function VS3:Draw()
 				end
 			end
 			
-			if AXMessage.Enabled and AXMessage.DrawControl == "VS3" and self.ShowBox then
-				AXMessage:UpdateString()
-				if not self.HideFlag then
-					AXMessage:Draw()
+			if AXMessage.Enabled and AXMessage.DrawControl == "VS3" then
+				self:MaybeDrawStandard()
+				
+				if self.ShowBox then
+					AXMessage:UpdateString()
+					if not self.HideFlag then
+						AXMessage:Draw()
+					end
 				end
 			end
 			
@@ -3331,7 +3396,67 @@ function VS3:CheckTimers(currentTime)
 		self.Auto = false
 		self.Scene:NextLine()
 	end
-				
+
+end
+
+function VS3:MaybeDrawStandard()
+
+	if self.StandardMessage then
+		-- should the message disappear?
+		if mn.getMissionTime() >= self.StandardMessage.TextDisappearTime then
+			if self.StandardMessage.ANIHandle then
+				self.StandardMessage.ANIHandle:unload()
+			end
+			self.StandardMessage = nil
+			return
+		end
+
+		-- text is kinda easy
+		-- use alpha color of 220 for text which is HUD_NEW_ALPHA_BRIGHT
+		gr.setColor(self.HUDTextColor[1], self.HUDTextColor[2], self.HUDTextColor[3], 220)
+		gr.CurrentFont = gr.Fonts[3]
+		gr.drawString(self.StandardMessage.Text, self.StandardTextPosition.x, self.StandardTextPosition.y)
+
+		-- ANI is a bit harder
+		if self.StandardMessage.ANIHandle then
+			if self.StandardMessage.ANIHandle:timeLeft() > 0 then
+				local data = self.StandardHead
+				local x = data.x
+				local y = data.y
+				local w = data.w
+				local h = data.h
+
+				local anim_x = x + data.anim_dx
+				local anim_y = y + data.anim_dy
+
+				-- clear
+				gr.setClip(anim_x, anim_y, data.anim_w, data.anim_h)
+				gr.clear()
+				gr.resetClip()
+
+				gr.setColor(self.HUDHeadColor[1], self.HUDHeadColor[2], self.HUDHeadColor[3], self.HUDHeadColor[4])
+
+				-- draw the monochrome frame
+				gr.drawImage(data.FrameHandle, x, y, x + w, y + h, 0, 0, 1, 1, 0.5, true)
+
+				-- stream the ANI
+				self.StandardMessage.ANIHandle:process(anim_x, anim_y, anim_x + data.anim_w, anim_y + data.anim_h)
+
+				-- put the caption on top
+				gr.drawString("message", x + data.header_dx, y + data.header_dy)
+			else
+				self.StandardMessage.ANIHandle:unload()
+				self.StandardMessage.ANIHandle = nil
+			end
+		end
+	end
+
+end
+
+function VS3:ExpireStandard()
+	if self.StandardMessage then
+		self.StandardMessage.TextDisappearTime = -86400		-- one day ago
+	end
 end
 
 function VS3:Exit(keepvars, initflag)
@@ -3351,6 +3476,10 @@ function VS3:Exit(keepvars, initflag)
 	
 	if self.PlayingSound then
 		self.PlayingSound:stop()
+	end
+
+	if self.StandardHead and self.StandardHead.FrameHandle:isValid() then
+		self.StandardHead.FrameHandle:unload()
 	end
 
 	if not keepvars then
@@ -3515,7 +3644,7 @@ $On State End:
 
 $On Message Received:
 [
-	if VS3.Enabled and AXMessage.DrawControl == "VS3" then
+	if VS3.Enabled and AXMessage.DrawControl == "VS3" and not VS3.StandardMessage then
 		AXMessage:SetupMessage(hv.SenderString, hv.Name, hv.Message)
 	end
 ]
