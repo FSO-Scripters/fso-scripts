@@ -91,6 +91,8 @@ Key | Value | Optional
 ``Characters.<name>.Name`` | The name of the character displayed in the title bar of the message box (this one can contain spaces)
 ``Characters.<name>.Color[]`` | The R, G, B, A values of the name of this character in the title bar
 ``Characters.<name>.DefaultVoice`` | The filename of a voice clip to be played with each line this character speaks. Use this if your characters have generic mumbling sounds | &#x2713;
+``Characters.<name>.StandardHUDMessage`` | If true, messages of this character / sender will be displayed like normal messages and not like VN lines. Defaults to false. | &#x2713;
+``Characters.<name>.ANIs[]`` | The filenames of the HUD Animations used for this speaker when StandardHUDMessage is true | &#x2713;
 
 For the actors, similarly a name must be assigned. This name corresponds to the actor option in the SHOW command. Note that the config never specifies which actor belongs to which character. This can be used to assign an actor to multiple characters in the VN script, but the use cases are limited for this. The actors as defined in the 
 Key | Value | Optional
