@@ -5,9 +5,17 @@ $On Game Init:
 
 [
 
+--[[   VERSION 1.3
+
+	The big change with 1.3 is the addition of different resolution-specific settings that can be used. Resolutions must be specified in the axmessage.cfg from smallest to largest. The script will identify the best resolution depending on resolution size and the "MinHRes" parameter. If you have modified your old axmessage.cfg for your mod, please carefully move over the changed values. There is also an ImageScale parameter to adjust the size of the messagebox if you just want to scale it without making new files for each resolution.
+
+]]--
+
 AXMessage = {}
 
 function AXMessage:Init()
+
+	self.Version = 1.31
 
 	ba.print("Initializing AXMessage...\n")
 
@@ -15,18 +23,42 @@ function AXMessage:Init()
 		self.Config = axemParse:ReadJSON("axmessage.cfg")
 		ba.print("Loaded axmessage config file\n")
 	else
-		self.Config = {}
-		self.Config.Default = {}
-		self.Config.Default.TitleColor = {}
-		self.Config.Default.TextColor = {}
-		self.Config.Offsets = {}
-		self.Config.Offsets.Sender = {}
-		self.Config.Offsets.Text = {}
-		self.Config.Position = {}
-		self.Config.Backlog = {}
+		ba.warning("AXMESSAGE: Config file not found! Aborting script initialization!\n")
+		return
 	end
 	
-	if not self.Config.MinVertRes or (self.Config.MinVertRes and self.Config.MinVertRes <= gr.getScreenHeight()) then
+	if not self.Config.MinVersion or self.Config.MinVersion < self.Version then
+		ba.warning("AXMESSAGE: Config file found is for an obsolete version. If you are upgrading, please use a brand new axmessage.cfg as a template and move your settings over. More details found in axmsg-sct.tbm.\nAborting script initialization!\n")
+		return
+	end
+	
+	if self.Config.Resolutions then
+	
+		local currentIndex
+		
+		for i=1, #self.Config.Resolutions do
+			ba.print("AXMESSAGE: Found resolution " .. i .. ": " .. self.Config.Resolutions[i].MinHRes .. "\n")
+			if (self.Config.Resolutions[i].MinHRes <= gr.getScreenWidth()) then
+				currentIndex = i
+				lastres = self.Config.Resolutions[i].MinHRes
+			end
+		end
+		
+		if currentIndex then
+			ba.print("AXMESSAGE: Loading resolution number " .. currentIndex .. "\n")
+			self.LoadedData = self.Config.Resolutions[currentIndex]
+		else
+			ba.warning("AXMESSAGE: Can't find a good resolution entry to load data. Aborting script initialization!\n")
+			return
+		end
+		
+		if self.LoadedData.Disabled then
+			return
+		end
+	
+	end
+	
+	if self.LoadedData then
 
 		self.Enabled = true
 		mn.runSEXP("(hud-set-retail-gauge-active (false) !Messages!)")
@@ -39,45 +71,44 @@ function AXMessage:Init()
 		self.AlwaysDrawMsgBox = false
 		self.DrawControl = "self"
 		self.Alpha = 1
-				
-		self.Backlog = {}
-		self.Backlog.Enabled = false or self.Config.Backlog.Enabled
-		self.Backlog.Entry = {}
-		self.Backlog.Height = self.Config.Backlog.Height or 50
-		self.Backlog.MaxSize = self.Config.Backlog.MaxSize or 4
 		
 		self.Speed = self.Config.Default.Speed or 0.03
 		self.Length = self.Config.Default.Length or 0.07
 		self.AfterVoice = self.Config.Default.AfterVoice or 1.5
+				
+		self.Backlog = {}
+		self.Backlog.Enabled = false or self.LoadedData.Backlog.Enabled
+		self.Backlog.Entry = {}
+		self.Backlog.Height = self.LoadedData.Backlog.Height or 50
+		self.Backlog.MaxSize = self.LoadedData.Backlog.MaxSize or 4
+		
 		self.Offsets = {}
-		self.Offsets.Sender = {x = self.Config.Offsets.Sender[1] or 7, y = self.Config.Offsets.Sender[2] or 3}
-		self.Offsets.Text = {x = self.Config.Offsets.Text[1] or 10, y = self.Config.Offsets.Text[2] or 15}
+		self.Offsets.Sender = {x = self.LoadedData.Offsets.Sender[1] or 7, y = self.LoadedData.Offsets.Sender[2] or 3}
+		self.Offsets.Text = {x = self.LoadedData.Offsets.Text[1] or 10, y = self.LoadedData.Offsets.Text[2] or 15}
 		
 		self.Monochrome = self.Config.Monochrome
 			
-		local titleFont, textFont, backlogFont
+		local titleFont, textFont, backlogFont 
 		
-		if self.Config.Default.TitleFont and self.Config.Default.TextFont then
-			if gr.Fonts[self.Config.Default.TitleFont]:isValid() then
-				titleFont = gr.Fonts[self.Config.Default.TitleFont]
+		if self.LoadedData.TitleFont and self.LoadedData.TextFont then
+			if gr.Fonts[self.LoadedData.TitleFont]:isValid() then
+				titleFont = gr.Fonts[self.LoadedData.TitleFont]
 			end
 			
-			if gr.Fonts[self.Config.Default.TextFont]:isValid() then
-				textFont = gr.Fonts[self.Config.Default.TextFont]
+			if gr.Fonts[self.LoadedData.TextFont]:isValid() then
+				textFont = gr.Fonts[self.LoadedData.TextFont]
 			end
 			
-			if gr.Fonts[self.Config.Backlog.Font]:isValid() then
-				backlogFont = gr.Fonts[self.Config.Backlog.Font]
+			if gr.Fonts[self.LoadedData.Backlog.Font]:isValid() then
+				backlogFont = gr.Fonts[self.LoadedData.Backlog.Font]
 			end
 			
 		end
 		
 		self.Fonts = {Title = titleFont or gr.Fonts[3], Text = textFont or gr.Fonts[1], Backlog = backlogFont or gr.Fonts[1]}
 			
-		self:LoadMsgBox(self.Config.Default.Image or "messagebox")
-		
-		self.Config.Position_0 = self.Config.Position
-		
+		self:LoadMsgBox(self.LoadedData.Image or "messagebox")
+				
 		if self.Config.Monochrome then
 			self.Color = {}
 			self.Color.Title = {}
@@ -100,29 +131,7 @@ function AXMessage:Init()
 
 end
 
-function AXMessage:Move(x,y,ox,oy)
-
-	local pos = self.Config.Position
-
-	pos.Origin[1] = x or pos.Origin[1]
-	pos.Origin[2] = y or pos.Origin[2]
-	
-	pos.Offset[1] = ox or pos.Offset[1]
-	pos.Offset[2] = oy or pos.Offset[2]
-	
-	AXMessage:LoadMsgBox()
-
-end
-
-function AXMessage:ResetPos()
-
-	self.Config.Position = self.Config.Position_0
-	
-	AXMessage:LoadMsgBox()
-
-end
-
-function AXMessage:LoadMsgBox(filename)
+function AXMessage:LoadMsgBox(filename) --**********************************
 
 	if not filename then
 		ba.print("AXMSG: Oops no file name given!\n")
@@ -137,14 +146,16 @@ function AXMessage:LoadMsgBox(filename)
 		return
 	end
 	
-	self.Image.w = self.Image.file:getWidth()
-	self.Image.h = self.Image.file:getHeight()
+	local scale = self.LoadedData.ImageScale or 1
+	
+	self.Image.w = self.Image.file:getWidth() * scale
+	self.Image.h = self.Image.file:getHeight() * scale
 
 	self.Position = {}
 	self.BacklogPos = {}
 	
-	local pos = self.Config.Position
-	local blpos = self.Config.Backlog
+	local pos = self.LoadedData.Position
+	local blpos = self.LoadedData.Backlog
 	
 	if pos.Origin and pos.Offset then
 		self.Position.x = (gr.getScreenWidth() * pos.Origin[1]) + pos.Offset[1]
@@ -163,7 +174,7 @@ function AXMessage:LoadMsgBox(filename)
 	if blpos.Origin and blpos.Offset then
 		self.BacklogPos.x = (gr.getScreenWidth() * blpos.Origin[1]) + blpos.Offset[1]
 		self.BacklogPos.y = (gr.getScreenHeight() * blpos.Origin[2]) + blpos.Offset[2]
-	elseif blpos.Origin and blpos.Offset then
+	elseif blpos.Origin and not blpos.Offset then
 		self.BacklogPos.x = (gr.getScreenWidth() * blpos.Origin[1])
 		self.BacklogPos.y = (gr.getScreenHeight() * blpos.Origin[2])
 	else
@@ -263,9 +274,7 @@ function AXMessage:UpdateString()
 
 	if self.Drawing and self.DisplayString == self.RawString then
 		self.Drawing = false
-		
 		return
-		
 	end
 	
 	if self.Drawing then
@@ -330,8 +339,8 @@ function AXMessage:AddToBacklog(sender, message)
 	newEntry.Sender = sender
 	newEntry.Text = message
 	
-	if self.Config.Backlog.Timeout then
-		newEntry.Expire = self.Config.Backlog.Timeout + mn.getMissionTime()
+	if self.LoadedData.Backlog.Timeout then
+		newEntry.Expire = self.LoadedData.Backlog.Timeout + mn.getMissionTime()
 	end
 
 	self.Backlog.Entry[#self.Backlog.Entry+1] = newEntry
@@ -351,7 +360,8 @@ function AXMessage:DrawMessageBox()
 			gr.drawImage(self.Image.file2, self.Position.x, self.Position.y, self.Position.x + self.Image.w, self.Position.y + self.Image.h, 0, 0, 1, 1, 0.5 )
 		end
 		gr.setColor(self.Color.HUD[1], self.Color.HUD[2], self.Color.HUD[3], self.Color.HUD[4])
-		gr.drawMonochromeImage(self.Image.file, self.Position.x, self.Position.y)
+		--gr.drawMonochromeImage(self.Image.file, self.Position.x, self.Position.y)
+		gr.drawImage(self.Image.file, self.Position.x, self.Position.y, self.Position.x + self.Image.w, self.Position.y + self.Image.h, 0, 0, 1, 1, 0.5, true)
 	else
 		gr.drawImage(self.Image.file, self.Position.x, self.Position.y)
 	end
@@ -421,7 +431,7 @@ function AXMessage:DrawBacklog()
 			gr.setColor(self.Color.Text[1], self.Color.Text[2], self.Color.Text[3], alpha)
 			
 			if text and y1 > (-1 * (guessedLines+1) * fontHeight) then
-				if (not self.Config.Backlog.Timeout) or (self.Config.Backlog.Timeout and self.Backlog.Entry[i].Expire and (self.Backlog.Entry[i].Expire > mn.getMissionTime())) then
+				if (not self.Backlog.Timeout) or (self.Backlog.Timeout and self.Backlog.Entry[i].Expire and (self.Backlog.Entry[i].Expire > mn.getMissionTime())) then
 					gr.drawString = gr.drawString(sender, x1, y1)
 					drawnLines = gr.drawString(text, x1 + gr.getStringWidth(sender), y1, x2, y2)
 				end
@@ -512,7 +522,7 @@ $State: GS_STATE_GAME_PAUSED
 $On Frame:
 [
 	if AXMessage.Timer then
-		AXMessage.Timer = AXMessage.Timer + ba.getFrametime()
+		AXMessage.Timer = AXMessage.Timer + ba.getRealFrametime()
 	end
 ]
 #End
