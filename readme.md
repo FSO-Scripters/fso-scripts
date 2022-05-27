@@ -7,8 +7,8 @@ This is a collection of user-made scripts for the [FreeSpace Open engine](https:
 |AxMessage|Enables better rendering for messages|21.0|AxBase|Axem|
 |AxMiscFunctions|Some of Axems convenience SEXP, including player target manipulation, locking down ships, and waypoint manuipulation.|21.0||Axem|
 |LafielsSEXPs|Some of Lafiels convenience SEXP, including turret information retrieval.|22.0||Lafiel|
-|RadarIcon|Adds configurable icons for ships and weapons onto the HUD, making it easier to keep an overview over the battlefield|AxBase|20.0|Lafiel|
-|RadarIcon_Generic|Optional prebuilt configuration using generic icons for RadarIcon, instead of the default per-ship-class icons.|AxBase, RadarIcon|20.0|Lafiel, JadedDragoon|
+|RadarIcon|Adds configurable icons for ships and weapons onto the HUD, making it easier to keep an overview over the battlefield|20.0|AxBase|Lafiel|
+|RadarIcon_Generic|Optional prebuilt configuration using generic icons for RadarIcon, instead of the default per-ship-class icons.|20.0|AxBase, RadarIcon|Lafiel, JadedDragoon|
 |VN|A script allowing for integrating a fully-flegded Visual Novel into FSO|21.0|AxBase, AxMessage, AxMiscFunctions|Axem, Lafiel|
 
 ## List of AI Scripts
