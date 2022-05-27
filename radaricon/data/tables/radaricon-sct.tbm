@@ -1,0 +1,666 @@
+#Conditional Hooks
+$Application: FS2_Open
+$On Game Init:
+[
+
+RadarIcon = {}
+
+function RadarIcon:Load()
+	self.ShipIconClasses = {}
+	self.WeaponIconClasses = {}
+	self.GenericIconClasses = {}
+	
+	if cf.fileExists("radaricon.cfg","data/config",true) then
+		self.Config = axemParse:ReadJSON("radaricon.cfg")
+	else
+		ba.error("RadarIcon: Config file missing! Cannot proceed!\n")
+		return
+	end
+	
+	self.Scalings = self.Config.Scale
+	self.CenterX = gr.getScreenWidth() / 2
+	self.CenterY = gr.getScreenHeight() / 2
+	self.Scale = (32 / self.Config.IconSize) * self.CenterY / 540 --Fighter Icons should be 32 by 32 on 1080p. This set has them 128 by 128
+	
+	for ship,textureName in pairs(self.Config.Ships) do
+		local locscale = 1
+		if self.Scalings[tb.ShipClasses[ship].Type.Name] ~= nil then
+			locscale = self.Scalings[tb.ShipClasses[ship].Type.Name]
+		end
+		self.ShipIconClasses[ship] = RadarIcon:BakeTexture(textureName, locscale)
+	end
+
+	for weapon,textureName in pairs(self.Config.Weapons) do
+		self.WeaponIconClasses[weapon] =  RadarIcon:BakeTexture(textureName, self.Scalings.Weapons)
+	end
+	
+	for species,types in pairs(self.Config.Species) do
+		for typename,textureName in pairs(types) do
+			local locscale = 1
+			if self.Scalings[typename] ~= nil then
+				locscale = self.Scalings[typename]
+			end
+			self.GenericIconClasses[species .. typename] =  RadarIcon:BakeTexture(textureName, locscale)
+		end
+	end
+	
+	if self.Config.FuzzyIcon then
+		self.FuzzyIcon = RadarIcon:BakeTexture(self.Config.FuzzyIcon, 1)
+	end
+	
+	self.Colors = self.Config.Colors
+	
+	self.Alpha = self.Config.Alpha
+	self.DistanceMult = 1
+
+	self.IconOffset = self.Config.IconOffset
+	
+	if self.Config.AtLeast_20_1_0_RC1 then
+		if mn.isNebula() then
+			self.DistanceMult = self.Alpha.NebulaMultiplier
+		end
+	end
+	
+	self.Loaded = true
+end
+
+function RadarIcon:Rebake()
+	for ship,textureName in pairs(self.Config.Ships) do
+		local locscale = 1
+		if self.Scalings[tb.ShipClasses[ship].Type.Name] ~= nil then
+			locscale = self.Scalings[tb.ShipClasses[ship].Type.Name]
+		end
+		local tex = RadarIcon:BakeTexture(textureName, locscale)
+		self.ShipIconClasses[ship].Texture = tex.Texture
+		self.ShipIconClasses[ship].TextureMany = tex.TextureMany
+		self.ShipIconClasses[ship].Radius = tex.Radius
+	end
+
+	for weapon,textureName in pairs(self.Config.Weapons) do
+		local tex = RadarIcon:BakeTexture(textureName, self.Scalings.Weapons)
+		self.WeaponIconClasses[weapon].Texture = tex.Texture
+		self.WeaponIconClasses[weapon].TextureMany = tex.TextureMany
+		self.WeaponIconClasses[weapon].Radius = tex.Radius
+	end
+	
+	for species,types in pairs(self.Config.Species) do
+		for typename,textureName in pairs(types) do
+			local locscale = 1
+			if self.Scalings[typename] ~= nil then
+				locscale = self.Scalings[typename]
+			end
+			local tex = RadarIcon:BakeTexture(textureName, locscale)
+			self.GenericIconClasses[species .. typename].Texture = tex.Texture
+			self.GenericIconClasses[species .. typename].TextureMany = tex.TextureMany
+			self.GenericIconClasses[species .. typename].Radius = tex.Radius
+		end
+	end
+	
+	if self.Config.FuzzyIcon then
+		self.FuzzyIcon = RadarIcon:BakeTexture(self.Config.FuzzyIcon, 1)
+	end
+end
+
+function RadarIcon:Cleanup()
+	for ship,texture in pairs(self.ShipIconClasses) do
+		texture.Texture:unload()
+		texture.TextureMany:unload()
+	end
+	
+	for weapon,texture in pairs(self.WeaponIconClasses) do
+		texture.Texture:unload()
+		texture.TextureMany:unload()
+	end
+	
+	for generic,texture in pairs(self.GenericIconClasses) do
+		texture.Texture:unload()
+		texture.TextureMany:unload()
+	end
+	
+	if self.FuzzyIcon then
+		self.FuzzyIcon.Texture:unload()
+		self.FuzzyIcon.TextureMany:unload()
+	end
+end
+
+function RadarIcon:BakeTexture(filename, locscale)
+	local scale = self.Scale * locscale
+
+	local loadedTex = gr.loadTexture(filename)
+	local loadedTexBorder = gr.loadTexture(filename .. "-o")
+	local x = loadedTex:getWidth() * scale
+	local y = loadedTex:getHeight() * scale
+	local size = 32
+		
+	while size < x or size < y do
+		size = size * 2
+	end
+		
+	local renderTex = gr.createTexture(size, size, TEXTURE_STATIC)
+	gr.setTarget(renderTex)
+	gr.clear()
+	gr.drawImage(loadedTex, (size - x) / 2, (size - y) / 2, (size + x) / 2, (size + y) / 2, 0, 0, 1, 1, self.Config.Alpha.InfillVisible)
+	gr.drawImage(loadedTexBorder, (size - x) / 2, (size - y) / 2, (size + x) / 2, (size + y) / 2, 0, 0, 1, 1, self.Config.Alpha.BorderVisible)
+	gr.setTarget()
+		
+	local tex = {}
+	tex.Radius = math.sqrt(x * x + y * y)
+			
+	size = size * 2
+	x = x * 0.75
+	y = y * 0.75
+		
+	local renderTexMany = gr.createTexture(size, size, TEXTURE_STATIC)
+	gr.setTarget(renderTexMany)
+	gr.clear()
+	gr.drawImage(loadedTex, size / 2 - x, size / 2, size / 2, size / 2 + y, 0, 0, 1, 1, self.Config.Alpha.InfillVisible)
+	gr.drawImage(loadedTexBorder, size / 2 - x, size / 2, size / 2, size / 2 + y, 0, 0, 1, 1, self.Config.Alpha.BorderVisible)
+	gr.drawImage(loadedTex, size / 2, size / 2, size / 2 + x, size / 2 + y, 0, 0, 1, 1, self.Config.Alpha.InfillVisible)
+	gr.drawImage(loadedTexBorder, size / 2, size / 2, size / 2 + x, size / 2 + y, 0, 0, 1, 1, self.Config.Alpha.BorderVisible)
+	gr.drawImage(loadedTex, (size - x) / 2, size / 2 - y, (size + x) / 2, size / 2, 0, 0, 1, 1, self.Config.Alpha.InfillVisible)
+	gr.drawImage(loadedTexBorder, (size - x) / 2, size / 2 - y, (size + x) / 2, size / 2, 0, 0, 1, 1, self.Config.Alpha.BorderVisible)
+	gr.setTarget()
+		
+	loadedTex:unload()
+	loadedTexBorder:unload()
+	if self.Config.AtLeast_20_1_0_RC1 then
+		renderTex:destroyRenderTarget()
+		renderTexMany:destroyRenderTarget()
+	end
+
+	tex.Texture = renderTex
+	tex.TextureMany = renderTexMany
+	return tex
+end
+
+function RadarIcon:Init()
+
+	if not self.Loaded then
+		RadarIcon:Load()
+	end
+
+	self.Enabled = false
+	
+	self.ShipIcons = {}
+	self.WeaponIcons = {}
+	
+	self.Teams = {}
+	self.ColorCache = {}
+
+	if self.Config.AlwaysOn then
+	
+		self.Teams["Friendly"] = true
+		self.Teams["Hostile"] = true
+		self.Teams["Neutral"] = true
+		self.Teams["Traitor"] = true
+		self.Teams["Unknown"] = true
+		self.Enabled = true
+		RadarIcon:LoadShips()
+		
+	end
+
+end
+
+function RadarIcon:GetObjSpecies(obj)  
+	local breed = obj:getBreedName() 
+	if breed == "Ship" and obj.Class.Species and obj.Class.Species:isValid() then  
+		return obj.Class.Species 
+	elseif breed == "Weapon" and obj.Parent:isValid() and obj.Parent:getBreedName() == "Ship" and obj.Parent.Class.Species and obj.Parent.Class.Species:isValid() then 
+		return obj.Parent.Class.Species 
+	end 
+	return nil 
+end  
+
+function RadarIcon:DrawImageMonochrome(texture, x1, y1, x2, y2, alpha) 
+	if self.Config.AtLeast_20_1_0_RC1 then
+		gr.drawImage(texture, x1, y1, x2, y2, 0, 0, 1, 1, alpha, true)
+	else
+		gr.drawMonochromeImage(texture, x1, y1, x2, y2, alpha)
+	end
+end
+
+function RadarIcon:GetColor(species, team)
+	
+	local r, g, b = team:getColor()
+	if species and self.Colors[species.Name]~= nil and self.Colors[species.Name][team.Name] ~= nil then
+		r, g, b = unpack(self.Colors[species.Name][team.Name])
+	end
+
+	return r, g, b
+end
+
+function RadarIcon:DrawIcon(obj, team, species, actualtexture, pos, x, y, texrad) 
+	local alpha = RadarIcon:EvaluateAlpha(pos, x, y, typename)
+	local r, g, b
+
+	if team then
+		r, g, b = unpack(self.ColorCache[team])
+	else
+		r, g, b = RadarIcon:GetColor(species, obj.Team)
+	end
+	
+	if not r or not g or not b then
+		--Panic, we have no color!
+		return
+	end
+		
+	local adaptScale = 1
+		
+	if self.Config.AtLeast_20_1_0_RC1 and self.Config.AdaptiveScale then
+		local l, t, ri, bo = gr.drawTargetingBrackets(obj, false, 0)
+		
+		if l~= nil and t ~= nil and ri~= nil and bo ~= nil then		
+			local h = bo - t
+			local w = ri - l
+		
+			--if h < w then
+			--	adaptScale = h / texrad * self.Config.AdaptiveScaleMult
+			--else
+			--  adaptScale = w / texrad * self.Config.AdaptiveScaleMult
+			--end
+			adaptScale = ((w + h)/2) / texrad * self.Config.AdaptiveScaleMult
+		
+			if adaptScale < self.Config.AdaptiveScale then
+				adaptScale = self.Config.AdaptiveScale
+			end
+			
+			local onscreensize = texrad * adaptScale / self.CenterY
+			
+			if onscreensize > self.Config.AdaptiveScaleMaxSize1 then
+				if onscreensize > self.Config.AdaptiveScaleMaxSize2 then
+					alpha = 0
+				else
+					alpha = alpha * (1 - (onscreensize - self.Config.AdaptiveScaleMaxSize1) / (self.Config.AdaptiveScaleMaxSize2 - self.Config.AdaptiveScaleMaxSize1))
+				end
+			end
+		elseif obj:getBreedName() == "Ship" then
+			alpha = 0
+		end
+	end
+		
+	gr.setColor(r, g, b, alpha)
+		
+	local wHalf = actualtexture:getWidth() / 2 * adaptScale
+	local hHalf = actualtexture:getHeight() / 2 * adaptScale
+	
+	RadarIcon:DrawImageMonochrome(actualtexture, x - wHalf, y - hHalf, x + wHalf, y + hHalf, alpha)
+end
+
+function RadarIcon:GetTeamColor(weapon, team, species)
+	local name = team.Name
+	
+	if species then
+		name = name .. species.Name
+	end
+	
+	if self.ColorCache[name] then
+		return name
+	end
+
+	self.ColorCache[name] = {RadarIcon:GetColor(species, team)}
+	
+	return name
+end
+
+function RadarIcon:MaybeAddShip(ship)
+	if ship:getBreedName() ~= "Ship" or not self.Teams[ship.Team.Name] then
+		return
+	end
+
+	local texture = self.ShipIconClasses[ship.Class.Name]
+	if texture ~= nil then
+		self.ShipIcons[ship:getSignature()] = {ship, texture}
+		return
+	end
+	
+	texture = self.GenericIconClasses[ship.Class.Species.Name .. ship.Class.Type.Name]
+	if texture ~= nil then
+		self.ShipIcons[ship:getSignature()] = {ship, texture}
+	end
+end
+
+function RadarIcon:MaybeDeleteShip(ship)
+	if not ship.Class then
+		return
+	end
+
+	if self.ShipIcons[ship:getSignature()] ~= nil then
+		self.ShipIcons[ship:getSignature()] = nil
+	end
+end
+
+function RadarIcon:MaybeAddWeapon(weapon, team, colorteam)
+	if not self.Teams[team.Name] then
+		return
+	end
+
+	local texture = self.WeaponIconClasses[weapon.Class.Name]
+	if texture ~= nil then
+		self.WeaponIcons[weapon:getSignature()] = {weapon, texture, colorteam}
+	end
+end
+
+function RadarIcon:MaybeDeleteWeapon(weapon)
+	if self.WeaponIcons[weapon:getSignature()] ~= nil then
+		self.WeaponIcons[weapon:getSignature()] = nil
+	end
+end
+
+function RadarIcon:LoadShips()
+	local number = #mn.Ships
+	for i = 1, number, 1 do
+		RadarIcon:MaybeAddShip(mn.Ships[i])
+	end
+	number = #mn.Weapons
+	for i = 1, number, 1 do
+		local team = mn.Weapons[i].Team
+		local parent = mn.Weapons[i].Parent
+		while parent ~= nil and parent:getBreedName() ~= "Ship" do
+			if parent:getSignature() == parent.Parent:getSignature() then
+				break
+			end
+			parent = parent.Parent
+		end
+
+		if parent ~= nil and parent:getBreedName() == "Ship" then
+			team = parent.Team
+		end
+		
+		if team then
+			local species = nil
+			if parent ~= nil and parent:getBreedName() == "Ship" then
+				species = parent.Class.Species
+			end
+			
+			RadarIcon:MaybeAddWeapon(mn.Weapons[i], team, RadarIcon:GetTeamColor(mn.Weapons[i], team, species))
+		end
+	end
+end
+
+function RadarIcon:Enable(...)
+	self.Enabled = true
+	
+	for k,val in ipairs(arg) do
+		self.Teams[val[1]] = true
+	end
+	
+	RadarIcon:LoadShips()
+end 
+
+function RadarIcon:Disable()
+	RadarIcon.Enabled = false
+	RadarIcon.ShipIcons = {}
+	RadarIcon.WeaponIcons = {}
+	RadarIcon.Teams = {}
+	RadarIcon.ColorCache = {}
+end
+
+-----------------------------
+
+function RadarIcon:EvaluateAlpha(position, x, y, typename) 
+	local alpha = self.Alpha.MaxOpacity
+	local dist = math.abs((position - hv.Player.Position):getDotProduct(hv.Player:getfvec(true)))
+	
+	local multiplier = self.DistanceMult
+	if self.Alpha.ClassMultiplier[typename] ~= nil then
+		multiplier = multiplier * self.Alpha.ClassMultiplier[typename]
+	end
+	
+	local near = self.Alpha.Near * multiplier
+	local far = self.Alpha.Far * multiplier
+	
+	if dist < near then
+		alpha = 0
+	elseif dist < far then
+		alpha = alpha * (dist - near) / (far - near)
+	end
+	
+	x = x - self.CenterX
+	y = y - self.CenterY
+	
+	local crosshairdist = math.sqrt(x * x + y * y) / self.CenterY
+
+	if crosshairdist < self.Alpha.ReticleNear then
+		alpha = 0
+	elseif crosshairdist < self.Alpha.ReticleFar then
+		alpha = alpha * (crosshairdist - self.Alpha.ReticleNear) / (self.Alpha.ReticleFar - self.Alpha.ReticleNear)
+	end
+	
+	return alpha
+end
+
+function RadarIcon:EvaluatePosition(obj, texture, team, hidden) 
+	if hv.Player.Target == obj then
+		return
+	end
+
+	local pos = obj.Position
+		
+	if obj:getBreedName() == "Ship" then
+		pos = obj:getCenterPosition()
+			
+		if self.IconOffset ~= nil and self.IconOffset[obj.Class.Name] then
+			local offset = self.IconOffset[obj.Class.Name]
+			pos = pos + obj.Orientation:unrotateVector(ba.createVector(offset[1], offset[2], offset[3]))
+		end
+	end
+	
+	local x, y = pos:getScreenCoords()
+		
+	-- getScreenCoords returns one false insead of two coords if offscreen
+	if x ~= false then
+		local name = obj.Class.Name .. obj.Team.Name
+		if hidden then
+			name = name .. ";hid"
+		end
+		if not self.PositionMaps[name] then
+			self.PositionMaps[name] = {}
+			self.PositionMaps[name].Map = {}
+			self.PositionMaps[name].Texture = texture
+			self.PositionMaps[name].Team = team
+			self.PositionMaps[name].Species = RadarIcon:GetObjSpecies(obj)
+		end
+		
+		table.insert(self.PositionMaps[name].Map, {x, y, pos, obj})
+	end
+end
+
+function RadarIcon:Cluster(map) 
+	
+	if not self.Config.Merge.Active then
+		for i = 1, #map.Map, 1 do
+			RadarIcon:DrawIcon(map.Map[i][4], map.Team, map.Species, map.Texture.Texture, map.Map[i][3], map.Map[i][1], map.Map[i][2], map.Texture.Radius)
+		end
+		return
+	end
+
+	--This will need improvement
+	local iconMap = {}
+	
+	local numPoints = #map.Map
+	for i = 1, numPoints, 1 do
+		if map.Map[i] ~= nil then
+			local found = false
+			for j = 1, #iconMap, 1 do
+				if not found then
+					local dx = map.Map[i][1] - iconMap[j][1]
+					local dy = map.Map[i][2] - iconMap[j][2]
+					
+					if dx * dx + dy * dy < map.Texture.Radius * map.Texture.Radius * self.Config.Merge.Subsequent and map.Map[i][3]:getDistance(hv.Player.Position) > self.Config.Merge.Near then
+						local closer = nil
+						if map.Map[i][3]:getDistance(hv.Player.Position) < iconMap[j][3]:getDistance(hv.Player.Position) then
+							closer = map.Map[i]
+						else
+							closer = iconMap[j]
+						end
+						iconMap[j] = {(map.Map[i][1] + iconMap[j][1]) / 2, (map.Map[i][2] + iconMap[j][2]) / 2, closer[3], closer[4]}
+						map.Map[i] = nil
+						found = true
+					end
+				end
+			end
+			
+			if not found and map.Map[i][3]:getDistance(hv.Player.Position) > self.Config.Merge.Near then
+				for j = i + 1, numPoints, 1 do
+					if not found and map.Map[j] ~= nil and map.Map[j][3]:getDistance(hv.Player.Position) > self.Config.Merge.Near then
+						local dx = map.Map[i][1] - map.Map[j][1]
+						local dy = map.Map[i][2] - map.Map[j][2]
+					
+						if dx * dx + dy * dy < map.Texture.Radius * map.Texture.Radius * self.Config.Merge.First then
+							local closer = nil
+							if map.Map[i][3]:getDistance(hv.Player.Position) < map.Map[j][3]:getDistance(hv.Player.Position) then
+								closer = map.Map[i]
+							else
+								closer = map.Map[j]
+							end
+							table.insert(iconMap, {(map.Map[i][1] + map.Map[j][1]) / 2, (map.Map[i][2] + map.Map[j][2]) / 2, closer[3], closer[4]})
+							
+							map.Map[i] = nil
+							map.Map[j] = nil
+							found = true
+						end
+					end
+				end
+			end
+			
+			if not found then
+				--Our Icon has not found any cluster or other Icon in range. Render it
+				RadarIcon:DrawIcon(map.Map[i][4], map.Team, map.Species, map.Texture.Texture, map.Map[i][3], map.Map[i][1], map.Map[i][2], map.Texture.Radius)
+			end
+		end
+	end
+	
+	for i = 1, #iconMap, 1 do
+		RadarIcon:DrawIcon(iconMap[i][4], map.Team, map.Species, map.Texture.TextureMany, iconMap[i][3], iconMap[i][1], iconMap[i][2], map.Texture.Radius)
+	end
+end
+
+function RadarIcon:Draw() 
+	self.PositionMaps = {}
+
+	for ship, texture in pairs(self.ShipIcons) do
+		-- Only Draw when fully visible on Radar
+		-- This is an evil hack since evaluateNumericSEXP seems to have trouble with OPF_POSITIVE SEXPs 
+		local name = texture[1].Name:gsub("!", "!!")
+		
+		if mn.evaluateSEXP("( = 2 ( is-ship-visible !" .. name .. "! ) )") and not texture[1].HiddenFromSensors then
+			RadarIcon:EvaluatePosition(texture[1], texture[2], nil, false)
+		elseif self.FuzzyIcon and (texture[1].HiddenFromSensors or mn.evaluateSEXP("( = 1 ( is-ship-visible !" .. name .. "! ) )")) then
+			RadarIcon:EvaluatePosition(texture[1], self.FuzzyIcon, nil, true)
+		end
+	end
+	
+	for weapon, texture in pairs(self.WeaponIcons) do
+		RadarIcon:EvaluatePosition(texture[1], texture[2], texture[3], false)
+	end
+	
+	for k,map in pairs(self.PositionMaps) do
+		RadarIcon:Cluster(map) 
+	end
+end
+
+mn.LuaSEXPs["lua-radaricon-activate"].Action = function(...) RadarIcon:Enable(...) end
+
+mn.LuaSEXPs["lua-radaricon-deactivate"].Action = function() RadarIcon:Disable() end
+
+]
+
+$On Briefing Stage:
+[
+	if not RadarIcon.Loaded then
+		RadarIcon:Load()
+	end
+]
+
+$State: GS_STATE_GAME_PLAY
+$On Gameplay Start:
+[
+	RadarIcon:Init()
+]
+
+$On State End:
+[
+	RadarIcon:Disable()
+]
+
+$On Weapon Created:
+[
+	if RadarIcon.Enabled then
+		local team = hv.Weapon.Team
+		local parent = hv.Weapon.Parent
+		while parent ~= nil and parent:getBreedName() ~= "Ship" do
+			if parent:getSignature() == parent.Parent:getSignature() then
+				break
+			end
+			parent = parent.Parent
+		end
+
+		if parent ~= nil and parent:getBreedName() == "Ship" then
+			team = parent.Team
+		end
+		
+		if team then
+			local species = nil
+			if parent ~= nil and parent:getBreedName() == "Ship" then
+				species = parent.Class.Species
+			end
+			
+			RadarIcon:MaybeAddWeapon(hv.Weapon, team, RadarIcon:GetTeamColor(hv.Weapon, team, species))
+		end
+	end
+]
+
+$On Weapon Delete:
+[
+	if RadarIcon.Enabled then
+		RadarIcon:MaybeDeleteWeapon(hv.Weapon)
+	end
+]
+
+$On Ship Arrive:
+[
+	if RadarIcon.Enabled then
+		RadarIcon:MaybeAddShip(hv.Ship)
+	end
+]
+
+$On Ship Depart:
+[
+	if RadarIcon.Enabled then
+		RadarIcon:MaybeDeleteShip(hv.Ship)
+	end
+]
+
+$On Death:
+[
+	if RadarIcon.Enabled and hv.Self:getBreedName() == "Ship" then
+		RadarIcon:MaybeDeleteShip(hv.Self)
+	end
+]
+
+$On HUD Draw:
+[
+	if RadarIcon.Enabled and hu.HUDDrawn and not hu.HUDDisabledExceptMessages and (gr.hasViewmode(VM_INTERNAL) or gr.hasViewmode(VM_CHASE)) then
+		if mn.getMissionTime() > 1 then
+			RadarIcon:Draw()
+		end
+	end
+]
+
+$State: GS_STATE_OPTIONS_MENU
+$On State Start:
+[
+	--This is necessary, as changing texture options apparenly nukes our baked icons. So clean up and re-bake when we enter the menu
+	if RadarIcon.Enabled then
+		RadarIcon:Cleanup()
+	end
+]
+
+$On State End:
+[
+	if RadarIcon.Enabled then
+		RadarIcon:Rebake()
+	end
+]
+
+#End
