@@ -1,0 +1,126 @@
+#Lua SEXPs
+
+$Operator: lua-proxy-kill
+$Category: Change
+$Subcategory: Scripted
+$Minimum Arguments: 1
+$Maximum Arguments: 2
+; No maximum arguments means that it accepts a variable number of arguments
+$Return Type: Nothing
+$Description: Kills a ship crediting another ship. Useful for weak point objects that aren't part of the main ship. No argument will credit the player.
+$Parameter:
+	+Description: Ship to kill
+	+Type: Ship
+$Parameter:
+	+Description: Ship to credit (if not defined, will credit the player)
+	+Type: Ship
+
+$Operator: lua-set-player-target
+$Category: Change
+$Subcategory: Scripted
+$Minimum Arguments: 1
+$Maximum Arguments: 1
+$Return Type: Nothing
+$Description: Forces the player to target specified ship.
+$Parameter:
+	+Description: Ship player will target
+	+Type: Ship
+
+$Operator: lua-get-player-target
+$Category: Change
+$Subcategory: Scripted
+$Minimum Arguments: 1
+$Maximum Arguments: 1
+$Return Type: Nothing
+$Description: Stores the player's target in the specified variable
+$Parameter:
+	+Description: Variable to store player's target
+	+Type: Variable
+	
+$Operator: lua-lockdown
+$Category: Change
+$Subcategory: Scripted
+$Minimum Arguments: 1
+$Return Type: Nothing
+$Description: Locks a ship down so it cannot fire weapons & afterburners (and optionally forces AI to play dead). This is useful to apply to the player for the purpose of cutscenes.
+$Parameter:
+	+Description: Forces ship to have play-dead orders. You usually want this on.
+	+Type: Boolean
+$Repeat
+$Parameter:
+	+Description: Ships to lock down
+	+Type: Ship
+	
+$Operator: lua-unlockdown
+$Category: Change
+$Subcategory: Scripted
+$Minimum Arguments: 1
+$Return Type: Nothing
+$Description: Releases the ship from the lockdown state.
+$Repeat
+$Parameter:
+	+Description: Ships to lock down
+	+Type: Ship
+	
+$Operator: lua-change-ship-class-2
+$Category: Change
+$Subcategory: Scripted
+$Minimum Arguments: 5
+$Return Type: Nothing
+$Description: Changes a ship to another class while allowing the ship to retaining weapon information. If bank sizes grow in size, default weapons will be used for new banks.
+$Parameter:
+	+Description: Ship class to change to
+	+Type: String
+$Parameter:
+	+Description: Save primary weapon info?
+	+Type: Boolean
+$Parameter:
+	+Description: Save secondary weapon info?
+	+Type: Boolean
+$Parameter:
+	+Description: Save weapon energy info?
+	+Type: Boolean
+$Repeat
+$Parameter:
+	+Description: Ships to change
+	+Type: Ship
+	
+$Operator: lua-is-in-campaign
+$Category: Status
+$Subcategory: Mission
+$Minimum Arguments: 0
+$Maximum Arguments: 0
+$Return Type: Boolean
+$Description: Detects if we are in a campaign state or not
+
+$Operator: lua-swap-ship-position
+$Category: Change
+$Subcategory: Scripted
+$Minimum Arguments: 2
+$Maximum Arguments: 3
+$Return Type: Nothing
+$Description: Swaps the positions of 2 ships, with an optional orientation argument.
+$Parameter:
+	+Description: Ship A
+	+Type: Ship
+$Parameter:
+	+Description: Ship B
+	+Type: Ship
+$Parameter:
+	+Description: If true, also swap orientations
+	+Type: Boolean
+	
+$Operator: lua-reverse-waypoint
+$Category: Change
+$Subcategory: Scripted
+$Minimum Arguments: 1
+$Maximum Arguments: 1
+$Return Type: Nothing
+$Description: Changes the positions of a waypoint path so that they go in reverse order.
+$Parameter:
+	+Description: Waypoint Path
+	+Type: waypointpath
+
+
+
+#End

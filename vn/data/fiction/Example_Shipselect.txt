@@ -1,0 +1,22 @@
+FILEVERSION 3
+GOTO Start
+LABEL Start
+
+# Prepare Map and Interrupt
+LOADMAP Shipselect
+SETINT "@btn_select_ship" Map 0
+
+# Trap the player in an infinite Loop, use Interrupt to break
+LABEL Loop
+Self " " AUTO
+GOTO Loop
+
+# Triggered Interrupt. Show Map and return to infinite Loop
+LABEL Map
+SETINT PAUSE
+SHOWMAP currentShip NOFADE
+SETBG
+INTRETURN
+
+LABEL END
+ACTION ENDMISSION

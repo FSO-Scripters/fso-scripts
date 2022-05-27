@@ -1,0 +1,65 @@
+FILEVERSION 3
+GOTO Start
+LABEL Start
+
+# Setup a tracker to see if we talked with both
+SETVAR talkedTo 0
+# Setup a flag to see with whom we already talked. Yes, kind of redundant, but easier like this.
+SETVAR canTalkTo 0
+
+SETBG file=BG
+
+# Show and introduce
+SHOW a actor=a x=25 from=LEFT
+SHOW b actor=b x=75 from=RIGHT
+
+WAIT 1.5
+
+a "Hello, I'm A!"
+b "Hello! I am B!"
+		
+# Question with whom to talk
+LABEL talkTo
+
+IF talkedTo >= 2
+	#Talked with both, skip to end.
+	Self "Both seem not that interesting."
+	Self "Bye!" AUTO
+	WAIT 1
+ELSE
+	SELF "Talk to whom?" AUTO
+	MENU "Talk to A." "Talk to B." variable=talkToWhom flag=canTalkTo
+	
+	IF talkToWhom == 1
+		# Picked option 1, so A
+		HIDE b
+		a "Ah, yes, hi!"
+		Self "That seems like all he had to say..."
+		SHOW b actor=b x=75 fadetime=1
+		WAIT 1
+		
+		# Flag A as "talked to" and increase talked to count
+		SETFLAG canTalkTo 1
+		SETVAR talkedTo talkedTo + 1
+	ELSE
+		# Not option 1, so B
+		HIDE a
+		b "I have little to talk about!"
+		Self "That seems like all he had to say..."
+		SHOW a actor=a x=25 fadetime=1
+		WAIT 1
+		
+		# Flag B as "talked to" and increase talked to count
+		SETFLAG canTalkTo 2
+		SETVAR talkedTo talkedTo + 1
+	ENDIF
+	GOTO talkTo
+ENDIF
+
+a "Bye!"
+b "Bye."
+
+ACTION FADEOUT 2
+
+LABEL END
+ACTION ENDMISSION
