@@ -1,0 +1,267 @@
+#Conditional Hooks
+$Application: FS2_Open
+$On Game Init:
+[
+ 
+Monitor = {}
+ 
+function Monitor:Init()
+       
+        local campaign = ba.getCurrentPlayer():getCampaignFilename()
+       
+        if cf.fileExists("imonitor_" .. campaign .. ".cfg", "data/config", true) then
+                self.ConfigFilename = "imonitor_" .. campaign .. ".cfg"
+                self.Config = axemParse:ReadJSON(self.ConfigFilename, nil)
+        elseif cf.fileExists("imonitor.cfg", "data/config", true) then
+                self.ConfigFilename = "imonitor.cfg"
+                self.Config = axemParse:ReadJSON(self.ConfigFilename, nil)
+        else
+                self.Config = nil
+        end
+       
+        if self.Config then
+                self.Enabled = true
+        else
+                self.Enabled = false
+        end
+       
+        self.Buttons = {}
+ 
+end
+ 
+function Monitor:GoToState(state)
+
+	local event
+
+	if state.Name == "GS_STATE_BRIEFING" then
+		event = "GS_EVENT_START_BRIEFING"
+	else
+		event = string.gsub(state.Name, "STATE", "EVENT")
+	end
+
+	ba.postGameEvent(ba.GameEvents[event])
+
+end
+ 
+function Monitor:LoadCmdBrief()
+ 
+if mn.isInCampaign() then
+ 
+        AXUI:SetFocus(0)
+       
+        for k,v in pairs(self.Config.CmdBrief) do
+                if v.Required == nil or cf.fileExists(v.Required, "data/tables", true) then
+                        if v.Visible == true then
+                                self.Buttons[k] = AXUI:CreateButton(v.Caption, v.Position.X, v.Position.Y, 52, 18, "white", "ui_light_green", "ui_green", "cb_sidetab", 0, 0, "cb_sidetab_h", "cb_sidetab_c", true, 0)
+                                self.Buttons[k].Info = v
+                                self.Buttons[k].Info.State = ba.GameStates[v.GameState]
+                        end
+                end
+        end    
+       
+end
+ 
+end
+
+function Monitor:LoadBrief()
+ 
+if mn.isInCampaign() then
+ 
+        AXUI:SetFocus(0)
+       
+        for k,v in pairs(self.Config.Brief) do
+                if v.Required == nil or cf.fileExists(v.Required, "data/tables", true) then
+                        if v.Visible == true then
+                                self.Buttons[k] = AXUI:CreateButton(v.Caption, v.Position.X, v.Position.Y, 52, 18, "white", "ui_light_green", "ui_green", "cb_sidetab", 0, 0, "cb_sidetab_h", "cb_sidetab_c", true, 0)
+                                self.Buttons[k].Info = v
+                                self.Buttons[k].Info.State = ba.GameStates[v.GameState]
+                        end
+                end
+        end    
+       
+end
+ 
+end
+ 
+function Monitor:LoadOptions()
+ 
+        --A little messy but we should have some way of getting to the barracks if we REALLY need to...
+        AXUI:SetFocus(0)
+       
+        local barracks = self.Config.Options.Barracks
+       
+        if barracks.Visible == true then
+                self.Buttons.Barracks = AXUI:CreateButton("Barracks", barracks.Position.X, barracks.Position.Y, 52, 18, "white", "ui_light_green", "ui_green", "cb_sidetab", 0, 0, "cb_sidetab_h", "cb_sidetab_c", true, 0)
+                self.Buttons.Barracks.Info = barracks
+                self.Buttons.Barracks.Info.State = ba.GameStates[self.Buttons.Barracks.Info.GameState]
+                --self.ShouldHijack = barracks.Hijack
+        end
+ 
+end
+ 
+function Monitor:Draw()
+ 
+        for k,v in pairs(self.Buttons) do
+       
+                v:Draw()
+       
+        end
+ 
+end
+ 
+function Monitor:Actions()
+ 
+        for k,v in pairs(self.Buttons) do
+                if v:Clicked() then
+               
+                        if v.Info.Hijack == false then
+                                self.ShouldHijack = false
+                        end
+                        ad.playInterfaceSound(7)
+                        self.Substate = v.Info.Substate
+                        self:GoToState(v.Info.State)
+                       
+                end
+        end
+ 
+end
+ 
+function Monitor:GoTo(screen)
+ 
+        self.Substate = screen
+        ba.postGameEvent(ba.GameEvents["GS_EVENT_SCRIPTING"])
+ 
+end
+ 
+]
+ 
+$On State Start:
+[
+        Monitor.CurrentState = ba.getCurrentGameState()
+        Monitor.Buttons = {}
+]
+ 
+$On State End:
+[
+        Monitor.LastState = Monitor.CurrentState
+]
+ 
+$State: GS_STATE_GAME_PLAY
+$On State Start:
+[
+        Monitor.Gameplay = true
+]
+ 
+$On State End:
+[
+        Monitor.Gameplay = nil
+]
+ 
+$State: GS_STATE_INITIAL_PLAYER_SELECT
+$On State Start:
+[
+        --Monitor:Init()
+]
+ 
+$State: GS_STATE_MAIN_MENU
+$On State Start:
+[
+        Monitor:Init()
+        if Monitor.Enabled then
+                ad.stopMusic(0, true, "briefing")
+                Monitor.ShouldHijack = Monitor.Config.Mainhall.Hijacking
+                Monitor.Substate = Monitor.Config.Mainhall.Barracks
+        end
+]
+ 
+$State: GS_STATE_BARRACKS_MENU
+$On Frame:
+[
+        if Monitor.ShouldHijack and Monitor.Enabled then
+                gr.setColor(0,0,0,255)
+                gr.drawRectangle(0,0,gr.getScreenWidth(), gr.getScreenHeight()) --Draw a black box because we don't want a flash of the barracks before we hijack it
+        end
+]
+ 
+$On State Start:
+[
+        --HANDS UP THIS IS A HIJACKING. DIVERT THIS SCREEN TO CUBA!
+        if Monitor.ShouldHijack and Monitor.Enabled then
+                ba.postGameEvent(ba.GameEvents["GS_EVENT_SCRIPTING"])
+                Monitor.CurrentState = ba.GameStates["GS_STATE_MAIN_MENU"]
+        else
+                ba.print("no hijack pls\n")
+        end
+]
+ 
+ 
+ 
+$State: GS_STATE_OPTIONS_MENU
+$On State Start:
+[
+        if not Monitor.Gameplay and Monitor.Enabled then
+                Monitor:LoadOptions()
+        end
+]
+ 
+$On Frame:
+[
+        if not Monitor.Gameplay and Monitor.Enabled then
+                Monitor:Draw()
+        end
+]
+ 
+$On Mouse Released:
+[
+        if not Monitor.Gameplay and Monitor.Enabled then
+                Monitor:Actions()
+        end
+]
+
+$State: GS_STATE_BRIEFING
+$On State Start:
+[
+        if Monitor.Enabled then
+				AXUI:ScreenInit()
+                Monitor:LoadBrief()
+        end
+]
+ 
+$On Frame:
+[
+        if Monitor.Enabled then
+                Monitor:Draw()
+        end
+]
+ 
+$On Mouse Released:
+[
+        if Monitor.Enabled then
+                Monitor:Actions()
+        end
+]
+ 
+$State: GS_STATE_CMD_BRIEF
+$On State Start:
+[
+        if Monitor.Enabled then
+				AXUI:ScreenInit()
+                Monitor:LoadCmdBrief()
+        end
+]
+ 
+$On Frame:
+[
+        if Monitor.Enabled then
+                Monitor:Draw()
+        end
+]
+ 
+$On Mouse Released:
+[
+        if Monitor.Enabled then
+                Monitor:Actions()
+        end
+]
+ 
+#End
