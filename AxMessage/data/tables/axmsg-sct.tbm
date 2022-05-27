@@ -174,7 +174,7 @@ function AXMessage:LoadMsgBox(filename) --**********************************
 	if blpos.Origin and blpos.Offset then
 		self.BacklogPos.x = (gr.getScreenWidth() * blpos.Origin[1]) + blpos.Offset[1]
 		self.BacklogPos.y = (gr.getScreenHeight() * blpos.Origin[2]) + blpos.Offset[2]
-	elseif blpos.Origin and blpos.Offset then
+	elseif blpos.Origin and not blpos.Offset then
 		self.BacklogPos.x = (gr.getScreenWidth() * blpos.Origin[1])
 		self.BacklogPos.y = (gr.getScreenHeight() * blpos.Origin[2])
 	else

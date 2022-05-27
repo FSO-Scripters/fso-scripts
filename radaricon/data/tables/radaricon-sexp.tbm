@@ -1,0 +1,23 @@
+#Lua SEXPs
+
+$Operator: lua-radaricon-activate
+$Category: Change
+$Subcategory: Scripted
+$Minimum Arguments: 1
+; No maximum arguments means that it accepts a variable number of arguments
+$Return Type: Nothing
+$Description: Starts Rendering Radar Icons on top of Ships
+$Repeat
+$Parameter:
+	+Description: Teams whose ships' radar icons should be displayed
+	+Type: String
+
+$Operator: lua-radaricon-deactivate
+$Category: Change
+$Subcategory: Scripted
+$Minimum Arguments: 0
+$Maximum Arguments: 0
+$Return Type: Nothing
+$Description: Stops Rendering Radar Icons on top of Ships
+	
+#End

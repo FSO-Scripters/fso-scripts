@@ -1,0 +1,3740 @@
+#Conditional Hooks
+$Application: FS2_Open
+
+$On Game Init:
+[
+
+VS3 = {}
+
+-- use better random functions than the Lua-supplied C ones
+;;FSO 20.1.0.20200727;; VS3.rand32 = ba.rand32
+;;FSO 20.1.0.20200727;; !*
+VS3.rand32 = function(a, b)
+	if a and b then
+		return math.random(a, b)
+	elseif a then
+		return math.random(a) - 1
+	else
+		return math.random(0, 0x7fffffff)
+	end
+end
+;;FSO 20.1.0.20200727;; *!
+
+;;FSO 21.5.0.20211107;;	VS3.rand32f = ba.rand32f
+;;FSO 21.5.0.20211107;; !*
+VS3.rand32f = function(max)
+	local result = math.random()
+	if max then
+		result = result * max
+	end
+	return result
+end
+;;FSO 21.5.0.20211107;; *!
+
+function VS3.randomItem(list)
+    if not list or #list == 0 then
+        return nil
+    elseif #list == 1 then
+        return list[1]
+    else
+        return list[VS3.rand32(1, #list)]
+    end
+end
+
+function VS3:Init(hideCursor)
+	--THIS IS VERSION 3.0.3
+	
+	
+	ba.print("*****Initializing Visual Novel System...\n")
+	
+	-- if nil (not specified), assume false
+	hideCursor = hideCursor or false
+	io.setCursorHidden(hideCursor)
+	
+	self.Lexer = require ("lexer.lua")
+	--self.Ease = require ("easing.lua")
+	
+	self.SDL2 = true
+	
+	self.CanTalk = nil
+	self.Running = true
+	self.Enabled = false
+	self.Debug = false
+	
+	if cf.fileExists("vs3.cfg","data/config",true) then
+		self.Config = axemParse:ReadJSON("vs3.cfg")
+	else
+		ba.error("VN Script: Config file missing! Cannot proceed! :(\n")
+		return
+	end
+	
+	if self.Config.FutureFiles then
+		for i,filename in ipairs(self.Config.FutureFiles) do
+			local tmptbl = axemParse:ReadJSON(filename)
+			
+			if tmptbl then
+				if tmptbl.Actors then
+					local newActors = tmptbl.Actors
+					for k,v in pairs(newActors) do
+						self.Config.Actors[k] = v
+					end
+				end
+				
+				if tmptbl.Characters then
+					local newCharacters = tmptbl.Characters
+					for k,v in pairs(newCharacters) do
+						self.Config.Characters[k] = v
+					end
+				end
+				
+				if tmptbl.Bases then
+					local newBases = tmptbl.Bases
+					for k,v in pairs(newBases) do
+						self.Config.Bases[k] = v
+					end
+				end
+			end
+			
+		end
+	end
+	
+	self.GraphicInfo = self:GetGraphicInfo(self.Config.Graphics)
+	
+	self.Characters = self.Config.Characters
+	self.Variables = self.Variables or {}
+	self.Images = {} --Images Actively Being Drawn
+	self.ImgCache = {} --Images loaded
+	self.Transitions = {}
+	self.Displays = {}
+	
+	-- Stuff for sending a character message as a "standard" message
+	self.StandardMessage = nil
+	
+	self.StandardTextPosition = {}
+	self.StandardTextPosition.x, self.StandardTextPosition.y = 8, 5 + 4 * 17
+	
+	self.StandardHead = {}
+	self.StandardHead.x, self.StandardHead.y = 20, 100
+	self.StandardHead.w, self.StandardHead.h = 256, 206
+	self.StandardHead.header_dx, self.StandardHead.header_dy = 6, 3
+	self.StandardHead.anim_dx, self.StandardHead.anim_dy = 3, 16
+	self.StandardHead.anim_w, self.StandardHead.anim_h = 250, 187
+	self.StandardHead.FrameHandle = gr.loadTexture("2_head1", true)
+	
+	self.HUDHeadColor = {}
+	self.HUDHeadColor[1], self.HUDHeadColor[2], self.HUDHeadColor[3], self.HUDHeadColor[4] = hu.getHUDGaugeColor(27) --27 is message lines!
+	self.HUDTextColor = {}
+	self.HUDTextColor[1], self.HUDTextColor[2], self.HUDTextColor[3], self.HUDTextColor[4] = hu.getHUDGaugeColor(25) --25 is the talking head!
+	
+	self.Fade = nil	
+	
+	self.ShowCursor = (not hideCursor)
+	self.ShowBox = false
+	self.HideFlag = false
+	
+	self.IntKey = nil
+	self.IntButton = nil
+	self.IntGoto = nil
+	self.IntOffset = nil
+	
+	self.MusicHandle = nil
+	
+	self.CanAdvance = true
+	self.Speaking = nil
+	self.Sender = nil
+	self.Menu = nil
+	self.MsgEndTime = nil
+	self.OkayTime = 0
+	self.BG = nil
+	self.LastClicked = ba.getFrametimeOverall()
+	
+	self.Ingame = true
+	
+	if not self.Message then
+		if (not mn.Messages["VS3Message"]:isValid()) then
+			self.Message = mn.addMessage("VS3Message", " ")
+		else
+			self.Message = mn.Messages["VS3Message"]
+		end
+	end
+	
+	AXUI:SetFocus(0)
+
+end
+
+mn.LuaSEXPs["lua-vn-load"].Action = function(filename, start, hideCursor)
+
+	local ext = ".txt"
+	
+	if not filename:ends(ext) then
+		filename = filename .. ext
+	end
+
+	-- simulate not supplying the "start" argument if we're forced to supply it
+	if start then
+		if start == "" or start:lower() == "none" then
+			start = nil
+		end
+	end
+	
+	VS3:LoadScene{filename=filename, start=start, hideCursor=hideCursor}
+
+end
+
+function VS3:L(filename, start, stayInGame)
+
+	self:LoadScene{filename=filename .. ".txt", start=start, stayInGame=stayInGame}
+	
+end
+
+function VS3:LoadScene(args)
+
+	-- use table syntax in case one or more of the args isn't specified
+	local filename = args.filename
+	local start = args.start
+	local stayInGame = args.stayInGame
+	local hideCursor = args.hideCursor
+
+	if not cf.fileExists(filename, "data/fiction", true) then
+		ba.error("VN Script: File " .. filename .. " was not found!\n")
+		return
+	end
+	
+		if start then
+			start = string.lower(start)
+		end
+	
+		VS3:Init(hideCursor)
+		
+		if Lockdown and self.Config.LockByDefault then Lockdown() end
+		
+		local config = self.Config
+
+		self.Scene = axemParse:Open(filename, "data/fiction")
+		
+		self.ParseVersion = 2
+		
+		self.LoadedFile = filename
+		self.Scene.NextLine = self.NextLine
+		self.Scene.GoToLine = self.GoToLine
+		self.Scene.SeekStarts = self.SeekStarts
+		self.Scene.ProcessLine = self.ProcessLine
+		self.Scene.EvalIf = self.EvalIf
+		self.Scene.ScanToNextELSEIFOrENDIF = self.ScanToNextELSEIFOrENDIF
+		
+		self.Enabled = true
+		self.StayInGame = stayInGame
+		
+		--I will never do this again...
+		AXMessage.AlwaysDrawMsgBox = true
+		AXMessage.RawString = nil
+		AXMessage.DisplayString = nil
+		AXMessage.Sender = nil
+		AXMessage.DrawControl = "VS3"
+		AXMessage.Monochrome = false
+		AXMessage.Speed = config.TextDraw or 0.03
+		
+		local boxinfo = self.GraphicInfo.MsgBox
+		local textinfo = self.GraphicInfo.Text
+		
+
+		AXMessage.Fonts.Title = gr.Fonts[textinfo.Title.Font or 2]
+		AXMessage.Fonts.Text = gr.Fonts[textinfo.Message.Font or 3]
+		
+		AXMessage:LoadMsgBox(self.GraphicInfo.MsgBox.File)
+		AXMessage.Position.x = (gr.getScreenWidth() * boxinfo.Position.x - (AXMessage.Image.w/2))
+		AXMessage.Position.y = (gr.getScreenHeight() * boxinfo.Position.y)
+		
+		if (AXMessage.Position.y + AXMessage.Image.h) > gr.getScreenHeight() then
+			AXMessage.Position.y = gr.getScreenHeight() - AXMessage.Image.h
+		end
+		
+		AXMessage.Image.w = AXMessage.Image.w - boxinfo.Bounding.Right
+		AXMessage.Image.h = AXMessage.Image.h - boxinfo.Bounding.Bottom
+		AXMessage.Color.Title = {textinfo.Title.Color[1] or 161, textinfo.Title.Color[2] or 184, textinfo.Title.Color[3] or 161, textinfo.Title.Color[4] or 255}
+		AXMessage.Color.Text = {textinfo.Message.Color[1] or 161, textinfo.Message.Color[2] or 184, textinfo.Message.Color[3] or 161, textinfo.Message.Color[4] or 255}
+		AXMessage.Offsets.Sender.x = textinfo.Title.Offset.x
+		AXMessage.Offsets.Sender.y = textinfo.Title.Offset.y
+		AXMessage.Offsets.Text.x = textinfo.Message.Offset.x
+		AXMessage.Offsets.Text.y = textinfo.Message.Offset.y
+		
+		AXUI.InGame = true
+		AXUI:ScreenInit()
+		
+		mn.runSEXP("(disable-builtin-messages)")
+		mn.runSEXP("(hud-disable 1)")
+		mn.runSEXP("(ignore-key -1 !C! !Shift-A! !Shift-Z! !Shift-D! !Shift-V! !Shift-X! !Shift-E! !Shift-W! !Shift-I! !Shift-P! !Shift-C! !Shift-J! !Shift-R!)")
+		
+		if self.Config.Anchor and string.lower(self.Config.Anchor) == "screen" then
+			self.Anchor = AXUI.Screen.y + AXUI.Screen.h
+			self.Anchor_pct = self.Anchor / AXUI.Screen.h
+		else
+			self.Anchor = AXMessage.Position.y
+			self.Anchor_pct = self.Anchor / AXUI.Screen.h
+		end
+		
+		--track current depth of nested if's
+		self.Scene.IfDepth = 0
+		
+		self.Scene:SeekStarts()
+				
+		if self.ParseVersion ~= 3 then
+			ba.error("VN: VS3 can only parse VN scripts of version 3. Found: Version " .. self.ParseVersion .. "!\n")
+		end
+				
+		if start then
+			if self.Scene.Starts[start] then
+				ba.print("VN: Using start " .. start .. "at line " .. self.Scene.Starts[start].Line .. "\n")
+				self.Scene.Line = self.Scene.Starts[start].Line
+				self.Scene.IfDepth = self.Scene.Starts[start].IfDepth
+			else
+				ba.print("VN: Problem finding 'LABEL " .. start .. "' in file!!\n")
+			end
+		else
+			self.Scene.Line = 0
+		end
+		
+		self:PreloadGraphics()
+		self.Scene:NextLine()
+		
+end
+
+function VS3:BatchErrorCheck(...)
+
+	self.DebugBatchMode = true
+
+	for i,v in ipairs(arg) do
+		self:LoadScene{filename=v, start=nil, stayInGame=true}
+	end
+
+end
+
+function VS3:GetGraphicInfo(t)
+
+	local res = -1
+	local key
+	
+	if t.Text and t.MsgBox then
+		ba.print("VN Script: Found graphics info! (No custom resolutions found)")
+		return t
+	end
+
+	ba.print("VN Script: Looking for resolution info...\n")
+	
+	local screenWidth = gr.getScreenWidth()
+	
+	for k,v in pairs(t) do
+	
+		if v.MinRes and (v.MinRes > res) and (v.MinRes < screenWidth) then
+			ba.print("VN Script: Found possible resolution for " .. v.MinRes .. "\n")
+			res = v.MinRes
+			key = k
+		end
+	
+	end
+	
+	if key then
+		ba.print("VN Script: Using resolution for " .. key .. "\n")
+		t[key].Key = key
+		return t[key]
+	else
+		ba.error("VN Script: Couldn't find a valid resolution for setting up the message box...\n")
+		return nil
+	end
+
+end
+
+function VS3:ParseLine(s)
+	
+	local t = {}
+	local index = 1
+		
+	for k, v in self.Lexer.scan(s) do
+		t[index] = v
+		index = index + 1
+	end
+	
+	if not t[1] then
+		return nil
+	else	
+		return t
+	end
+
+end
+
+function VS3:SeekStarts()
+
+	self.Starts = {}
+
+	for i,v in ipairs(self) do
+	
+		local line = VS3:ParseLine(v)
+		if line and line[1] then
+		
+			local token = string.upper(line[1])
+			
+			if token == "IF" then
+				self.IfDepth = self.IfDepth + 1
+			elseif token == "ENDIF" then
+				self.IfDepth = self.IfDepth - 1
+			end
+		
+			if line[2] then
+				
+				if token == "LABEL" then
+					local content = string.lower(line[2])
+					ba.print("VN: LABEL FOUND!! " .. content .. " at line " ..  i .. "\n")
+					local lineEntry = {}
+					
+					lineEntry.Line = i
+					lineEntry.IfDepth = self.IfDepth
+					self.Starts[content] = lineEntry
+				elseif token == "FILEVERSION" then
+					VS3:SetVersion(line[2])
+				end
+			end
+		end
+	
+	end
+	
+	--Since we just went through the whole file, we can determine if mismatches here
+	if self.IfDepth < 0 then
+		ba.error("VN Script: " .. (-1 * self.IfDepth) .. " ENDIF commands with no corresponding IF\n")
+	elseif self.IfDepth > 0 then
+		ba.error("VN Script: " .. self.IfDepth .. " IF commands with no corresponding ENDIF\n")
+	end
+	
+
+end
+
+function VS3:NextLine()
+
+	self.Line = self.Line + 1
+	self:ProcessLine()
+
+end
+
+function VS3:SetVersion(version)
+
+	self.ParseVersion = version --version or 1
+
+end
+
+function VS3:ProcessLine()
+
+	local thisLine = self[self.Line]
+	
+	if thisLine then
+		local t = VS3:ParseLine(thisLine)
+		if t then
+			local command = string.upper(t[1])
+			
+			ba.print("VN: At line " .. self.Line .. ", Command is " .. command .. "\n")
+			
+			--[[
+			for k, v in pairs(t) do
+				ba.print("'" .. v .. "' ")
+			end
+				ba.print("\n")
+			]]--
+						
+			if command == "#" then
+				self:NextLine()
+			elseif command == "GOTO" then
+				t[2] = string.lower(t[2])
+				self:GoToLine(self.Starts[t[2]], t[2])
+			elseif command == "SETINT" then
+				VS3:SetInterrupt(t)
+				self:NextLine()
+			elseif command == "FORCEINT" then
+				VS3:Interrupt()
+			elseif command == "INTRETURN" then
+				VS3:ReturnFromInterrupt()
+			elseif command == "FILEVERSION" then
+				self:NextLine()
+			elseif command == "PRELOADGRAPHICS" then
+				VS3:PreloadGraphics(true)
+				self:NextLine()
+			elseif command == "LABEL" then
+				self:NextLine()
+			elseif command == "ACTION" then
+				VS3:Action(t)
+			elseif command == "PLAY" then
+				VS3:Play(t)
+				self:NextLine()
+			elseif command == "STOPMUSIC" then
+				VS3:StopMusic()
+				self:NextLine()
+			elseif command == "SHOW" then
+				VS3:Show2(t)
+				self:NextLine()
+			elseif command == "SHOWIMAGE" then
+				VS3:ShowImage(t)
+				self:NextLine()
+			elseif command == "SHOWICON" then
+				VS3:ShowIcon2(t)
+				self:NextLine()
+			elseif command == "SHOWDISPLAY" then
+				VS3:ShowDisplay(t)
+				self:NextLine()
+			elseif command == "HIDEDISPLAY" then
+				VS3:HideDisplay(t)
+				self:NextLine()
+			elseif command == "MOVE" then
+				VS3:Move2(t)
+				self:NextLine()
+			elseif command == "CHANGE" then
+				VS3:Change2(t)
+				self:NextLine()
+			elseif command == "HIDE" then
+				VS3:Hide(t)
+				self:NextLine()
+			elseif command == "SETBG" then
+				VS3:SetBG(t)
+				self:NextLine()
+			elseif command == "LOADMAP" then
+				VS3:LoadMap(t)
+				self:NextLine()
+			elseif command == "SETMAPICON" then
+				VS3:SetMapIcon(t)
+				self:NextLine()
+			elseif command == "HIDEMAPICON" then
+				VS3:HideMapIcon(t)
+				self:NextLine()
+			elseif command == "SHOWMAP" then
+				VS3:ShowMap(t)
+			elseif command == "MENU" then
+				VS3:CreateMenu(t)
+			elseif command == "IF" then
+				self.IfDepth = self.IfDepth + 1
+				self:EvalIf(t)
+			elseif command == "ENDIF" or command == "ELSEIF" or command == "ELSE" then
+				self.IfDepth = self.IfDepth - 1
+				self:ScanToNextELSEIFOrENDIF(self.IfDepth, true)
+			elseif command == "WAIT" then
+				VS3:Wait(t[2], true)
+			elseif command == "SETVAR" then
+				VS3:SetVar(t)
+				self:NextLine()
+			elseif command == "SETFLAG" then
+				VS3:SetFlag(t)
+				self:NextLine()
+			elseif command == "SETFONT" then
+				VS3:SetFont(t)
+				self:NextLine()
+			else
+				VS3:SendMsg(t)
+			end
+		else
+			self:NextLine()
+		end
+	else
+		ba.print("VISUAL NOVEL: END OF FILE REACHED!\n************************\n")
+	end
+
+end
+
+function VS3:WriteToVariable(name, value)
+	--always give precedence to sexp. all variables shall be interacted with using this, except for internal variables (such as _vnLocation or f_ flags)
+	if mn.SEXPVariables[name] and mn.SEXPVariables[name]:isValid() then
+		mn.SEXPVariables[name].Value = value
+	else
+		self.Variables[name] = value
+	end	
+end
+
+function VS3:ReadFromVariable(name)
+	--always give precedence to sexp. all variables shall be interacted with using this, except for internal variables (such as _vnLocation or f_ flags)
+	if mn.SEXPVariables[name] and mn.SEXPVariables[name]:isValid() then
+		return mn.SEXPVariables[name].Value
+	else
+		return VS3.Variables[name]
+	end
+end
+
+function VS3:GoToLine(line, payload)
+
+	if line then
+		self.Line = line.Line
+		self.IfDepth = line.IfDepth
+		self:ProcessLine()
+	else
+		local debugstring = "VN: Bad Label given! Problem with " .. payload .. " on line " .. self.Line .. " in " .. VS3.LoadedFile .. "\n"
+		if VS3.DebugBatchMode then ba.warning(debugstring) else ba.error(debugstring) end
+	end
+	
+end
+
+function VS3:SetInterrupt(t)
+
+	--t[1] = token
+	--  2  = key or button name (prefixed with @)
+	--  3  = label to hit
+	--  4  = lines to move after returning from interrupt
+	
+	--[[for i=1, t[2]:len() do
+		ba.print(i .. ": " .. t[2]:sub(i) .. "\n")
+	end]]--
+	
+	--[[for i=1, #t do
+		ba.print("i: '" .. i .. "', v: '" .. tostring(t[i]) .. "'\n")
+	end]]--
+	
+	if t[3] then t[3] = string.lower(t[3]) end
+	
+	if t[2] == "NULL" then
+		self.IntKey = nil
+		self.IntGoto = nil
+		self.IntButton = nil
+		ba.print("VN: Interrupt Cleared\n")
+	elseif t[2] == "NONE" then
+		self.IntGoto = self.Scene.Starts[t[3]]
+		self.IntOffset = t[4] or 1
+		ba.print("VN: Interrupt Set:  Line: " .. self.IntGoto .. "\n")
+	elseif t[2] == "PAUSE" then
+		self.IntDraw = false
+		ba.print("VN: Interrupt Paused\n")
+	elseif t[2]:find("@") == 1 then
+		local filename = string.sub(t[2],2)
+		local x = AXUI.Screen.w/2 - gr.getImageWidth(filename)/2
+		--local y = 100
+		local y = AXMessage.Position.y - gr.getImageHeight(filename) - 10
+
+		self.IntButton = AXUI:CreateButton(nil, x, y, nil, nil, nil, nil, nil, filename, 0, 0, filename .. "_h", filename .. "_c", false, 0, nil)
+		self.IntGoto = self.Scene.Starts[t[3]]
+		self.IntOffset = t[4] or 1
+		self.IntDraw = true
+		
+		ba.print("VN: Interrupt Set: Button Filename: " .. filename .. " Line: " .. self.IntGoto.Line .. "\n")
+	--else
+	--	self.IntKey = t[2]
+	--	self.IntGoto = self.Scene.Starts[t[3]]
+	--	self.IntOffset = t[4] or 1
+		
+	--	ba.print("VN: Interrupt Set: Key: " .. self.IntKey .. " Line: " .. self.IntGoto .. "\n")
+		
+	end
+
+end
+
+function VS3:Interrupt()
+
+	self.ReturnTo = {}
+	self.ReturnTo.Line = self.Scene.Line + self.IntOffset
+	self.ReturnTo.IfDepth = self.Scene.IfDepth
+	self.Scene:GoToLine(self.IntGoto, "interrupt")
+	
+end
+
+function VS3:ReturnFromInterrupt()
+
+	if self.IntButton then
+		self.IntDraw = true
+	end
+	self.Scene:GoToLine(self.ReturnTo, "return from interrupt")
+
+end
+
+-- This function essentially duplicates the "fadeout" action
+function VS3:SetFadeout(r, g, b, t)
+	r = r or 0
+	g = g or 0
+	b = b or 0
+	t = (t or 2000) / 1000
+
+	if not self.Enabled then
+		return
+	end
+	if r < 0 or r > 255 or g < 0 or g > 255 or b < 0 or b > 255 then
+		ba.warning("RGB values must be from 0 to 255!")
+		return
+	end
+	if t < 0 then
+		ba.warning("Fade out time must be positive!")
+		return
+	end
+
+	self.Fade = {}
+	self.Fade.Color = {r,g,b}
+	self.Fade.A1 = 0
+	self.Fade.A2 = 255
+	self.Fade.StartTime = ba.getFrametimeOverall()
+	self.Fade.EndTime = ba.getFrametimeOverall() + 9999 --wat is this
+	self.Fade.Duration = t
+	VS3:Wait(t, true)
+	ba.print("VN: Fadeout set!\n")
+end
+mn.LuaSEXPs["lua-vn-fade-out"].Action = function(r, g, b, t)
+	VS3:SetFadeout(r, g, b, t)
+end
+
+function VS3:Action(t)
+
+	--t[1] = token
+	--  2  = action
+	--  3+ = parameter
+	
+	local action = string.lower(t[2])
+	
+	axemParse:Validate("line " .. self.Scene.Line .. ": argument 1", t[3], "number", true)
+	axemParse:Validate("line " .. self.Scene.Line .. ": argument 2", t[4], "number", true)
+	axemParse:Validate("line " .. self.Scene.Line .. ": argument 3", t[5], "number", true)
+	axemParse:Validate("line " .. self.Scene.Line .. ": argument 4", t[6], "number", true)
+	
+	if action == "fadein" then	
+		local r, g, b = t[4] or 0, t[5] or 0, t[6] or 0
+		self.Fade = {}
+		self.Fade.Color = {r,g,b}
+		self.Fade.A1 = 255
+		self.Fade.A2 = 0
+		self.Fade.StartTime = ba.getFrametimeOverall()
+		self.Fade.EndTime = ba.getFrametimeOverall() + (t[3] or 0)
+		self.Fade.Duration = t[3]
+		VS3:Wait(t[3] or 0, true)
+		ba.print("VN: Fadein set!\n")
+	elseif action == "fadeout" then
+		local r, g, b = t[4] or 0, t[5] or 0, t[6] or 0
+		self.Fade = {}
+		self.Fade.Color = {r,g,b}
+		self.Fade.A1 = 0
+		self.Fade.A2 = 255
+		self.Fade.StartTime = ba.getFrametimeOverall()
+		self.Fade.EndTime = ba.getFrametimeOverall() + 9999 --wat is this
+		self.Fade.Duration = t[3] or 0
+		VS3:Wait(t[3] or 0, true)
+		ba.print("VN: Fadeout set!\n")
+	elseif action == "lockdown" then
+		if Lockdown then
+			Lockdown()
+			if t[3] and string.lower(t[3])=="everything" then
+				Freeze()
+			end
+			VS3:Wait(0,true)
+		end
+	elseif action == "unlockdown" then
+		if UnLockdown then
+			UnLockdown()
+			UnFreeze()
+			VS3:Wait(0,true)
+		end
+	elseif action == "endmission" then
+		ba.print("VN: Ending mission!\n")
+		if VS3.StayInGame then
+			ba.print("Trying to stay in the mission...\n")
+			VS3:Exit()
+			VS3.StayInGame = nil
+		else
+			ba.print("Endmission for real\n")
+			io.setCursorHidden(false)
+			mn.runSEXP("(end-mission)")
+		end
+	elseif action == "endscene" then
+		ba.print("VN: Ending Scene!\n")
+		if not VS3.StayInGame then
+			io.setCursorHidden(true)
+		end
+		VS3:Exit(true)		--The true will keep variables alive
+	elseif action == "hidecursor" then
+		io.setCursorHidden(true)
+		VS3.ShowCursor = false
+		VS3:Wait(0,true)
+	elseif action == "showcursor" then
+		io.setCursorHidden(false)
+		VS3.ShowCursor = true
+		VS3:Wait(0,true)
+	elseif action == "hidebox" then
+		--VS3.ShowBox = false
+		VS3.HideFlag = true
+		VS3:Wait(0,true)
+	elseif action == "showbox" then
+		--VS3.ShowBox = true
+		VS3.HideFlag = false
+		VS3:Wait(0,true)
+	else
+		ba.print("VN: Invalid action given, ignoring...\n")
+	end
+
+end
+
+function VS3:StopMusic()
+
+	if VS3.MusicHandle then
+		ad.stopMusic(VS3.MusicHandle, true)
+		VS3.MusicHandle = nil
+	end
+
+end
+
+function VS3:Play(t)
+
+	if not VS3.DebugBatchMode then		--This will save your eardrums
+		if string.lower(t[2]) == "music" then
+			if VS3.MusicHandle then ad.stopMusic(VS3.MusicHandle, true) end
+			ba.print("VN: Attempting to play " .. t[2] .."\n")
+			if t[4] and string.lower(t[4]) == "once" then
+				VS3.MusicHandle = ad.playMusic(t[3],1,false)
+			else
+				VS3.MusicHandle = ad.playMusic(t[3])
+			end
+		elseif string.lower(t[2]) == "gamesound" then
+			ad.playGameSound(t[3])
+		elseif string.lower(t[2]) == "interfacesound" then
+			ad.playInterfaceSound(t[3])
+		else
+			ba.warning("VN: Invalid play command given, should be music, gamesound, or interfacesound")
+		end
+	end
+
+end
+
+function VS3:FindParam(name, t)
+
+	-- local numargs = (#t-2)/3
+	
+	--ba.print("VN: FindParam Called!\n")
+	--ba.print("VN: Num args = " .. numargs .. "\n")
+	
+	--ba.print("VN: Looking for " .. string.lower(name) .. "...\n")
+	
+	for i = 2, #t, 1 do
+		--ba.print("VN: looking at " .. t[i] .. "...")
+		if string.lower(t[i]) == string.lower(name) and t[i+1] == "=" then
+			--ba.print(" got it!\n")
+			return t[i+2]
+		else
+			--ba.print(" nope!\n")
+		end
+	end
+	
+	--ba.print("VN: Didn't find it...\n")
+	
+	return nil
+
+end
+
+function VS3:Show2(t)
+
+	--for i,v in ipairs(t) do
+	--	ba.print("t["..i.."]="..v.."\n")
+	--end
+	
+	--ba.print("Number of passed arguments = " .. numargs .. "\n")
+
+	local id = t[2]
+	local x_pct = VS3:FindParam("x", t)
+	local x_flip = VS3:FindParam("xflip", t)
+	local y_pct = VS3:FindParam("y", t)
+	local y_flip = VS3:FindParam("yflip", t)
+	local play = VS3:FindParam("repeat", t)
+	local layer = VS3:FindParam("layer", t)
+	local fadetime = VS3:FindParam("fadetime", t)
+	local actor = VS3:FindParam("actor", t)
+	local emote = VS3:FindParam("emote", t)
+	local from = VS3:FindParam("from", t)
+	local base = VS3:FindParam("base", t)
+	local scale = VS3:FindParam("scale", t)
+	local alpha = VS3:FindParam("alpha", t)
+	local scalewithbg = VS3:FindParam("scalewithbg", t)
+	
+	--if x_flip and string.lower(x_flip) == "true" then x_flip = true else x_flip = nil end
+	--if y_flip and string.lower(y_flip) == "true" then y_flip = true else y_flip = nil end
+	
+	local passedLine = {"SHOW",id,nil,x_pct,x_flip,y_pct,y_flip,play,layer,fadetime,actor,emote,from,base,scale,alpha,scalewithbg}
+	
+	VS3:Show(passedLine)
+	
+	
+end
+
+function VS3:ShowImage(t)
+
+	--for i,v in ipairs(t) do
+	--	ba.print("t["..i.."]="..v.."\n")
+	--end
+	
+	--ba.print("Number of passed arguments = " .. numargs .. "\n")
+
+	local id = t[2]
+	local filename = VS3:FindParam("file", t)
+	local x_pct = VS3:FindParam("x", t)
+	local x_flip = VS3:FindParam("xflip", t)
+	local y_pct = VS3:FindParam("y", t)
+	local y_flip = VS3:FindParam("yflip", t)
+	local play = VS3:FindParam("repeat", t)
+	local layer = VS3:FindParam("layer", t)
+	local fadetime = VS3:FindParam("fadetime", t)
+	local from = VS3:FindParam("from", t)
+	local base = VS3:FindParam("base", t)
+	local scale = VS3:FindParam("scale", t)
+	local alpha = VS3:FindParam("alpha", t)
+	local scalewithbg = VS3:FindParam("scalewithbg", t)
+	
+	--if x_flip and string.lower(x_flip) == "true" then x_flip = true else x_flip = nil end
+	--if y_flip and string.lower(y_flip) == "true" then y_flip = true else y_flip = nil end
+	
+	local passedLine = {"SHOWIMAGE",id,filename,x_pct,x_flip,y_pct,y_flip,play,layer,fadetime,nil,nil,from,base,scale,alpha,scalewithbg}
+	
+	VS3:Show(passedLine)
+	
+	
+end
+
+function VS3:WasCached(filename)
+
+	local result
+	
+	for _,v in ipairs(self.ImgCache) do
+		if v == filename then result = true end
+	end
+	
+	return result
+
+end
+
+function VS3:PreloadGraphics(keepinmemory)
+
+	gr.setColor(0,0,0,255)
+	gr.drawRectangle(0,0,AXUI.Screen.w,AXUI.Screen.h)
+	gr.setColor(255,255,255,255)
+	gr.CurrentFont = gr.Fonts[2]
+	local str = "LOADING..."
+	gr.drawString(str, AXUI.Screen.w/2 - gr.getStringWidth(str)/2, AXUI.Screen.h/2)
+	gr.CurrentFont = gr.Fonts[1]
+
+	self.ImgCache = {}
+	
+	local tmpImages = {}
+	
+	ba.print("VN: Preloading files...\n")
+	
+	for i,v in ipairs(self.Scene) do
+			
+		local line = VS3:ParseLine(v)
+		
+		if line then
+			local token = string.upper(line[1])
+			
+			local filename
+			local loop
+			local idle
+					
+			if (token == "SHOW") or (token == "CHANGE") then
+					
+				local id = line[2]
+				local anim = VS3:FindParam("anim", line)
+				local file = VS3:FindParam("file", line)
+				local actor = VS3:FindParam("actor", line)
+				local emote = VS3:FindParam("emote", line)
+			
+				if not tmpImages[id] then
+					tmpImages[id] = {}
+				end
+				
+				local tmp
+				
+				tmp, _, filename, _, idle = VS3:AssignActor(id, actor, emote, tmpImages)
+				
+				tmpImages[id].Actor = tmp
+			
+				if not filename then
+					if anim then
+						filename = anim
+					elseif file then
+						filename = file
+					end
+				end
+											
+				if filename and not self:WasCached(filename) then
+				
+					self:LoadGraphic(filename, not keepinmemory)
+					self:LoadGraphic(filename .. "_b", not keepinmemory, true)
+					
+					if idle then
+						self:LoadGraphic(idle, not keepinmemory, true)
+					end
+					
+				end
+						
+			end
+		end
+	end
+	
+	ba.print("VN: Caching finished...\n")
+		
+end
+
+function VS3:LoadGraphic(filename, cache, idle)
+
+	if not filename then
+		ba.error("VN Script: nil filename given!\n")
+	end
+	
+	local t
+	
+	if cache then
+		self.ImgCache[#self.ImgCache+1] = filename
+	end
+	
+	graphic = gr.loadStreamingAnim(filename, true, false, false, not cache)
+			
+	if graphic:isValid() then
+						
+		t = {}
+		t.Filename = filename
+		t.Handle = graphic
+		t.Anim = true
+		ba.print("VN: Loaded " .. filename .. " as a streaming animation!\n")
+
+	else
+
+		graphic = gr.loadTexture(filename)
+		
+		if graphic:isValid() then
+					
+			t = {}
+			t.Filename = filename
+			t.Handle = graphic
+			t.Anim = false 
+			ba.print("VN: Loaded " .. filename .. " as a static image!\n")
+
+		else
+			graphic:unload()
+			if not idle then
+				local debugstring = "VN: Failed to load image with filename '" .. filename .. "' in " .. self.LoadedFile .. " (probably doesn't exist)\nReport this to the mod author!"
+				if VS3.DebugBatchMode then ba.warning(debugstring) else ba.error(debugstring) end
+			end
+		end
+				
+	end
+	
+	if cache then
+		ba.print("VN: Cache finished, unloading " .. filename .. "\n")
+		graphic:unload()
+	end
+	
+	return t
+	
+end
+
+function VS3:UnloadGraphic(graphic)
+
+	if graphic and graphic.Handle and graphic.Handle:isValid() then
+		ba.print("VN: Unloading " .. graphic.Filename .. "...\n")
+		graphic.Handle:unload()
+	end
+
+end
+
+function VS3:AssignActor(id, actorName, emote, cache)
+
+	if not id then
+		return
+	end
+	
+	local entry
+	
+	if not cache then
+		entry = self.Images[id]
+	else
+		entry = cache[id]
+	end
+
+	if not cache then ba.print("VN: Attempting to assign actor filename: id: " .. tostring(id) .. ", actorName: " .. tostring(actorName) .. ", emote: " .. tostring(emote) .. "\n") end
+
+	if not actorName then
+		if entry and entry.Actor then
+			actorName = entry.Actor
+			if not cache then ba.print("VN: ActorName received as nil, assuming actorName is " .. actorName .. "\n") end
+		else
+			if not cache then ba.print("VN: Problem assigning actor with id " .. id .. ", aborting!\n") end
+			return
+		end
+	end
+	
+	local thisActor = self.Config.Actors[actorName]
+	
+	if not thisActor then
+	
+		local debugstring = "VN: Script attempting to call an actor not in the config. Tried to call " .. actorName  .. " in " .. self.LoadedFile .. "\n"
+		if VS3.DebugBatchMode then ba.warning(debugstring) else ba.error(debugstring) end
+		
+	else
+	
+		emote = emote or "Neutral"
+				
+		if not thisActor[emote] then
+			ba.print("trying to capitalize first letter\n")
+			emote = emote:gsub("%a", string.upper, 1)
+			ba.print("result: '" .. emote .. "'\n")
+		end
+
+		if not thisActor[emote] then
+			ba.print("trying to lower case all letters\n")
+			emote = emote:lower()
+			ba.print("result: '" .. emote .. "'\n")
+		end
+		
+		if not thisActor[emote] then
+			ba.print("trying to upper case all letters\n")
+			emote = emote:upper()
+			ba.print("result: '" .. emote .. "'\n")
+		end
+
+		if thisActor[emote] and thisActor[emote].File then
+			local entry = thisActor[emote]
+			if not cache then ba.print("VN: Assigned " .. id .. " to be played by " .. actorName .. " with emote " .. emote .. "\n") end
+			return actorName, emote, entry.File, entry.Loop, entry.Idle
+		else --if we can't, we have a problem
+			local debugstring = "VN: Had trouble assigning actor " .. actorName .. " with emote " .. emote  .. " in " .. self.LoadedFile .. "\n"
+			if VS3.DebugBatchMode then ba.warning(debugstring) else ba.error(debugstring) end
+		end
+	
+	end
+
+end
+
+function VS3:Show(t)
+
+	--t[1] = token
+	--  2  = id
+	--  3  = filename
+	--  4  = x pos (defaults to 50)
+	--  5  = flipped x
+	--  6  = y pos (relative to message box top, defaults to 0)
+	--  7  = flipped y
+	--  8  = play method (alwaysloop, playonce)
+	--  9  = layer (1-5)
+	
+	local thisImage = {}
+	local id = t[2]
+	local filename = t[3]
+	local x_pct = t[4]
+	local x_flip = t[5]
+	local y_pct = t[6]
+	local y_flip = t[7]
+	local play = t[8]
+	local layer = t[9] or 3
+	local fadetime = t[10] or 0.5
+	local actor = t[11]
+	local emote = t[12]
+	local from = t[13]
+	local base = t[14]
+	local customscale = t[15]
+	local targetAlpha = t[16]
+	local scalewithbg = t[17]
+	local create = true
+	local scale = 1
+		
+	if self.Images[id] then
+		create = false
+		thisImage = self.Images[id]
+		thisImage.X_0 = self.Images[id].X
+		thisImage.Y_0 = self.Images[id].Y
+		thisImage.Alpha = targetAlpha or 1
+		
+		self:UnloadGraphic(thisImage.Graphic)
+		self:UnloadGraphic(thisImage.AltGraphic)
+		
+		if thisImage.Expire then
+			local index
+		
+			create = true
+			
+			thisImage.Expire = nil
+		end
+			
+	else
+		thisImage.Alpha = 0
+	end
+	
+	local idleOverride
+		
+	if not filename then 
+		if not actor then
+			local debugstring = "VN Script Error: No Filename or Actor specified for " .. id  .. " in " .. self.LoadedFile .. "\n"
+			if VS3.DebugBatchMode then ba.warning(debugstring) else ba.error(debugstring) end
+		end
+		thisImage.Actor, thisImage.Emote, filename, thisImage.Repeat, idleOverride = self:AssignActor(id,actor,emote)
+	end
+
+	if self.Config.WidthBasedScale then
+		--Width based scaling
+		if (gr.getScreenWidth() / self.Config.ScaleDownFromRes) < 1 then
+			scale = gr.getScreenWidth() / self.Config.ScaleDownFromRes
+		end
+	else
+		--Height based scaling
+		if (gr.getScreenHeight() / self.Config.ScaleDownFromRes) < 1 then
+			scale = gr.getScreenHeight() / self.Config.ScaleDownFromRes
+		end
+	end
+	
+	thisImage.Graphic = self:LoadGraphic(filename)
+	thisImage.AltGraphic = self:LoadGraphic(idleOverride or filename .. "_b", nil, true)
+		
+	thisImage.Height = thisImage.Graphic.Handle:getHeight() * scale * self.Config.ScaleFactor
+	thisImage.Width = thisImage.Graphic.Handle:getWidth() * scale * self.Config.ScaleFactor
+	
+	if scalewithbg and string.lower(scalewithbg) == "true" and self.BG then
+		thisImage.X = 0
+		thisImage.Y = 0
+		thisImage.Height = self.BG.Height
+		thisImage.Width = self.BG.Width
+		thisImage.Anchored = false
+	end
+	
+	thisImage.CustomScale = customscale or 1
+	
+	if from then
+		local direction = string.lower(from)
+		local x0_pct
+
+		if direction == "left" then
+			x0_pct = -0.2
+		elseif direction == "right" then
+			x0_pct = 1.2
+		end
+		
+		if x0_pct then
+			--thisImage.X_0 = AXUI.Screen.x + (AXUI.Screen.w * x0_pct) - (thisImage.Width * thisImage.CustomScale) * 0.5
+			thisImage.X_0 = x0_pct
+		end
+		
+	end
+	
+	if x_pct then
+		x_pct = x_pct / 100
+	else
+		x_pct = 0.5
+	end
+	
+	--thisImage.X = AXUI.Screen.x + (AXUI.Screen.w * x_pct) - (thisImage.Width  * thisImage.CustomScale) * 0.5
+	thisImage.X = x_pct
+	
+	if y_pct then
+		--thisImage.Y = AXUI.Screen.y + AXUI.Screen.h * (y_pct/100)
+		thisImage.Y = y_pct/100
+		thisImage.Anchored = false
+	else
+		--thisImage.Y = self.Anchor - (thisImage.Height * thisImage.CustomScale)
+		thisImage.Y = 0
+		thisImage.Anchored = true
+	end
+		
+	if x_flip then
+		if string.lower(x_flip) ~= "false" then
+			thisImage.UVx1 = 1
+			thisImage.UVx2 = 0
+		else
+			thisImage.UVx1 = 0
+			thisImage.UVx2 = 1
+		end
+	end
+
+	if y_flip then
+		if string.lower(y_flip) ~= "false" then
+			thisImage.UVy1 = 1
+			thisImage.UVy2 = 0
+		else
+			thisImage.UVy1 = 0
+			thisImage.UVy2 = 1
+		end
+	end
+	
+	if thisImage.Graphic.Anim then
+		if play then
+			if string.lower(play) == "talking" then
+				thisImage.Repeat = 1
+			elseif string.lower(play) == "always" then
+				thisImage.Repeat = 2
+			elseif string.lower(play) == "once" then
+				thisImage.Repeat = 0
+			elseif string.lower(play) == "forceonce" then
+				thisImage.Repeat = -1
+			elseif string.lower(play) == "paused" then
+				thisImage.Repeat = -2
+			end
+		end
+
+		thisImage.Repeat = thisImage.Repeat or self.Config.DefaultRepeat
+		
+		thisImage.Graphic.Handle.Loop = true
+		
+		if thisImage.AltGraphic and thisImage.AltGraphic.Handle then
+			thisImage.AltGraphic.Handle.Loop = true
+		end
+		
+		if (thisImage.Repeat == 0) or (thisImage.Repeat == -1) then
+
+			thisImage.Graphic.Handle.Loop = false
+			
+			if thisImage.AltGraphic and thisImage.AltGraphic.Handle then
+				thisImage.AltGraphic.Handle.Pause = true
+			end
+		elseif thisImage.Repeat == -2 then
+			thisImage.Graphic.Handle.Loop = false
+			thisImage.AltGraphic.Handle.Loop = false
+			thisImage.Graphic.Handle.Pause = true
+			thisImage.AltGraphic.Handle.Pause = true
+		end
+	end
+
+	thisImage.Layer = layer
+	
+	thisImage.TargetAlpha = targetAlpha
+	
+	thisImage.Base = self:GetBaseInfo(base, thisImage, scale)
+			
+	ba.print("VN: " .. id .. "'s Layer = " .. thisImage.Layer .. "\n")
+		
+	self.Images[id] = thisImage
+
+	if create then
+		VS3:ImageEffect(id, "fadein", fadetime, thisImage.TargetAlpha)
+	else
+		VS3:ImageEffect(id, "move", 0)
+	end
+	
+	if from and thisImage.X_0 then
+		VS3:ImageEffect(id, "move", 1)
+	end
+
+end
+
+function VS3:ShowIcon2(t)
+
+	--for i,v in ipairs(t) do
+	--	ba.print("t["..i.."]="..v.."\n")
+	--end
+	
+	--ba.print("Number of passed arguments = " .. numargs .. "\n")
+
+	local id = t[2]
+	local filename = VS3:FindParam("file", t)
+	local text = VS3:FindParam("text",t)
+	local color = VS3:FindParam("color",t)
+	local x_pct = VS3:FindParam("x", t)
+	local x_flip = VS3:FindParam("xflip", t)
+	local y_pct = VS3:FindParam("y", t)
+	local y_flip = VS3:FindParam("yflip", t)
+	local layer = VS3:FindParam("layer", t)
+	local scale = VS3:FindParam("scale", t)
+	
+	local passedLine = {"SHOWICON",id,filename,text,color,x_pct,x_flip,y_pct,y_flip,layer, scale}
+	
+	VS3:ShowIcon(passedLine)
+	
+	
+end
+
+function VS3:ShowIcon(t)
+
+	--t[1] = token
+	--  2  = id
+	--  3  = class name
+	--  4  = text
+	--  5  = color ("red", "green", "blue", "purple", "white", "yellow")
+	--  6  = x pos (defaults to 50)
+	--  7  = x flip
+	--  8  = y pos (relative to message box top, defaults to 0)
+	--  9  = y flip
+	
+	local thisImage = {}
+	local id = t[2]
+	local filename = t[3]
+	local text = t[4]
+	local color = t[5]
+	local x_pct = t[6]
+	local x_flip = t[7]
+	local y_pct = t[8]
+	local y_flip = t[9]
+	local layer = t[10] or 3
+	local customscale = t[11]
+	local create = true
+	local scale = 1
+			
+	if self.Images[id] then
+		create = false
+		thisImage = self.Images[id]
+		thisImage.X_0 = self.Images[id].X
+		thisImage.Y_0 = self.Images[id].Y
+		thisImage.Alpha = 1
+		self:UnloadGraphic(thisImage.Graphic)
+	else
+		thisImage.Alpha = 0
+	end
+	
+	thisImage.Graphic = self:LoadGraphic(filename)
+	thisImage.CustomScale = customscale or 1
+	
+	if self.Config.WidthBasedScale then
+		--Width based scaling
+		if (gr.getScreenWidth() / self.Config.ScaleDownFromRes) < 1 then
+			scale = gr.getScreenWidth() / self.Config.ScaleDownFromRes
+		end
+	else
+		--Height based scaling
+		if (gr.getScreenHeight() / self.Config.ScaleDownFromRes) < 1 then
+			scale = gr.getScreenHeight() / self.Config.ScaleDownFromRes
+		end
+	end
+
+	if color then
+	
+		thisImage.Base = {}
+
+		if self.Config.Bases[color] then
+			thisImage.Base.Bitmap = self.Config.Bases[color].File
+		else
+			thisImage.Base.Bitmap = "zzz"
+		end
+			
+		thisImage.Base.W = gr.getImageWidth(thisImage.Base.Bitmap) * scale * self.Config.IconScaleFactor
+		thisImage.Base.H = gr.getImageHeight(thisImage.Base.Bitmap) * scale * self.Config.IconScaleFactor
+	end
+
+	thisImage.Height = thisImage.Graphic.Handle:getHeight() * scale * self.Config.IconScaleFactor
+	thisImage.Width = thisImage.Graphic.Handle:getWidth() * scale * self.Config.IconScaleFactor
+		
+	if x_pct then
+		x_pct = x_pct / 100
+	else
+		x_pct = 0.5
+	end
+	
+	--thisImage.X = AXUI.Screen.x + (AXUI.Screen.w * x_pct) - thisImage.Width * 0.5
+	thisImage.X = x_pct
+	
+	if y_pct then
+		y_pct = y_pct / 100
+	else
+		y_pct = 0.5
+	end
+	
+	--thisImage.Y = AXUI.Screen.y + AXUI.Screen.h * (y_pct) -- thisImage.Height * 0.5
+	thisImage.Y = y_pct
+
+		
+	if x_flip then
+		if string.lower(x_flip) ~= "false" then
+			thisImage.UVx1 = 1
+			thisImage.UVx2 = 0
+		--elseif gr.getImageWidth(thisImage.Bitmap .. "_m") > 0 then
+		--	thisImage.Bitmap = thisImage.Bitmap .. "_m"
+		else
+			thisImage.UVx1 = 0
+			thisImage.UVx2 = 1
+		end
+	end
+
+	if y_flip then
+		if string.lower(y_flip) ~= "false" then
+			thisImage.UVy1 = 1
+			thisImage.UVy2 = 0
+		else
+			thisImage.UVy1 = 0
+			thisImage.UVy2 = 1
+		end
+	end
+		
+	if text then
+		thisImage.Text = {}
+		thisImage.Text.String = text
+		thisImage.Text.Font = self.Config.IconFont
+		gr.CurrentFont = gr.Fonts[thisImage.Text.Font]
+		thisImage.Text.X = gr.getStringWidth(text) / 2
+		thisImage.Text.Y = gr.CurrentFont.Height + gr.CurrentFont.Height + 5
+		
+		local baseColor = string.lower(color)
+		
+		if self.Config.Bases[baseColor] then
+			local thisBase = self.Config.Bases[baseColor]
+			thisImage.Text.Color = {thisBase.Color[1],thisBase.Color[2],thisBase.Color[3],thisBase.Color[4]}
+		else
+			thisImage.Text.Color = {192,192,192,255}
+		end
+		
+	end
+	
+	thisImage.Layer = layer
+
+	self.Images[id] = thisImage
+
+	if create then
+		VS3:ImageEffect(id, "fadein", 0.5)
+	else
+		VS3:ImageEffect(id, "move", 0)
+	end
+
+end
+
+function VS3:Move2(t)
+
+	--for i,v in ipairs(t) do
+	--	ba.print("t["..i.."]="..v.."\n")
+	--end
+	
+	--ba.print("Number of passed arguments = " .. numargs .. "\n")
+
+	local id = t[2]
+	local duration = VS3:FindParam("time", t) or 1
+	local x_pct = VS3:FindParam("x", t)
+	local x_flip = VS3:FindParam("xflip", t)
+	local y_pct = VS3:FindParam("y", t)
+	local y_flip = VS3:FindParam("yflip", t)
+	local scale = VS3:FindParam("scale",t)
+	local alpha = VS3:FindParam("alpha",t)
+	
+	local passedLine = {"MOVE",id,duration,x_pct,x_flip,y_pct,y_flip,scale,alpha}
+	
+	VS3:Move(passedLine)
+	
+	
+end
+
+function VS3:Move(t)
+
+	local thisImage = {}
+	local id = t[2]
+	local duration = t[3]
+	local x_pct = t[4]
+	local x_flip = t[5]
+	local y_pct = t[6]
+	local y_flip = t[7]
+	local customscale = t[8]
+	local targetAlpha = t[9]
+	
+	if self.Images[id] then
+	
+		thisImage = self.Images[id]
+	
+		thisImage.X_0 = self.Images[id].X
+		thisImage.Y_0 = self.Images[id].Y
+		
+		if customscale then
+			thisImage.CustomScale_0 = thisImage.CustomScale
+			thisImage.TargetScale = customscale
+		end
+		
+		if x_pct then
+			x_pct = x_pct / 100
+		else
+			x_pct = 0.5
+		end
+		
+		thisImage.X = x_pct
+	
+		if y_pct and type(y_pct) == "number" then
+			thisImage.Y = y_pct/100
+			if thisImage.Anchored then
+				thisImage.Anchored = false
+				thisImage.Y_0 = (self.Anchor - (thisImage.Height * thisImage.CustomScale) - AXUI.Screen.y) / AXUI.Screen.h
+			end
+		elseif y_pct and string.lower(y_pct) == "reset" then 
+			thisImage.Y = (self.Anchor - (thisImage.Height * thisImage.CustomScale) - AXUI.Screen.y) / AXUI.Screen.h
+			if not thisImage.Anchored then
+				thisImage.AnchorFlag = true
+			end
+		elseif thisImage.Y_0 then
+			thisImage.Y = thisImage.Y_0
+		else
+			thisImage.Y = (self.Anchor - (thisImage.Height * thisImage.CustomScale) - AXUI.Screen.y) / AXUI.Screen.h
+			if not thisImage.Anchored then
+				thisImage.AnchorFlag = true
+			end
+		end
+			
+		if x_flip then
+			if string.lower(x_flip) ~= "false" then
+				thisImage.UVx1 = 1
+				thisImage.UVx2 = 0
+			else
+				thisImage.UVx1 = 0
+				thisImage.UVx2 = 1
+			end
+		end
+
+		if y_flip then
+			if string.lower(y_flip) ~= "false" then
+				thisImage.UVy1 = 1
+				thisImage.UVy2 = 0
+			else
+				thisImage.UVy1 = 0
+				thisImage.UVy2 = 1
+			end
+		end
+
+		--self.Images[id] = thisImage
+		
+		VS3:ImageEffect(id, "move", duration)
+		
+		if customscale then
+			VS3:ImageEffect(id, "scale", duration)
+		end
+		
+		if targetAlpha then
+			thisImage.OldAlpha = thisImage.Alpha
+			thisImage.TargetAlpha = targetAlpha
+			VS3:ImageEffect(id, "alpha", duration)
+		end
+	end
+
+end
+
+function VS3:Change2(t)
+
+	--for i,v in ipairs(t) do
+	--	ba.print("t["..i.."]="..v.."\n")
+	--end
+	
+	--ba.print("Number of passed arguments = " .. numargs .. "\n")
+
+	local id = t[2]
+	local filename = VS3:FindParam("file", t)
+	local x_flip = VS3:FindParam("xflip", t)
+	local y_flip = VS3:FindParam("yflip", t)
+	local play = VS3:FindParam("repeat", t)
+	local layer = VS3:FindParam("layer", t)
+	local actor = VS3:FindParam("actor", t)
+	local emote = VS3:FindParam("emote", t)
+	local base = VS3:FindParam("base", t)
+	--local scale = VS3:FindParam("scale", t)
+	
+	local passedLine = {"CHANGE",id,filename,x_flip,y_flip,play,layer, actor, emote, base}
+	
+	VS3:Change(passedLine)
+	
+	
+end
+
+function VS3:Change(t)
+
+	--t[1] = token
+	--  2  = id
+	--  3  = filename
+	--  4  = flip x
+	--  5  = flip y
+	
+	local id = t[2]
+	local filename = t[3]
+	local x_flip = t[4]
+	local y_flip = t[5]
+	local play = t[6]
+	local layer = t[7] or 3 --need to fix this so it might also take the old layer
+	local actor = t[8]
+	local emote = t[9]
+	local base = t[10]
+	local customscale = t[11]
+	local scale = 1
+	
+	axemParse:Validate("line " .. self.Scene.Line .. ": argument 1", t[2], "string")
+	
+	local thisImage = self.Images[id]
+		
+	if not thisImage then
+		return
+	end
+		
+	local idleOverride
+	
+	local oldActor = thisImage.Actor
+	
+	if not filename and (actor or emote) then 
+		thisImage.Actor, thisImage.Emote, filename, thisImage.Repeat, idleOverride = VS3:AssignActor(id,actor,emote)
+	end
+	
+	local changedActor = (oldActor ~= thisImage.Actor)
+	
+	if filename then
+	
+		self:UnloadGraphic(thisImage.Graphic)
+		self:UnloadGraphic(thisImage.AltGraphic)
+	
+		thisImage.Graphic = self:LoadGraphic(filename)
+		thisImage.AltGraphic = self:LoadGraphic(idleOverride or filename .. "_b", nil, true)
+		
+	end
+	
+	if self.Config.WidthBasedScale then
+		--Width based scaling
+		if (gr.getScreenWidth() / self.Config.ScaleDownFromRes) < 1 then
+			scale = gr.getScreenWidth() / self.Config.ScaleDownFromRes
+		end
+	else
+		--Height based scaling
+		if (gr.getScreenHeight() / self.Config.ScaleDownFromRes) < 1 then
+			scale = gr.getScreenHeight() / self.Config.ScaleDownFromRes
+		end
+	end
+	
+	thisImage.Height = thisImage.Graphic.Handle:getHeight() * scale * self.Config.ScaleFactor
+	thisImage.Width = thisImage.Graphic.Handle:getWidth() * scale * self.Config.ScaleFactor
+	
+	thisImage.CustomScale = customscale or thisImage.CustomScale or 1
+	
+	--if customscale then
+	--	thisImage.Y = self.Anchor - (thisImage.Height * thisImage.CustomScale)
+	--end
+	
+	if x_flip then
+		if string.lower(x_flip) ~= "false" then
+			thisImage.UVx1 = 1
+			thisImage.UVx2 = 0
+		else
+			thisImage.UVx1 = 0
+			thisImage.UVx2 = 1
+		end
+	end
+
+	if y_flip then
+		if string.lower(y_flip) ~= "false" then
+			thisImage.UVy1 = 1
+			thisImage.UVy2 = 0
+		else
+			thisImage.UVy1 = 0
+			thisImage.UVy2 = 1
+		end
+	end
+	
+	if thisImage.Graphic.Anim then
+		if play then
+			if string.lower(play) == "talking" then
+				thisImage.Repeat = 1
+			elseif string.lower(play) == "always" then
+				thisImage.Repeat = 2
+			elseif string.lower(play) == "once" then
+				thisImage.Repeat = 0
+			elseif string.lower(play) == "forceonce" then
+				thisImage.Repeat = -1
+			elseif string.lower(play) == "paused" then
+				thisImage.Repeat = -2
+			end
+		end
+
+		thisImage.Repeat = thisImage.Repeat or self.Config.DefaultRepeat
+		
+		thisImage.Graphic.Handle.Loop = true
+		if thisImage.AltGraphic and thisImage.AltGraphic.Handle then
+			thisImage.AltGraphic.Handle.Loop = true
+		end
+		
+		if (thisImage.Repeat == 0) or (thisImage.Repeat == -1 )then
+
+			thisImage.Graphic.Handle.Loop = false
+						
+			if thisImage.AltGraphic and thisImage.AltGraphic.Handle then
+				thisImage.AltGraphic.Handle.Pause = true
+			end
+		elseif thisImage.Repeat == -2 then
+			thisImage.Graphic.Handle.Loop = false
+			thisImage.AltGraphic.Handle.Loop = false
+			thisImage.Graphic.Handle.Pause = true
+			thisImage.AltGraphic.Handle.Pause = true
+		end
+		
+	end
+
+	thisImage.Layer = thisImage.Layer or layer
+	
+	if base or changedActor then
+		thisImage.Base = self:GetBaseInfo(base, thisImage, scale)
+	end
+		
+end
+
+function VS3:GetBaseInfo(base, imageinfo, scale)
+
+	local t = {}
+
+	if not base or string.upper(base) == "NONE" then
+		return nil
+	elseif string.upper(base) ~= "RESET" then 
+		t.Bitmap = base
+	elseif imageinfo.Actor or (string.upper(base) == "RESET") then
+		if self.Config.Actors[imageinfo.Actor] and self.Config.Actors[imageinfo.Actor].Base then
+			t.Bitmap = self.Config.Actors[imageinfo.Actor].Base
+		elseif self.Config.Graphics.DefaultBase then
+			t.Bitmap = self.Config.Graphics.DefaultBase
+		else
+			return nil
+		end
+	else
+		return nil
+	end
+	
+	--ba.print("actor: " .. tostring(imageinfo.Actor) .. "\n")
+	--ba.print("bitmap: " .. tostring(t.Bitmap) .. "\n")
+	
+	t.W = gr.getImageWidth(t.Bitmap) * scale * self.Config.ScaleFactor
+	t.H = gr.getImageHeight(t.Bitmap) * scale * self.Config.ScaleFactor
+	
+	if gr.getImageHeight(t.Bitmap .. "_f") > 0 then
+		t.Fore = t.Bitmap .. "_f"
+	end
+			
+	return t
+
+end
+
+function VS3:ImageEffect(img, style, duration, endvalue)
+
+	--TO DO: If Fadein is long enough and alpha is called soon enough, the later alpha's final value won't be the image's final alpha. I need to figure out if there is a fade in transition for the image, and if so, overwrite the alpha
+
+	local overwrite
+
+	for i,v in ipairs(self.Transitions) do
+		if v.Handle == img and v.Type == style then
+			overwrite = i
+		end
+	end
+
+	local eff = {}
+	local image = self.Images[img]
+
+	if style == "fadein" then
+		eff.A1 = 0
+		eff.A2 = endvalue or 1
+	elseif style == "fadeout" then
+		eff.A1 = image.Alpha
+		eff.A2 = endvalue or 0
+	elseif style == "alpha" then
+		eff.A1 = image.OldAlpha
+		eff.A2 = image.TargetAlpha
+	elseif style == "move" then
+		eff.X1 = image.X_0
+		eff.X2 = image.X
+		eff.Y1 = image.Y_0
+		eff.Y2 = image.Y
+	elseif style == "scale" then
+		eff.S1 = image.CustomScale_0
+		eff.S2 = image.TargetScale
+	end
+		
+	eff.Handle = img
+	eff.Type = style
+	eff.StartTime = ba.getFrametimeOverall()
+	eff.Duration = duration or 0.5
+	eff.EndTime = eff.StartTime + eff.Duration
+	
+	if overwrite then
+		ba.print("VN: Updating " .. img .. "'s image effect...\n")
+		self.Transitions[overwrite] = eff
+	else
+		ba.print("VN: Creating " .. img .. "'s image effect...\n")
+		self.Transitions[#self.Transitions+1] = eff
+	end
+	--self.Transitions[img] = eff
+
+end
+
+function VS3:Hide(t)
+
+	--t[1] = token
+	--  2  = id
+	--  3  = hide right away
+	
+	local id = t[2]
+	local now = t[3]
+	
+	if id and string.upper(id) == "ALL" then
+		if now then
+			for k,v in pairs(VS3.Images) do
+				ba.print("VN: Hiding " .. k .. "without fadeout\n")
+				VS3:ImageEffect(k, "fadeout", 0.01)
+				VS3.Images[k].Expire = true
+			end
+		else
+			for k,v in pairs(VS3.Images) do
+				ba.print("VN: Hiding " .. k .. "...\n")
+				VS3:ImageEffect(k, "fadeout", 0.5)
+				VS3.Images[k].Expire = true
+			end
+		end
+	elseif VS3.Images[id] then
+		if now then
+			ba.print("VN: Hiding " .. id .. "without fadeout\n")
+			VS3:ImageEffect(id, "fadeout", 0.01)
+			VS3.Images[id].Expire = true
+		else
+			ba.print("VN: Hiding " .. id .. "...\n")
+			VS3:ImageEffect(id, "fadeout", 0.5)
+			VS3.Images[id].Expire = true
+		end
+	else
+		ba.print("VN: Bad id given, ignoring...\n")
+	end
+	
+end
+
+function VS3:SetBG(t)
+
+	--for i,v in ipairs(t) do
+	--	ba.print("t["..i.."]="..v.."\n")
+	--end
+	
+	--ba.print("Number of passed arguments = " .. numargs .. "\n")
+
+	local filename = VS3:FindParam("file", t)
+	local scaling = VS3:FindParam("scaling", t)
+	local crossfade = VS3:FindParam("time", t)
+	--local xanchor = VS3:FindParam("xanchor", t)
+	--local yanchor = VS3:FindParam("yanchor", t)
+	--local xscroll = VS3:FindParam("xscroll", t)
+	--local yscroll = VS3:FindParam("yscroll", t)
+	--local scrolltime = VS3:FindParam("scrolltime", t)
+	
+	local passedLine = {"SETBG",filename,scaling,crossfade}
+	
+	VS3:SetBG2(passedLine)
+	
+	
+end
+
+function VS3:SetBG2(t)
+
+	--t[1] = token
+	--  2  = filename
+	--  3  = scaling type, defaults to noscaledown (noscale, noscaleup, noscaledown, scaletofit)
+	--  4  = time to crossfade
+	
+	--ba.print("SET BG DEBUG\n")
+	
+	--for k,v in pairs(t) do
+	--	ba.print(v .. "\n")
+	--end
+	
+	local crossfadetime = t[4]
+	
+	if self.BG and ((self.BG.Image and self.BG.Image:isValid()) or self.BG.SolidBlack) then
+		if crossfadetime then
+			ba.print("Crossfading to new background!\n")
+			self.BGAlt = DeepTableCopy(self.BG)
+			if self.BG.Image and self.BG.Image:isValid() then
+				self.BGAlt.File = self.BG.Image:getFilename()
+				--self.BG.Image:unload()
+				self.BGAlt.Image:unload()
+				self.BGAlt.Image = gr.loadTexture(self.BGAlt.File)
+			end
+			self.BGAlt.FadeDuration = crossfadetime or 1
+			self.BGAlt.FadeStartTime = ba.getFrametimeOverall()
+			self.BGAlt.FadeEndTime = self.BGAlt.FadeStartTime + self.BGAlt.FadeDuration
+			self.BGAlt.Alpha = 1
+		end
+		
+		ba.print("No crossfade!\n")
+		
+		if self.BG.Image and self.BG.Image:isValid() then
+			self.BG.Image:unload()
+		end
+		
+		self.BG = nil
+		
+	end
+
+	local filename = t[2]
+	local scaling = t[3] or self.Config.DefaultBGScale or "NOSCALEDOWN"
+	
+	scaling = string.upper(scaling)
+	if scaling == "DEFAULT" then scaling = self.Config.DefaultBGScale end
+	
+	if not filename or string.upper(filename) == "NONE" then return	end
+	
+	if string.upper(filename) == "BLACK" then
+		self.BG = {}
+		self.BG.SolidBlack = true
+		return
+	end
+	
+	if filename and gr.getImageWidth(filename) ~= 0 then
+		self.BG = {}
+		self.BG.SolidBlack = nil
+		self.BG.Image = gr.loadTexture(filename)
+		self.BG.Width = self.BG.Image:getWidth()
+		self.BG.Height = self.BG.Image:getHeight()
+		
+		local toowide = self.BG.Width > AXUI.Screen.w
+		local tootall = self.BG.Height > AXUI.Screen.h
+		
+		--noscaledown, you can scale up, but not down
+		--noscaleup, you can scale down, but not up
+		--bestfit, scale the smallest dimension up
+		
+		if (scaling == "NOSCALEDOWN" and (not toowide or not tootall)) or (scaling == "NOSCALEUP" and ( toowide or tootall )) or (scaling == "BESTFIT") then
+			ba.print("VN: We need to scale\n")
+			ba.print(scaling .. "\n")
+			local scalingFactor = 1
+
+			if (AXUI.Screen.w / self.BG.Width) > (AXUI.Screen.h / self.BG.Height) then
+				scalingFactor = AXUI.Screen.w / self.BG.Width
+			else
+				scalingFactor = AXUI.Screen.h / self.BG.Height
+			end
+			
+			ba.print(scalingFactor .."\n")
+			
+			self.BG.Width = self.BG.Width * scalingFactor
+			self.BG.Height = self.BG.Height * scalingFactor
+			self.BG.Scaling = scalingFactor
+			self.BG.Offsets = {}
+			self.BG.Offsets.X = (AXUI.Screen.w - self.BG.Width)/2
+			self.BG.Offsets.Y = (AXUI.Screen.h - self.BG.Height)/2
+			
+		elseif scaling == "SCALETOFIT" then
+			self.BG.Width = AXUI.Screen.w
+			self.BG.Height = AXUI.Screen.h
+		end
+		self.BG.X = AXUI.Screen.x + AXUI.Screen.w/2 - self.BG.Width/2
+		self.BG.Y = AXUI.Screen.y + AXUI.Screen.h/2 - self.BG.Height/2
+	else
+		ba.print("VN: Invalid background given, ignoring...\n")
+	end
+
+end
+
+function VS3:LoadMap(t)
+
+	--t[2] = Map Entry in the config file
+	
+	local location = t[2]
+	local defaultLocation = t[3] or 0
+	
+	self.Variables["_vnLocation"] = defaultLocation
+	
+	self.LocationMap = {}
+	
+	if self.Config.Maps and self.Config.Maps[location] then
+		self.LocationMap.Data = self.Config.Maps[location]
+		self.LocationMap.Icons = {}
+		self.LocationMap.Buttons = {}
+		self.LocationMap.Enabled = false
+	else
+		self.LocationMap = nil
+	end
+
+end
+
+function VS3:SetMapIcon(t)
+
+	local iconid = t[2]
+	local mapicon = VS3:FindParam("file", t)
+	local maplocation = VS3:FindParam("location", t)
+	--local selficon = VS3:FindParam("self", t)
+	
+	--[[ba.print("VN SETMAPICON:\n")
+	ba.print("   ID = " .. tostring(iconid) .. "\n")
+	ba.print("   FILE = " .. tostring(mapicon) .. "\n")
+	ba.print("   LOC = " .. tostring(maplocation) .. "\n")
+	ba.print("   SELF = " .. tostring(selficon) .. "\n")]]--
+
+	if string.lower(iconid) == "self" then
+		self.LocationMap.SelfIcon = mapicon
+	elseif self.LocationMap and self.LocationMap.Icons and iconid then
+		self.LocationMap.Icons[iconid] = {Bitmap = mapicon, Location = maplocation}
+	end
+
+end
+
+function VS3:HideMapIcon(t)
+
+	local iconid = t[2]
+	
+	if string.lower(iconid) == "self" then
+		self.LocationMap.SelfIcon = nil
+	elseif self.LocationMap and self.LocationMap.Icons and iconid then
+		self.LocationMap.Icons[iconid] = nil
+	end
+
+end
+
+function VS3:ShowMap(t)
+
+	if self.LocationMap then
+	
+		if t[3] and string.lower(t[3]) == "nofade" then
+			self.MapNoFade = true
+		else
+			self.MapNoFade = nil
+		end
+	
+		local flag = VS3:FindParam("flag", t)
+		local flagVariable = nil
+		if flag then
+			flagVariable = VS3:ReadFromVariable(flag)
+		end
+		
+		self.HideFlag = true
+		self.LocationMap.Enabled = true
+		if self.BG then
+			self.LocationMap.OldBG = self.BG.Image:getFilename()
+			self.LocationMap.OldScaling = self.BG.Scaling
+		end
+		--ba.print("VN: Old Filename was " .. self.LocationMap.OldBG .. "\n")
+		self.Variables["_vnLocation"] = self.Variables["_vnLocation"] or 0
+		self.CurrentLocation = self.Variables["_vnLocation"]
+		self.OkayTime = ba.getFrametimeOverall() + 0.5
+		
+		VS3:SetBG2({0,self.LocationMap.Data.Bitmap,"BESTFIT"})
+		
+		self.LocationMap.Buttons = {}
+		self.LocationMap.resultVariable = t[2]
+		
+		local buttonIndex = 1
+		
+		for k, v in pairs(self.LocationMap.Data.Locations) do
+		
+			local bitmapHilite = v.Bitmap.Filename .. "_h"
+			local bitmapClicked = v.Bitmap.Filename .. "_c"
+		
+			if not (gr.getImageWidth(bitmapHilite) > 0) then
+				bitmapHilite = nil
+			end
+			
+			if not (gr.getImageWidth(bitmapClicked) > 0) then
+				bitmapClicked = nil
+			end
+		
+			local newButton = AXUI:CreateButton(nil, v.Bitmap.X, v.Bitmap.Y, nil, nil, "grey", "silver", "bright_white", v.Bitmap.Filename, 0, 0, bitmapHilite, bitmapClicked, false, 0, 1)
+		
+			if flagVariable then
+				if bit.checkBit(flagVariable, v.Index - 1) then
+					newButton.Hoverable = false
+					newButton.Clickable = false
+				end
+			end
+		
+			newButton.BitmapX = (newButton.BitmapX * self.BG.Scaling) + self.BG.Offsets.X
+			newButton.BitmapY = (newButton.BitmapY * self.BG.Scaling) + self.BG.Offsets.Y
+			newButton.BitmapWidth = newButton.BitmapWidth * self.BG.Scaling
+			newButton.BitmapHeight = newButton.BitmapHeight * self.BG.Scaling
+			
+			newButton:CalculateRegion()
+			
+			newButton.Value = v.Index
+			
+			self.LocationMap.Buttons[buttonIndex] = newButton
+			
+			buttonIndex = buttonIndex + 1
+		
+		end
+		
+		if not self.MapNoFade then
+			self.Fade = {}
+			self.Fade.Color = {0,0,0}
+			self.Fade.A1 = 255
+			self.Fade.A2 = 0
+			self.Fade.StartTime = ba.getFrametimeOverall()
+			self.Fade.EndTime = ba.getFrametimeOverall() + (0.5)
+			self.Fade.Duration = 0.5
+		end
+		
+	else
+	
+		ba.error("MAP NOT LOADED" .. " in " .. self.LoadedFile .. "\n")
+
+	end
+
+end
+
+function VS3:ShowDisplay(t)
+
+	local id = t[2]
+	local displaytype = VS3:FindParam("type", t)
+	local x = VS3:FindParam("x", t) or 0.5
+	local y = VS3:FindParam("y", t) or 0.5
+	local align = VS3:FindParam("align",t)
+	
+	if id and self.Config.Displays[displaytype] then
+	
+		local newDisplay = {}
+		local align_width = 0
+		newDisplay = self.Config.Displays[displaytype]
+		
+		if not align then
+			ba.warning("VN Script: Bad align given for display " .. id .. ", defaulting to left...\n")
+		elseif string.lower(align) == "left" then
+			align_width = 0
+		elseif string.lower(align) == "center" then
+			align_width = 0.5
+		elseif string.lower(align) == "right" then
+			align_width = 1
+		end
+		
+		newDisplay.X = AXUI.Screen.x + (AXUI.Screen.w * x) - (gr.getImageWidth(newDisplay.Background) * align_width) 
+		newDisplay.Y = AXUI.Screen.y + (AXUI.Screen.h * y)
+		
+		for i=1, #mn.Messages do
+			ba.print(i .. ": " .. mn.Messages[i].Message .. "\n")
+		end
+
+		for i, newMessage in ipairs(newDisplay.Output) do
+			local messageName = id .. displaytype .. i
+			newMessage.ID = messageName
+			mn.addMessage(messageName, newMessage.Text)
+		end
+	
+	self.Displays[id] = newDisplay
+	
+	end
+
+end
+
+function VS3:HideDisplay(t)
+
+	self.Displays[t[2]] = nil
+
+end
+
+function VS3:CreateMenu(t)
+
+	--t[1] = The Token
+	--t[2-6] = The Choices
+	--variable  = The Variable the result will get saved too
+	local variable = VS3:FindParam("variable", t)
+	--flag  = The Flag containing which options are shown
+	local flag = VS3:FindParam("flag", t)
+	
+	local choices = {}
+	local index = 1
+	
+	--axemParse:Validate("line " .. self.Scene.Line .. ": argument 1", t[2], "string")
+	--axemParse:Validate("line " .. self.Scene.Line .. ": argument 2", t[3], "string")
+	
+	for i = 2, 6 do
+	
+		if t[i+1] == "=" then 
+			--reached first option
+			break
+		end
+		
+		if t[i] then
+		
+			if (t[i]:find("$") == 1) then
+				t[i] = VS3:ReadFromVariable(t[i]:sub(2))
+			end
+		
+			choices[index] = "> " .. t[i]
+			index = index + 1
+		end
+	end
+	
+	local menuInfo = self.GraphicInfo.Text.Menu
+	
+	self.Menu = AXUI:CreateListBox(choices, AXMessage.Position.x + menuInfo.Offset.x, AXMessage.Position.y + AXMessage.Offsets.Text.y +AXMessage.Fonts.Text.Height + menuInfo.Offset.y, AXMessage.Image.w - 20, AXMessage.Image.h - 50, "white", "silver", "bright_white", false, 0, menuInfo.Font or 3)
+	self.Menu.FontHeight = self.Menu.FontHeight + 2
+	self.Menu:UpdateList(0)
+	self.Menu.Variable = variable
+	
+	local flagVariable = nil
+	if flag then
+		flagVariable = VS3:ReadFromVariable(flag)
+	end
+	
+	if flagVariable then
+		for i, v in ipairs(self.Menu.Item) do
+			-- -1 here as lua counts from 1, but the cpp API counts from 0
+			if bit.checkBit(flagVariable, i - 1) then
+				v.Hoverable = false
+				v.Clickable = false
+				v.Color = "invisible"
+			end
+		end
+	end
+	
+	
+end
+
+function VS3:EvalLogic(t)
+	local evalMax = #t
+	
+	--Precedence for Logic recursive parsing: | < & < () < Compare
+	--Grammar L:= L|L | L&L | (L) | CMP
+	
+	local tokenN = -1
+	local depth = 0
+	
+	for argN = 1, evalMax, 1 do
+		--Skip Brackets
+		if t[argN] == "(" then
+			depth = depth + 1
+		elseif t[argN] == ")" then
+			depth = depth - 1
+		end
+	
+		if depth == 0 and t[argN] == "|" then
+			tokenN = argN
+		end
+	end
+	
+	if tokenN ~= -1 then
+		--Found an or
+		return VS3:EvalLogic({unpack(t, 1, tokenN - 1)}) or VS3:EvalLogic({unpack(t, tokenN + 1, evalMax)})
+	end
+	
+	--Not needed with correct script.
+	depth = 0
+	
+	for argN = 1, evalMax, 1 do
+		--Skip Brackets
+		if t[argN] == "(" then
+			depth = depth + 1
+		elseif t[argN] == ")" then
+			depth = depth - 1
+		end
+		
+		if depth == 0 and t[argN] == "&" then
+			tokenN = argN
+		end
+	end
+	
+	if tokenN ~= -1 then
+		--Found an and
+		return VS3:EvalLogic({unpack(t, 1, tokenN - 1)}) and VS3:EvalLogic({unpack(t, tokenN + 1, evalMax)})
+	end
+	
+	--No Binary Operator. Either we should see a not, start and end with brackets, or have a comparative expression
+	
+	if t[1] == "!" then
+		return not VS3:EvalLogic({unpack(t, 2, evalMax)})
+	elseif t[1] == "(" and t[evalMax] == ")" then
+		return VS3:EvalLogic({unpack(t, 2, evalMax - 1)})
+	else
+		return VS3:EvalCompare(t)
+	end
+end
+
+function VS3:EvalCompare(t)
+	--Grammar CMP:= A == A | A != A | A <= A | A >= A | A < A | A > A
+	local evalMax = #t
+	local tokenN = -1
+	local op = ""
+
+	for argN = 1, evalMax, 1 do
+		if t[argN] == "==" or t[argN] == "!=" or t[argN] == "<=" or t[argN] == ">=" or t[argN] == "<" or t[argN] == ">" then
+			tokenN = argN
+			op = t[argN]
+			break
+		end
+	end
+	
+	local a = 0
+	local b = 0
+	
+	a = VS3:EvalArithmetic({unpack(t, 1, tokenN - 1)})
+	b = VS3:EvalArithmetic({unpack(t, tokenN + 1, evalMax)})
+
+	if op == "==" then
+		return a == b
+	elseif op == "!=" then
+		return a ~= b
+	elseif op == "<=" then
+		return a <= b
+	elseif op == ">=" then
+		return a >= b
+	elseif op == "<" then
+		return a < b
+	elseif op == ">" then
+		return a > b
+	end
+end
+
+function VS3:EvalArithmetic(t)
+	local evalMax = #t
+	
+	--Precedence for Arithmetic recursive parsing: +|- < *|/ < § < () < var|n
+	--Grammar L:= L+L | L-L | L*L | L/L | L§L  | (L) | VAR | n
+	
+	local tokenN = -1
+	local depth = 0
+	
+	for argN = 1, evalMax, 1 do
+		--Skip Brackets
+		if t[argN] == "(" then
+			depth = depth + 1
+		elseif t[argN] == ")" then
+			depth = depth - 1
+		end
+	
+		if depth == 0 and (t[argN] == "+" or t[argN] == "-") then
+			tokenN = argN
+		end
+	end
+	
+	if tokenN ~= -1 then
+		--Found a + or -
+		local a = VS3:EvalArithmetic({unpack(t, 1, tokenN - 1)})
+		local b = VS3:EvalArithmetic({unpack(t, tokenN + 1, evalMax)})
+		if t[tokenN] == "+" then
+			return a + b
+		else
+			return a - b
+		end
+	end
+	
+	--Not needed with correct script.
+	depth = 0
+	
+	for argN = 1, evalMax, 1 do
+		--Skip Brackets
+		if t[argN] == "(" then
+			depth = depth + 1
+		elseif t[argN] == ")" then
+			depth = depth - 1
+		end
+	
+		if depth == 0 and (t[argN] == "*" or t[argN] == "/") then
+			tokenN = argN
+		end
+	end
+	
+	if tokenN ~= -1 then
+		--Found a * or /
+		local a = VS3:EvalArithmetic({unpack(t, 1, tokenN - 1)})
+		local b = VS3:EvalArithmetic({unpack(t, tokenN + 1, evalMax)})
+		if t[tokenN] == "*" then
+			return a * b
+		else
+			return a / b
+		end
+	end
+	
+	--Not needed with correct script.
+	depth = 0
+	
+	for argN = 1, evalMax, 1 do
+		--Skip Brackets
+		if t[argN] == "(" then
+			depth = depth + 1
+		elseif t[argN] == ")" then
+			depth = depth - 1
+		end
+	
+		if depth == 0 and t[argN] == "R" then
+			tokenN = argN
+		end
+	end
+	
+	if tokenN ~= -1 then
+		--Found a §
+		local a = VS3:EvalArithmetic({unpack(t, 1, tokenN - 1)})
+		local b = VS3:EvalArithmetic({unpack(t, tokenN + 1, evalMax)})
+		return VS3.rand32(a, b)
+	end
+
+	
+	--No Arithmetic Operator. Either we should start and end with brackets, or have a variable or a number
+	if t[1] == "(" and t[evalMax] == ")" then
+		return VS3:EvalArithmetic({unpack(t, 2, evalMax - 1)})
+	else
+		--let's hope there is only one token left...
+		if type(t[1]) == "string" then
+			return VS3:ReadFromVariable(t[1])
+		end
+		
+		return t[1]
+	end
+end
+
+function VS3:EvalIf(t)
+
+	--So let me get this straight, you're parsing an IF statement, which will get parsed by Lua's IF functions, which will get parsed by C++'s IF functions... Wow.
+
+	local token = string.upper(t[1])
+	
+	ba.print("VN: Evaluating IF statment...\n")
+	local result = (token == "ELSE") or VS3:EvalLogic({unpack(t,2,#t)})
+
+	ba.print("VN: Line " .. self.Line .. " was evaluated to " .. tostring(result) .. "\n")
+
+	if result then
+		--Is true or else statement, so evaluate. Will Drop back once an ELSEIF/ELSE/ENDIF is found
+		self:NextLine()
+	else
+		--Is false, so skip this line and find the next ELSEIF/ELSE/ENDIF to evaluate
+		self.Line = self.Line + 1
+		self:ScanToNextELSEIFOrENDIF(self.IfDepth, false)
+	end
+end
+
+function VS3:ScanToNextELSEIFOrENDIF(depth, endifonly)
+	
+	--Assume that current line is relevant IF / ELSEIF to Scan away from
+	--And don't worry, we break from this loop with returns
+	while true do
+		local line = VS3:ParseLine(self[self.Line])
+		if line and line[1] then
+		
+			local token = string.upper(line[1])
+			
+			if self.IfDepth == depth then
+				--We are at the correct Depth, this could be our target
+				if (token == "ELSEIF" or token == "ELSE") and not endifonly then
+					--Found an ElseIf, evaluating...
+					self:EvalIf(line)
+					return
+				elseif token == "ENDIF" then
+					--Found an EndIf, breaking if evaluation
+					self:NextLine()
+					return
+				end
+			end
+			
+			--We have not further evaluated. Line is either irrelevant or changes depth
+		
+			if token == "IF" then
+				--Found an If, going deeper
+				self.IfDepth = self.IfDepth + 1
+			elseif token == "ENDIF" then
+				--Found an EndIf, going higher
+				self.IfDepth = self.IfDepth - 1
+			end
+		end
+		
+		self.Line = self.Line + 1
+	end
+	
+end
+
+function VS3:Wait(length, auto)
+
+	if length then
+		self.OkayTime = ba.getFrametimeOverall() + length
+			
+		if auto then
+			self.Auto = true	
+		end
+	else
+		ba.error("VN Script: Duration not given for WAIT")
+	end
+		
+end
+
+function VS3:SetVar(t)
+
+	local token = t[1]
+	local variableName = t[2]
+	local num = {}
+	local index = 1
+	local variable
+	
+	--axemParse:Validate("line " .. self.Scene.Line .. ": argument 1", t[2], "string")
+	
+	variable = VS3:EvalArithmetic({unpack(t, 3)})
+			
+	VS3:WriteToVariable(variableName, variable)
+	
+	ba.print("VN: " .. variableName .. " was set to " .. variable .. "\n")
+
+end
+
+function VS3:SetFlag(t)
+
+	--t[1] = The Token
+	--  2  = The variable to associate with
+	--  3  = The bit to set
+	-- Note that the call to the API expects the bit number to be 0 <= x < 32, but lua wants 1 to x. thus we subtract 1 here
+	
+	axemParse:Validate("line " .. self.Scene.Line .. ": argument 1", t[2], "string")
+	
+	local flag = VS3:ReadFromVariable(t[2]) or 0
+	local bitNo = 1
+	if type(t[3]) == "string" then
+		bitNo = VS3:ReadFromVariable(t[3])
+	else
+		bitNo = t[3]
+	end
+	
+	flag = bit.toggleBit(flag, bitNo - 1)
+	
+	VS3:WriteToVariable(t[2], flag)
+
+end
+
+function VS3:SetFont(t)
+
+	--t[2] = Font to use
+	
+	if t[2] then
+		if gr.Fonts[t[2]]:isValid() then
+			AXMessage.Fonts.Text = gr.Fonts[t[2]]
+		else
+			AXMessage.Fonts.Text = gr.Fonts[self.GraphicInfo.Text.Message.Font or 3]
+		end
+	else
+		AXMessage.Fonts.Text = gr.Fonts[self.GraphicInfo.Text.Message.Font or 3]
+	end
+
+end
+
+function VS3:SendMsg(t)
+
+	--t[1] = The Sender
+	--  2  = The Message Text
+	--  3  = The Voice File
+	--  last = If the message should advance without a prompt
+
+	local sender
+	local characters = self.Config.Characters
+	local playsound
+	
+	axemParse:Validate("line " .. self.Scene.Line .. ": argument 1", t[2], "string")
+	
+	--If sender is self we don't need to print a sender
+	if string.upper(t[1]) ~= "SELF" then
+		sender = t[1]
+	else
+		sender = "::"
+	end
+	
+	self.Message.Message = t[2]
+
+	--ba.print("VN: Message text: " .. t[2] .. "\n")
+	
+	--Preempt sound!
+
+	if self.Sound and self.Sound:isValid() and self.PlayingSound and self.PlayingSound:isSoundValid() then
+	
+		self.PlayingSound:stop()
+		self.PlayingSound = nil
+		self.Sound:unload()
+	
+	end
+	
+	local voice = VS3:FindParam("voice", t)
+	
+	--Decide if we're going to be playing a sound
+	if voice then
+		playsound = true
+		self.Sound = ad.loadSoundfile(voice)
+		--ba.print("Voice file is assigned\n")
+	elseif characters[sender] and characters[sender].DefaultVoice then
+		playsound = true
+		self.Sound = ad.loadSoundfile(characters[sender].DefaultVoice)
+		--ba.print("No voice file is assigned, trying to use DefaultVoice\n")
+	else
+		self.Sound = nil
+		--ba.print("No voice file at all!\n")
+	end
+		
+	--Auto advancing
+	if t[#t] == "AUTO" then
+		self.Auto = true
+		--ba.print("This message will auto advance\n")	
+	else
+		self.Auto = false
+	end
+	
+	--No I don't know how fast this will go yet
+	AXMessage.Speed = self.Config.TextDraw
+		
+	--May be broken
+	local customspeed = VS3:FindParam("speed", t)
+
+	if customspeed then
+		AXMessage.Speed = customspeed	
+	end
+	
+	--Oh now we know
+	AXMessage.SpeedOverride = AXMessage.Speed or self.Config.TextDraw
+	
+	--See if we've predefined some speaker info for things like color and font
+	if characters[sender] and characters[sender].Name then	
+		self.Speaking = characters[sender].Name
+	else
+		self.Speaking = sender
+	end
+	
+	--If a message is just something like "..." (non-alphanumeric) or starts with a "(" to indicate an internal thought, no one is technically "sending" or speaking the message. self.Sender is what the script uses to decide who to animate. In retrospect self.Sender and self.Speaker should've been switched...
+	if not sender or (not (string.match(self.Message.Message, "%w"))) or (string.find(self.Message.Message, "%(") == 1)  or (string.find(self.Message.Message, "%<") == 1) or (sender == "::") then
+		ba.print("VN: Message isn't supposed to be said outloud, no 'speaker'\n")
+		self.Sender = nil
+	else
+		self.Sender = sender
+	end
+	
+	local textinfo = self.GraphicInfo.Text
+	
+	--Font override part 2
+	
+	local linefontoverride = VS3:FindParam("font", t)
+
+	if linefontoverride then
+		if self.Config.OverrideFonts and self.Config.OverrideFonts[linefontoverride] and self.Config.OverrideFonts[linefontoverride][self.GraphicInfo.Key] then
+			linefontoverride = self.Config.OverrideFonts[linefontoverride][self.GraphicInfo.Key]
+		end
+		
+		AXMessage.Fonts.Text = gr.Fonts[linefontoverride]
+		
+	else
+		if characters[sender] and characters[sender].Font then
+			local charfontoverride = characters[sender].Font
+			
+			if type(charfontoverride) == "table" then
+				charfontoverride = charfontoverride[self.GraphicInfo.Key]
+			end
+			
+			AXMessage.Fonts.Text = gr.Fonts[charfontoverride]
+		else
+			AXMessage.Fonts.Text = gr.Fonts[textinfo.Message.Font or 3]
+		end
+	end	
+
+	--Under title anchoring
+	if not (sender ~= "::" and textinfo.Message.UnderTitle) then
+		AXMessage.Offsets.Text.y = textinfo.Message.Offset.y - AXMessage.Fonts.Text.Height
+	else
+		AXMessage.Offsets.Text.y = textinfo.Message.Offset.y + AXMessage.Fonts.Title.Height - AXMessage.Fonts.Text.Height
+	end
+	
+	local doStandard = (characters[sender] and characters[sender].StandardHUDMessage)
+	
+	--Color override
+	if not doStandard then
+		if characters[sender] and characters[sender].Color then
+			AXMessage.Color.Title = {characters[sender].Color[1],characters[sender].Color[2],characters[sender].Color[3],characters[sender].Color[4] or 255}
+		elseif mn.Ships[self.Speaking]:isValid() then
+			local r,g,b = mn.Ships[self.Speaking].Team:getColor()
+			AXMessage.Color.Title = {r,g,b,255}
+		else
+			local titleFont = textinfo.Title.Color
+			AXMessage.Color.Title = {titleFont[1],titleFont[2],titleFont[3],255}
+		end
+	end
+
+	-- Set up some info if this is a standard message
+	if doStandard then
+		local std = self.StandardMessage
+		if not std then
+			std = {}
+		end
+
+		std.Text = self.Speaking .. ": " .. self.Message.Message
+		std.TextDisappearTime = mn.getMissionTime() + 14
+
+		if std.ANIHandle then
+			std.ANIHandle:unload()
+			std.ANIHandle = nil
+		end
+
+		if characters[sender].ANIs then
+			local ani = VS3.randomItem(characters[sender].ANIs)
+			local handle = gr.loadStreamingAnim(ani, false, false, false, false, true)
+			if handle:isValid() then
+				std.ANIHandle = handle
+			end
+		end
+
+		self.StandardMessage = std
+	else
+		self.StandardMessage = nil
+	end
+	
+	if mn.Ships[self.Speaking]:isValid() then
+		self.Speaking = self.Speaking .. "  " --This is a dumb hack, but the game has an issue with the speaker matching a real ship
+	end
+	
+	--ba.print("Voice file: " .. tostring(self.Message.VoiceFile.Filename) .. "\n")
+	ba.print("VN: Sending message: '" .. sender .. "': '" .. self.Message.Message .."'\n")
+	
+	--THE MAGICAL AND CRITICAL STEP!!!
+	
+	mn.sendMessage(self.Speaking, self.Message)
+	
+	if self.Sound then
+		self.PlayingSound = self.Sound:play()
+	end
+	
+	--This got tossed out because you couldn't rush through lines with voice files, the line above handles that now
+	--if self.Message.VoiceFile:isValid() then
+	--	self.OkayTime = ba.getFrametimeOverall() + self.Message.VoiceFile.Duration
+	--else
+		self.OkayTime = ba.getFrametimeOverall() + 0.001
+	--end
+	
+	--This resets the animation back to frame 1 if its a non-loopable (play once) animation
+	if self.Images[sender] and self.Sender then
+		local image = self.Images[sender]
+		if image.Graphic and image.Graphic.Anim and image.Graphic.Handle and image.Graphic.Handle:isValid() and image.Repeat == 0 then
+			image.Graphic.Handle:reset()
+			if image.AltGraphic and image.AltGraphic.Handle then
+				image.AltGraphic.Handle:reset()
+				image.AltGraphic.Handle.Pause = true
+			end
+		end
+	end
+		
+	--I forget why there are here
+	self.MsgEndTime = nil
+	self.ReleasedCheck = nil
+	
+	self.ShowBox = true
+	
+
+end
+
+function VS3:ProcessTransition(eff)
+	
+	local thisImage = self.Images[eff.Handle]
+	
+	if thisImage then
+	
+		local t = ba.getFrametimeOverall() - eff.StartTime
+		local d = eff.Duration
+		
+		if eff.A1 and eff.A2 then
+			thisImage.Alpha = VS3:Ease(t, eff.A1, eff.A2-eff.A1, d)
+		end
+		
+		if eff.S1 and eff.S2 then
+			thisImage.CustomScale = VS3:Ease(t, eff.S1, eff.S2-eff.S1, d)
+		end
+		
+		if eff.X1 and eff.X2 then
+			--thisImage.Alpha = 1
+			thisImage.X = VS3:Ease(t, eff.X1, eff.X2-eff.X1, d)
+		end
+		
+		if eff.Y1 and eff.Y2 then
+			--thisImage.Alpha = 1
+			thisImage.Y = VS3:Ease(t, eff.Y1, eff.Y2-eff.Y1, d)
+		end
+	
+	end
+	
+end
+
+function VS3:ProcessBGCrossfade(bg)
+
+	local t = ba.getFrametimeOverall() - bg.FadeStartTime
+	local d = bg.FadeDuration
+	local b = 1
+	local c = -1
+	
+	bg.Alpha = VS3:LinearEase(t, b, c, d)
+
+end
+
+function VS3:LinearEase(t, b, c, d)
+  return c * t / d + b
+end
+
+function VS3:Ease(t,b,c,d)
+  t = t / d
+  return -c * t * (t - 2) + b
+end
+
+function VS3:DrawMapIcon(icon, button, iconnum, spacing)
+
+	local x1 = button.BitmapX + (spacing * iconnum)
+	local y1 = button.BitmapY + button.BitmapHeight - (gr.getImageHeight(icon) * self.BG.Scaling)
+	local x2 = x1 + (gr.getImageWidth(icon) * self.BG.Scaling)
+	local y2 = y1 + (gr.getImageHeight(icon) * self.BG.Scaling)
+	
+	gr.drawImage(icon, x1, y1, x2, y2)
+	
+
+end
+
+function VS3:Draw()
+
+	if self.BG then
+		if self.BG.SolidBlack then
+			gr.setColor(0,0,0,255)
+			gr.drawRectangle(AXUI.Screen.x, AXUI.Screen.y, AXUI.Screen.x+AXUI.Screen.w, AXUI.Screen.y+AXUI.Screen.h)
+		else
+			gr.drawImage(self.BG.Image, self.BG.X, self.BG.Y, self.BG.X+self.BG.Width, self.BG.Y+self.BG.Height,0,0,1,1,1)
+		end
+	end
+	
+	if self.BGAlt then
+	
+		if ba.getFrametimeOverall() < self.BGAlt.FadeEndTime then
+				
+			self:ProcessBGCrossfade(self.BGAlt)
+		
+			if self.BGAlt.SolidBlack then
+				ba.print("BG ALT ALPHA: " .. self.BGAlt.Alpha .. "\n")
+				gr.setColor(0,0,0,self.BGAlt.Alpha*255)
+				gr.drawRectangle(AXUI.Screen.x, AXUI.Screen.y, AXUI.Screen.x+AXUI.Screen.w, AXUI.Screen.y+AXUI.Screen.h)
+			else
+				gr.drawImage(self.BGAlt.Image, self.BGAlt.X, self.BGAlt.Y, self.BGAlt.X+self.BGAlt.Width, self.BGAlt.Y+self.BGAlt.Height,0,0,1,1,self.BGAlt.Alpha)
+			end
+		else
+			if self.BGAlt.Image and self.BGAlt.Image:isValid() then
+				self.BGAlt.Image:unload()
+				self.BGAlt = nil
+			end
+		end
+		
+	end
+
+	if self.LocationMap and self.LocationMap.Enabled then
+		
+		if self.LocationMap.Buttons then
+			for i, button in ipairs(self.LocationMap.Buttons) do
+								
+				button:Draw()
+				
+				local iconsToDraw = {}
+				
+				if self.LocationMap.SelfIcon and button.Value == self.Variables["_vnLocation"] then
+					iconsToDraw[#iconsToDraw+1] = self.LocationMap.SelfIcon
+				end
+				
+				for j, icons in pairs(self.LocationMap.Icons) do
+					if icons.Location == button.Value then
+					
+						iconsToDraw[#iconsToDraw+1] = icons.Bitmap
+
+					end
+				end
+				
+				if #iconsToDraw > 0 then
+					local width = gr.getImageWidth(iconsToDraw[1])
+					local bgwidth = button.BitmapWidth * self.BG.Scaling
+					
+					if (#iconsToDraw * width) > bgwidth then
+						width = (bgwidth - width) / (#iconsToDraw-1)
+					end
+					
+					for i, icon in ipairs(iconsToDraw) do
+						self:DrawMapIcon(icon, button, i-1, width)
+					end
+				end
+				
+			end
+		end
+		
+		for k,v in pairs(self.Displays) do
+			self:DrawDisplay(v)
+		end
+		
+		if self.Fade then
+			
+				if ba.getFrametimeOverall() < self.Fade.EndTime then
+					local t = ba.getFrametimeOverall() - self.Fade.StartTime
+					local b = self.Fade.A1
+					local c = self.Fade.A2 - self.Fade.A1
+					local d = self.Fade.Duration
+					local alpha = self.Fade.A2
+					if d > 0.01 then
+						alpha = (c * t / d + b)
+					end
+					--ba.print(alpha.."\n")
+					gr.setColor(self.Fade.Color[1], self.Fade.Color[2], self.Fade.Color[3], alpha)
+					gr.drawRectangle(0,0,AXUI.Screen.w, AXUI.Screen.h)
+				else
+					self.Fade = nil	
+				end
+			end
+		
+	else
+	
+		if self.Scene then	
+			if self.Transitions then
+				--PrintDebug(self.Transitions)
+				for i=1, #self.Transitions do
+					local v = self.Transitions[i]
+					if v then
+						local image = v.Handle
+						if ba.getFrametimeOverall() < v.EndTime then
+							VS3:ProcessTransition(v)
+						else
+							ba.print("VN: Transition time is up for " .. image .. "\n")
+							if self.Images[image] then
+								if v.A2 then
+									self.Images[image].Alpha = v.A2
+									self.Images[image].TargetAlpha = nil
+									ba.print("VN: Transition set: Alpha\n")
+								end
+								
+								if v.S2 then
+									self.Images[image].CustomScale = v.S2
+									self.Images[image].TargetScale = nil
+									ba.print("VN: Transition set: Scale\n")
+								end
+								
+								if v.X2 then
+									self.Images[image].X = v.X2
+									self.Images[image].X_0 = nil
+									ba.print("VN: Transition set: X\n")
+								end
+								
+								if v.Y2 then
+									self.Images[image].Y = v.Y2
+									self.Images[image].Y_0 = nil
+									if self.Images[image].AnchorFlag then
+										self.Anchored = true
+									end
+									ba.print("VN: Transition set: Y\n")
+								end
+								
+								if self.Images[image].Expire then
+								
+									for j=1, #self.Transitions do
+										local nv = self.Transitions[j]
+										if nv and nv.Handle == image and nv.Type == "move" then
+											nv.EndTime = ba.getFrametimeOverall()
+										end
+									end
+								
+									self:UnloadGraphic(self.Images[image].Graphic)
+									self:UnloadGraphic(self.Images[image].AltGraphic)
+									self.Images[image] = nil
+									
+								end
+							end		
+							table.remove(self.Transitions,i)						
+						end					
+					end
+				end
+			end
+					
+			if self.Images then
+
+				for i = 1, 5 do
+					for k, v in pairs(self.Images) do
+						if i == v.Layer then
+							local speak
+							if self.Sender == k then
+								speak = true
+							end
+							self:DrawBitmap(v, speak)
+						end
+					end		
+				end
+			end
+			
+			if AXMessage.Enabled and AXMessage.DrawControl == "VS3" then
+				self:MaybeDrawStandard()
+				
+				if self.ShowBox then
+					AXMessage:UpdateString()
+					if not self.HideFlag then
+						AXMessage:Draw()
+					end
+				end
+			end
+			
+			if not AXMessage.Drawing and not self.PressedLastFrame then
+				self.ReleasedCheck = true
+			end
+			
+			if ba.getFrametimeOverall() > self.OkayTime and not self.Menu and not self.Auto and not AXMessage.Drawing and self.ShowBox and not self.HideFlag then
+			
+				if not self.MsgEndTime then
+					self.MsgEndTime = ba.getFrametimeOverall()
+				end
+							
+				gr.CurrentFont = gr.Fonts[2]
+				gr.drawString(string.rep(">",(math.floor(ba.getFrametimeOverall() - self.MsgEndTime) % 3)+1), AXMessage.Position.x + AXMessage.Image.w - 50, AXMessage.Position.y + AXMessage.Image.h - self.GraphicInfo.MsgBox.Bounding.Bottom - 15)
+				
+			end
+			
+			if self.Displays then
+				for k,v in pairs(self.Displays) do
+					self:DrawDisplay(v)
+				end
+			end
+			
+			if self.Menu and not AXMessage.Drawing and self.ShowBox and not self.HideFlag then
+				self.Menu:DrawList()
+			end
+			
+					
+			if self.IntButton and self.IntDraw then
+				self.IntButton:Draw()
+			end
+					
+			if self.Fade then
+			
+				if ba.getFrametimeOverall() < self.Fade.EndTime then
+					local t = ba.getFrametimeOverall() - self.Fade.StartTime
+					local b = self.Fade.A1
+					local c = self.Fade.A2 - self.Fade.A1
+					local d = self.Fade.Duration
+					local alpha = self.Fade.A2
+					if d > 0.01 then
+						alpha = (c * t / d + b)
+					end
+					--ba.print(alpha.."\n")
+					gr.setColor(self.Fade.Color[1], self.Fade.Color[2], self.Fade.Color[3], alpha)
+					gr.drawRectangle(0,0,AXUI.Screen.w, AXUI.Screen.h)
+				else
+					self.Fade = nil	
+				end
+			end
+		end
+	end
+	
+	--PrintDebug(self.BGAlt)
+	
+	--[[gr.setColor(255,255,0,255)
+	gr.drawString("'" .. tostring(self.Sender) .. "'",100,100)
+	gr.drawString(tostring(self.GraphicInfo.Text.Message.UnderTitle))]]--
+
+end
+
+function VS3:DrawBitmap(entry, speaking)
+
+		local bitmap, bitmapAlt
+		local alpha = 1
+		local alphaAlt = 0
+		local debugString1 = "Debug:\n"
+		local debugString2 = " "
+		
+		gr.setColor(192,192,192,255)
+		
+		bitmap = entry.Graphic
+		
+		if self.Debug then debugString2 = debugString2 .. "Filename: " .. bitmap.Filename .. "\n" end
+				
+		if bitmap.Anim then
+		
+			if self.Debug then debugString1 = debugString1 .. " ANIMATED\n" end
+		
+			bitmapAlt = entry.AltGraphic
+			
+			if bitmapAlt and bitmapAlt.Handle and bitmapAlt.Handle:isValid() then
+			
+			if self.Debug then debugString2 = debugString2 .. " Alt Filename: " .. bitmapAlt.Filename .. "\n" end
+			
+				if (entry.Repeat == 0) or (entry.Repeat == -1) then
+					if speaking or (entry.Repeat == -1) then
+						if bitmap.Handle:timeLeft() > 0.01 then
+							alpha = 1
+							alphaAlt = 0
+						else
+							if bitmapAlt.Handle.Pause == true then
+								bitmapAlt.Handle.Pause = false
+							end
+						
+							alpha = 0
+							alphaAlt = 1
+						end
+					else
+						if bitmapAlt.Handle.Pause == true then
+							bitmapAlt.Handle.Pause = false
+						end
+					
+						alpha = 0
+						alphaAlt = 1
+					end
+				elseif entry.Repeat == 1 then
+					if speaking then
+						alpha = 1
+						alphaAlt = 0
+					else
+						alpha = 0
+						alphaAlt = 1
+					end
+				elseif entry.Repeat == 2 then
+					alpha = 1
+					alphaAlt = 0
+				end
+			else
+		
+				if speaking and (bitmap.Handle.Pause == true) then
+					ba.print("VN: I am unpausing " .. bitmap.Filename .. "\n")
+					bitmap.Handle.Pause = false
+				end
+				
+				if ((not speaking) and (bitmap.Handle.Pause == false)) and (entry.Repeat ~= 2) and (entry.Repeat ~= -1) then
+					ba.print("VN: I am pausing " .. bitmap.Filename .. "\n")
+					bitmap.Handle:reset()
+					bitmap.Handle.Pause = true
+				end
+
+			end
+		end
+		
+		local imgW = entry.Width * entry.CustomScale
+		local imgH = entry.Height * entry.CustomScale
+		local imgX = AXUI.Screen.x + (AXUI.Screen.w * entry.X) - ((imgW) * 0.5)
+		--AXUI.Screen.y + AXUI.Screen.h * (y_pct/100)
+		local imgY = AXUI.Screen.y + (AXUI.Screen.h * entry.Y) -- - (imgH)
+		
+		if entry.Anchored then
+			imgY = self.Anchor - imgH
+		end
+		
+		-- self.Anchor - imgH = AXUI.Screen.y + (AXUI.Screen.h * entry.Y)
+		-- (self.Anchor - imgH - AXUI.Screen.y) / AXUI.Screen.h
+		
+		
+		--Draw Base
+		if entry.Base then
+		
+			local baseW = entry.Base.W * entry.CustomScale
+			local baseH = entry.Base.H * entry.CustomScale
+			local x = imgX - ((baseW - entry.Width * entry.CustomScale)/2)
+			local y = imgY - ((baseH - entry.Height * entry.CustomScale)/2)
+			local factor = 1
+			
+			if not speaking then factor=0.50 end
+			gr.drawImage(entry.Base.Bitmap, x, y-self.Config.YBuffer, x+baseW, y+baseH-self.Config.YBuffer, entry.UVx1 or 0,entry.UVy1 or 0,entry.UVx2 or 1,entry.UVy2 or 1,entry.Alpha*factor)
+		end
+		
+		--!!!!Draw Actual Image!!!!
+		if bitmap.Anim then
+			bitmap.Handle:process(imgX, imgY-self.Config.YBuffer, imgX+imgW, imgY+imgH-self.Config.YBuffer, entry.UVx1 or 0,entry.UVy1 or 0,entry.UVx2 or 1,entry.UVy2 or 1,alpha*entry.Alpha)
+			if bitmapAlt and bitmapAlt.Handle and bitmapAlt.Handle:isValid() then
+				bitmapAlt.Handle:process(imgX, imgY-self.Config.YBuffer, imgX+imgW, imgY+imgH-self.Config.YBuffer, entry.UVx1 or 0,entry.UVy1 or 0,entry.UVx2 or 1,entry.UVy2 or 1,alphaAlt*entry.Alpha)
+			end
+		else
+			gr.drawImage(bitmap.Handle, imgX, imgY-self.Config.YBuffer, imgX+imgW, imgY+imgH-self.Config.YBuffer, entry.UVx1 or 0,entry.UVy1 or 0,entry.UVx2 or 1,entry.UVy2 or 1,entry.Alpha*entry.Alpha)
+		end
+		
+		--Draw ForeBase
+		
+		if entry.Base and entry.Base.Fore then
+		
+			local baseW = entry.Base.W * entry.CustomScale
+			local baseH = entry.Base.H * entry.CustomScale
+			local x = imgX - ((baseW - entry.Width * entry.CustomScale)/2)
+			local y = imgY - ((baseH - entry.Height * entry.CustomScale)/2)
+			local factor = 1
+			
+			if not speaking then factor=0.50 end
+		
+			gr.drawImage(entry.Base.Fore, x, y-self.Config.YBuffer, x+baseW, y+baseH-self.Config.YBuffer, entry.UVx1 or 0,entry.UVy1 or 0,entry.UVx2 or 1,entry.UVy2 or 1,entry.Alpha*factor)
+		end
+		
+		if self.Debug then
+			gr.setColor(0,0,0,128)
+			gr.drawRectangle(imgX, imgY-self.Config.YBuffer, imgX+imgW, imgY+imgH-self.Config.YBuffer)
+			if speaking then
+				gr.setColor(192,0,0,255)
+			else
+				gr.setColor(255,255,255,255)
+			end
+			gr.setLineWidth(2)
+			gr.drawRectangle(imgX, imgY-self.Config.YBuffer, imgX+entry.Width, imgY+entry.Height-self.Config.YBuffer,false)
+			gr.drawString(debugString1,imgX+5,imgY+5)
+			gr.drawString(debugString2)
+			gr.drawString("\n")
+			
+			for k,v in pairs(entry) do
+			
+				gr.drawString(tostring(k) .. ": " .. tostring(v))
+			
+				if type(v) == "table" then
+					
+					for k2,v2 in pairs(v) do
+						gr.drawString("   " .. tostring(k2) .. ": " .. tostring(v2))
+					end
+				end
+			end
+			if bitmap.Anim then
+				gr.drawString("\n\nANIMATION DRAW INFO:")
+				if alpha == 1 then gr.drawString("DRAWING BITMAP") else gr.drawString("BITMAP HIDDEN") end
+				gr.drawString("Paused? " .. tostring(bitmap.Handle.Pause))
+				gr.drawString("Loop? " .. tostring(bitmap.Handle.Loop))
+				gr.drawString("Frame: " .. bitmap.Handle:getFrameIndex() .. "/" .. bitmap.Handle:getFrameCount())
+				gr.drawString(string.format("Time Left: %.2f\n", bitmap.Handle:timeLeft()))
+				
+				gr.drawString(" ")
+				
+				if bitmapAlt and bitmapAlt.Handle and bitmapAlt.Handle:isValid() then
+					if alphaAlt == 1 then gr.drawString("DRAWING ALT BITMAP") else gr.drawString("ALT BITMAP HIDDEN") end
+					gr.drawString("Alt Paused? " .. tostring(bitmapAlt.Handle.Pause))
+					gr.drawString("Alt Loop? " .. tostring(bitmapAlt.Handle.Loop))
+					gr.drawString("Alt Frame: " .. bitmapAlt.Handle:getFrameIndex() .. "/" .. bitmapAlt.Handle:getFrameCount())
+					gr.drawString(string.format("Alt Time Left: %.2f\n", bitmapAlt.Handle:timeLeft()))
+				end
+				
+			end
+		end
+		
+		if entry.Text then
+			gr.CurrentFont = gr.Fonts[entry.Text.Font]
+			gr.setColor(entry.Text.Color[1], entry.Text.Color[2], entry.Text.Color[3], 255 * entry.Alpha)
+			gr.drawString(entry.Text.String, ((imgX + (imgX+imgW)) / 2)- entry.Text.X, imgY + imgH)
+		end
+		
+end
+
+function VS3:DrawDisplay(display)
+
+	gr.drawImage(display.Background, display.X, display.Y)
+	
+	for i, output in ipairs(display.Output) do
+	
+		if output.Graphic then
+			gr.drawImage(output.Graphic.Filename, display.X + output.X + output.Graphic.X, display.Y + output.Y + output.Graphic.Y)
+		end
+	
+		local r,g,b,a = 255, 255, 255, 255
+		gr.CurrentFont = gr.Fonts[output.Font or 1]
+			if output.Color then
+				r = output.Color[1]
+				b = output.Color[2]
+				g = output.Color[3]
+				a = output.Color[4]
+			end
+		gr.setColor(r,g,b,a)
+		gr.drawString(mn.Messages[output.ID]:getMessage(true), display.X + output.X, display.Y + output.Y)	
+		--gr.drawString(tostring(output.ID))
+	end
+
+end
+
+function VS3:Actions(mouse, pressed)
+
+	local button
+
+	if bit.checkBit(mouse,0) then
+		button = "left"
+	elseif bit.checkBit(mouse,1) then
+		button = "right"
+	else
+		return
+	end
+
+	local currentTime = ba.getFrametimeOverall()
+
+	if self.Scene then
+	
+		if pressed then
+			
+
+					
+		else
+			--[[ba.print("*********************\n")
+			ba.print("time:" .. currentTime .. "\n")
+			ba.print("oktime:" .. self.OkayTime .. "\n")
+			ba.print("time > oktime? " .. tostring(currentTime > self.OkayTime) .. "\n")
+			ba.print("drawing?" .. tostring(AXMessage.Drawing) .. "\n")]]--
+		
+		--(currentTime > (self.LastClicked + 0.2)) and
+		
+			if self.IntButton and self.IntDraw and self.IntButton:Clicked() then
+				self:Interrupt()
+			end
+		
+			if (currentTime > self.OkayTime) and (not self.Menu) and AXMessage.Drawing and (not self.Auto) and not (self.LocationMap and self.LocationMap.Enabled) then
+			
+			self.LastClicked = ba.getFrametimeOverall()
+				
+			if button == "left" then
+				ba.print("VN: Forward button pressed! Speed = 0\n")
+				AXMessage.Speed = 0
+			end
+			
+			--if button == "right" then
+			--	self.Scene:NextLine()
+			--end
+			
+			elseif (currentTime > self.OkayTime) and not self.Menu and not AXMessage.Drawing and not self.Auto and not (self.LocationMap and self.LocationMap.Enabled) then
+
+			if button == "left" then
+				ba.print("VN: Forward button pressed! Advancing\n")
+				self.Scene:NextLine()
+			end
+				
+			elseif (currentTime > self.OkayTime) and self.Menu and not AXMessage.Drawing and not self.Auto and not (self.LocationMap and self.LocationMap.Enabled) then
+				
+				for i, v in ipairs(self.Menu.Item) do
+					if v:Clicked() or key == tostring(i) then
+						ad.playInterfaceSound(0)
+						VS3:WriteToVariable(self.Menu.Variable, i)
+						self.Menu = nil
+						self.Scene:NextLine()
+					end
+				end
+			end
+			
+			if self.LocationMap and self.LocationMap.Enabled and (currentTime > self.OkayTime) then
+
+				for i, v in ipairs(self.LocationMap.Buttons) do
+					if v:Clicked() then
+					
+						if not self.MapNoFade then
+							self.Fade = {}
+							self.Fade.Color = {0,0,0}
+							self.Fade.A1 = 255
+							self.Fade.A2 = 255
+							self.Fade.StartTime = ba.getFrametimeOverall()
+							self.Fade.EndTime = ba.getFrametimeOverall() + 9999
+							self.Fade.Duration = 0.25
+						end
+					
+						ad.playInterfaceSound(0)
+						--ba.print("VN: Map Button clicked, value selected was " .. tostring(v.Value) .. "\n")
+						self.Variables["_vnLocation"] = v.Value
+						VS3:WriteToVariable(self.LocationMap.resultVariable, v.Value)
+						
+						--ba.print("VN: Double checking vnLocation... " .. tostring(self.Variables["vnLocation"]) .. "\n")
+						if self.LocationMap.OldBG then
+							VS3:SetBG2({"SETBG",self.LocationMap.OldBG})
+						else
+							VS3:SetBG2({"SETBG","NONE"})
+						end
+												
+						self.LocationMap.Enabled = nil
+						self.HideFlag = false
+						self.Scene:NextLine()
+					end
+				end
+			end
+						
+			if button == "right" then
+				if VS3.ShowBox then
+					VS3.ShowBox = false
+				else
+					VS3.ShowBox = true
+				end
+			end
+									
+		end
+	end
+
+end
+
+function VS3:CheckTimers(currentTime)
+
+	if currentTime > self.OkayTime and not AXMessage.Drawing and not self.Menu and self.Auto then
+		self.Auto = false
+		self.Scene:NextLine()
+	end
+
+end
+
+function VS3:MaybeDrawStandard()
+
+	if self.StandardMessage then
+		-- should the message disappear?
+		if mn.getMissionTime() >= self.StandardMessage.TextDisappearTime then
+			if self.StandardMessage.ANIHandle then
+				self.StandardMessage.ANIHandle:unload()
+			end
+			self.StandardMessage = nil
+			return
+		end
+
+		-- text is kinda easy
+		-- use alpha color of 220 for text which is HUD_NEW_ALPHA_BRIGHT
+		gr.setColor(self.HUDTextColor[1], self.HUDTextColor[2], self.HUDTextColor[3], 220)
+		gr.CurrentFont = gr.Fonts[3]
+		gr.drawString(self.StandardMessage.Text, self.StandardTextPosition.x, self.StandardTextPosition.y)
+
+		-- ANI is a bit harder
+		if self.StandardMessage.ANIHandle then
+			if self.StandardMessage.ANIHandle:timeLeft() > 0 then
+				local data = self.StandardHead
+				local x = data.x
+				local y = data.y
+				local w = data.w
+				local h = data.h
+
+				local anim_x = x + data.anim_dx
+				local anim_y = y + data.anim_dy
+
+				-- clear
+				gr.setClip(anim_x, anim_y, data.anim_w, data.anim_h)
+				gr.clear()
+				gr.resetClip()
+
+				gr.setColor(self.HUDHeadColor[1], self.HUDHeadColor[2], self.HUDHeadColor[3], self.HUDHeadColor[4])
+
+				-- draw the monochrome frame
+				gr.drawImage(data.FrameHandle, x, y, x + w, y + h, 0, 0, 1, 1, 0.5, true)
+
+				-- stream the ANI
+				self.StandardMessage.ANIHandle:process(anim_x, anim_y, anim_x + data.anim_w, anim_y + data.anim_h)
+
+				-- put the caption on top
+				gr.drawString("message", x + data.header_dx, y + data.header_dy)
+			else
+				self.StandardMessage.ANIHandle:unload()
+				self.StandardMessage.ANIHandle = nil
+			end
+		end
+	end
+
+end
+
+function VS3:ExpireStandard()
+	if self.StandardMessage then
+		self.StandardMessage.TextDisappearTime = -86400		-- one day ago
+	end
+end
+
+function VS3:Exit(keepvars, initflag)
+
+	if self.Enabled then
+		ba.print("Exiting Visual Novel Script...\n")
+	end
+
+	self.ShowCursor = nil
+	self.Running = nil
+	self.MsgEndTime = nil
+	self.Displays = nil
+	
+	if self.Sound then
+		self.Sound:unload()
+	end
+	
+	if self.PlayingSound then
+		self.PlayingSound:stop()
+	end
+
+	if self.StandardHead and self.StandardHead.FrameHandle:isValid() then
+		self.StandardHead.FrameHandle:unload()
+	end
+
+	if not keepvars then
+		self.Message = nil
+		self.Scene = nil
+		self.Variables = nil
+		self.Debug = nil
+		self.IntKey = nil
+		self.IntGoto = nil
+		self.IntButton = nil
+		self.IntOffset = nil
+		self.LocationMap = nil
+
+		if self.Images then
+			for k,v in pairs(self.Images) do
+				self:UnloadGraphic(v.Graphic)
+				self:UnloadGraphic(v.AltGraphic)
+			end
+		end
+		
+		self.Images = nil
+		self.Fade = nil
+		self.CanAdvance = nil
+		self.OkayTime = 0
+	end
+		
+	if VS3.MusicHandle then
+		ad.stopMusic(VS3.MusicHandle, true)
+		VS3.MusicHandle = nil
+	end
+	
+	if self.StayInGame then
+		AXUI.InGame = false
+		AXUI:ScreenInit()
+		Journal.Ingame = true
+		mn.runSEXP("(adjust-audio-volume !Music! 0)")
+		mn.runSEXP("(adjust-audio-volume !Music! 100 1000)")
+		mn.runSEXP("(pause-sound-from-file (false))")
+	else
+		mn.runSEXP("(hud-disable 0)")
+		if not initflag then
+			mn.runSEXP("(enable-builtin-messages)")
+		end
+		mn.runSEXP("(ignore-key 0 !C! !Shift-A! !Shift-Z! !Shift-D! !Shift-V! !Shift-X! !Shift-E! !Shift-W! !Shift-I! !Shift-P! !Shift-C! !Shift-J! !Shift-R!)")
+	end
+	
+	if self.Enabled then
+		AXUI:ScreenInit()
+		AXMessage:Init()
+	end
+	
+	self.Enabled = false
+	
+	if not initflag and UnLockdown and self.Config.LockByDefault then UnLockdown() end
+	
+end
+
+function VS3:FreeToTalk()
+
+	local result = 0
+
+	if self.CanTalk then
+		result = 1
+		ba.print("VN: let's talk why not\n")
+	end
+
+	return result
+
+end
+
+function VS3:CheckInterrupt(key)
+
+	if self.IntKey and self.IntKey == key then
+		ba.print("VN: INTERRUPT HIT!!!\n")
+		self:Interrupt()
+	end
+
+end
+
+function Freeze()
+
+	if not SLAF then
+
+		ba.print("FREEZE!!!!!!\n")
+
+		SLAF = {} --SEXP Library Axem Freeze
+		SLAFActions = {"immobile", "invulnerable", "protect-ship", "afterburners-locked", "primaries-locked", "secondaries-locked"}
+
+		for i = 1, #mn.Ships do
+			local name = mn.Ships[i].Name
+			local t = {}
+			
+			for __, action in ipairs(SLAFActions) do
+				if not mn.evaluateSEXP("(are-ship-flags-set !" .. name .. "! !" .. action .. "!)") then
+					mn.runSEXP("(alter-ship-flag !" .. action .. "! ( true ) ( false ) !" .. name .. "!)")
+					t[#t+1] = action
+				end
+			end
+			
+			SLAF[name] = t
+		
+		end
+		
+		for k,v in pairs(SLAF) do
+			ba.print(tostring(k) .. ", " .. tostring(v) .. "\n")
+				for k2, v2 in pairs(v) do
+					ba.print(tostring(k2) .. ", " .. tostring(v2) .. "\n")
+				end
+		end
+	
+	end
+	
+end
+
+function UnFreeze()
+
+	if SLAF then
+	
+	ba.print("UNFREEZE!!!!!!\n")
+		
+	for k, v in pairs(SLAF) do
+		ba.print(tostring(k) .. ", " .. tostring(v) .. "\n")
+			for k2, v2 in pairs(v) do
+				mn.runSEXP("(alter-ship-flag !" .. v2 .. "! ( false ) ( false ) !" .. k .. "!)")
+				ba.print("  Unsetting " .. tostring(v2) .." in " .. tostring(k) .. "\n")
+			end
+	end
+
+	SLAF = nil
+	SLAFActions = nil
+	
+	end
+
+end
+
+]
+
+$State: GS_STATE_GAME_PLAY
+$On Gameplay Start:
+[
+	--if VS3.Enabled then
+		VS3:Exit(false, true)
+	--end
+]
+
+$On State Start:
+[
+	if VS3.Running and VS3.ShowCursor then
+		io.setCursorHidden(false)
+	end	
+]
+
+$On State End:
+[
+	if VS3.Running then
+		VS3.StayInGame = false
+		VS3:Exit()
+		AXUI.Ingame = false
+		AXUI:ScreenInit()
+	end
+]
+
+$On Message Received:
+[
+	if VS3.Enabled and AXMessage.DrawControl == "VS3" and not VS3.StandardMessage then
+		AXMessage:SetupMessage(hv.SenderString, hv.Name, hv.Message)
+	end
+]
+
+$On Frame:
+[
+	if VS3.Enabled then
+		if not VS3.SDL2 then
+			io.setCursorHidden(false)
+		end
+		VS3:CheckTimers(ba.getFrametimeOverall())
+		VS3:Draw()
+		
+		if (not VS3.Lockdown) and mn.getMissionTime() < 0.1 then
+			if Lockdown then
+				Lockdown()
+				VS3.Lockdown = true
+			end
+		end
+		
+		--if VS3.Debug then
+			--PrintDebug(VS3.BGAlt)
+		--end
+
+	end
+	
+	if Scroll and Scroll.Enabled then
+		Scroll:Draw()
+	end
+	
+	if VS3.ExpireTalk then
+		VS3.ExpireTalk = nil
+		VS3.CanTalk = nil
+		ba.print("VN: expiring talk status\n")
+	end
+	
+	if VS3.CanTalk then
+		VS3.ExpireTalk = true
+		ba.print("VN: expire talk next frame\n")
+	end
+			
+]
+
+$On Mouse Released:
+[
+	if VS3.Enabled then
+		VS3:Actions(hv.MouseButton, false)
+	end
+]
+
+$On Mouse Pressed:
+[
+	if VS3.Enabled then
+		VS3:Actions(hv.MouseButton, true)
+	end
+]
+
+$On Key Released:
+[
+	if hv.Key == "Alt-C" then
+		VS3.CanTalk = true
+	end
+		
+	if VS3.Enabled then
+	
+		VS3:CheckInterrupt(hv.Key)
+	
+		if hv.Key == "0" then
+			if VS3.Debug then
+				VS3.Debug = false
+			else
+				VS3.Debug = true
+			end
+		end
+		
+		if hv.Key == "-" then
+			if VS3.ShowBox then
+				VS3.ShowBox = false
+			else
+				VS3.ShowBox = true
+			end
+		end
+		
+		--Break in case of emergency
+		--if hv.Key == "=" then
+		--	DumpToFile(VS3, "VNS")
+		--	DumpToFile(AXMessage, "AXM")
+		--end
+	end
+
+]
+
+#End

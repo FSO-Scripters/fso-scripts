@@ -1,0 +1,201 @@
+#Conditional Hooks
+$Application: FS2_Open
+
+$On Game Init:
+[
+
+axemParse = {}
+
+function axemParse:Open(file, directory)	--Load a file into a table
+
+	directory = directory or "data/config"
+
+	local t = {}	--Table used to store the file, one line per table element
+		
+		if cf.fileExists(file,directory,true) then		--Check that the file exists		
+			local thisFile = cf.openFile(file,"rb",directory)	--Open the file
+			local i = 1 --Setting up the line number
+			
+			while true do
+				local line = thisFile:read("*l") --Read a line
+
+				if line == nil then break end --If we hit the end, break out
+			
+				if line ~= "" then
+					line = line:gsub("\\n","\n") --Replace instances with a literal \n with a real line break
+					line = line:gsub("\\t","\t") --Replace instances with a literal \t with a real tab
+					t[i] = line
+					i = i+1
+				end
+			
+			end
+			
+			thisFile:close()	--Close the file
+			ba.print("AXEMPARSE: LOAD SUCESSFUL!\n")
+			return t		--Return the table
+		else
+			ba.print("AXEMPARSE: SOMETHING WENT HORRIBLY WRONG!\n")
+			--ba.error("Problems loading file " .. file)
+			return false	--If the file hasn't been loaded, return false
+		end
+	
+end
+
+function axemParse:ToTable(file) --Returns a table!!
+
+	local f = axemParse:Open(file)	-- The raw data file, its a table but needs some refinement
+	local fLength = #f
+	local finalTable = {}			-- Our end table
+	local index = 0
+	
+	ba.print("BEGINNING PARSE OF: " .. file .. "\n")
+	
+
+	for i=1, fLength do
+	
+		local line = f[i]
+		
+		if line ~= nil or string.find(line, "%") == 1 then --no need for empty lines or comments
+			
+			if string.find(line, "@") then
+				local j = string.find(line, "@") --Find out where our special strings are
+				local k = string.find(line, ":")
+					
+				if j ~= nil and k ~= nil then
+					if string.sub(line,j+1,k-1) == "Index" then --Index is the only special case
+						
+						if tonumber(string.sub(line,k+2)) ~= nil then
+							index = tonumber(string.sub(line,k+2))
+						else
+							index = index + 1
+						end
+						
+						ba.print("INDEX: " .. index .. "\n")
+					end
+					
+					if string.sub(line,j+1,k-1) ~= "Index" and index ~= 0 then
+						local keyString = string.sub(line,j+1,k-1)
+						local fieldContent = string.sub(line, k+2)
+						
+						if finalTable[index] == nil then
+							finalTable[index] = {}
+						end
+						ba.print("KEYSTRING: \"" .. keyString .. "\"\n")
+						ba.print("CONTENT: \"" .. fieldContent .. "\"\n")
+						
+						if string.lower(fieldContent) == "true" then	--It might be a boolean!
+							finalTable[index][keyString] = true
+						elseif string.lower(fieldContent) == "false" then
+							finalTable[index][keyString] = false
+						elseif type(fieldContent) == "number" then
+							finalTable[index][keyString] = tonumber(fieldContent)
+						else
+							finalTable[index][keyString] = fieldContent
+						end
+						
+					end
+				end	
+			end
+		end
+	
+	end
+	return finalTable
+
+end
+
+function axemParse:Write(t, filename, path)
+
+	local tt = {}
+
+	local file = cf.openFile(filename, "w+", path)
+	
+	for i = 1, #t do
+	
+		tt = t[i]
+		
+		file:write("@Index: \n")
+		
+		for key,value in pairs(tt) do
+			ba.print("Attempting to write to index " .. i .. ": " .. key .. ": " .. tostring(value) .. "\n")
+			file:write("@" .. key .. ": " .. tostring(value) .. "\n")
+		end
+		
+		file:write("\n")
+	
+	end
+	
+	file:close()
+
+end
+
+function axemParse:Validate(reference, input, expectedtype, optional)
+
+	if not input and optional then
+		return true
+	elseif type(input) ~= expectedtype then
+		ba.warning("Invalid entry for " .. reference .. ", expected a " .. expectedtype)
+	end
+
+end
+
+function axemParse:ReadJSON(file, path)
+
+	ba.print("Beginning JSON Parse for " .. file .. "\n")
+
+	local json = require ("dkjson")
+	local t = nil
+	
+	if path == nil then
+		path = "data/config"
+		ba.print("No path specified, assuming data/config...\n")
+	else
+		ba.print("Custom path specified, using " .. path .. "\n")
+	end
+	
+	if cf.fileExists(file,path,true) then
+	
+		ba.print("File exists, decoding...")
+	
+		local thisFile = cf.openFile(file,"rb",path)
+		local contents = thisFile:read("*a")
+		
+		t = json.decode(contents)
+		
+		ba.print(" success!\n")
+		
+		thisFile:close()
+	else
+		ba.print("File " .. file .. " does not exist! Here be dragons!\n")
+		t = {}
+	end
+	
+	return t
+
+end
+
+function axemParse:WriteJSON(t, filename, path)
+
+	ba.print("Beginning JSON Write for " .. filename .. "\n")
+
+	local json = require ("dkjson")
+	
+	if path == nil then
+		path = "data/config"
+		ba.print("No path specified, assuming data/config...\n")
+	else
+		ba.print("Custom path specified, using " .. path .. "\n")
+	end
+	
+	local file = cf.openFile(filename, "w+", path)
+	
+	file:write(json.encode(t))
+	
+	ba.print("Write complete, closing file.\n")
+	
+	file:close()
+
+end
+
+]
+
+#End
