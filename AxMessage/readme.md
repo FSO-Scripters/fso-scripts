@@ -30,7 +30,7 @@ In addition, the statement "``x.y.z[]`` is set to w and v" is essentially equiva
 ## List of configuration options
 
 |Key|Value|Optional|
-|---|---|
+|---|---|---|
 |``MinVersion``|The minimal version of AxMessage you require for this configuration||
 |``Resolutions[]``|The graphics configuration for different monitor resolutions. For exact definition of each element per entry, see [below](#resolution-configuration)||
 |``Default.Speed``|The speed at which the text of a message is revealed. 0.03 by default.|&#x2713;|
@@ -44,7 +44,7 @@ In addition, the statement "``x.y.z[]`` is set to w and v" is essentially equiva
 ### Resolution configuration
 
 |Key|Value|Optional|
-|---|---|
+|---|---|---|
 |``MinHRes``|The minimal horizontal screen resolution required for this configuration. The first resolution with a MinHRes below the actual horizontal screen resolution will be picked.||
 |``TitleFont``|The font used to display the message sender.||
 |``TextFont``|The font used to display the message||
