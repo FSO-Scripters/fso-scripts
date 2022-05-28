@@ -11,6 +11,7 @@ This is a collection of user-made scripts for the [FreeSpace Open engine](https:
 |RadarIcon|Adds configurable icons for ships and weapons onto the HUD, making it easier to keep an overview over the battlefield|20.0|AxBase|Lafiel|
 |RadarIcon_Generic|Optional prebuilt configuration using generic icons for RadarIcon, instead of the default per-ship-class icons.|20.0|AxBase, RadarIcon|Lafiel, JadedDragoon|
 |VN|A script allowing for integrating a fully-flegded Visual Novel into FSO|21.0|AxBase, AxMessage, AxMiscFunctions|Axem, Lafiel|
+|DirDmgIndicator|Displays a brief graphical directional indicator when the player takes damage|20.0||Asteroth|
 
 ## List of AI Scripts
 |Name|Description|min. FSO|Dependencies|Scripter|
