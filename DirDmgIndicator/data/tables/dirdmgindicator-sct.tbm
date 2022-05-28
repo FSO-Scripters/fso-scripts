@@ -1,0 +1,107 @@
+#Conditional Hooks
+$Application: FS2_Open
+
+$On Game Init:
+[
+    ARC_FLASH_RATE = 0.15 --seconds
+
+    ARC_COLOR = {255, 0, 0}
+
+    FADE_FORWARD_FACING_ARCS = true -- dims away hits from the front, turn this false to disable
+
+    ARC_DURATION = 0.5 -- seconds
+
+    NUM_LINES = 8 -- must be >= 1!!!
+
+    LINE_WIDTH = 5
+
+    INNER_ARC_WIDTH = 0.8   -- these two are unitless multipliers
+    OUTER_ARC_WIDTH = 0.05  -- fiddle with them until they look right
+
+    OUTER_ARC_DIST = 0.4  -- these two are proportions of screen height
+    INNER_ARC_DIST = 0.36
+
+
+    DamageArcs = {}
+
+    function vec(x, y, z)
+        return ba.createVector(x, y, z)
+    end
+]
+
+$On Frame: [
+    -- hack to ensure this gets reset on restarts
+    if mn.getMissionTime() < 0.5 then
+        DamageArcs = {}
+    end
+
+    -- do damage arcs
+    if math.fmod(mn.getMissionTime(), ARC_FLASH_RATE) > ARC_FLASH_RATE * 0.5 then
+        local i=1
+        while i <= #DamageArcs do
+            local arc = DamageArcs[i]
+
+            gr.setLineWidth(LINE_WIDTH)
+            gr.setColor(ARC_COLOR[1],ARC_COLOR[2],ARC_COLOR[3],255 * arc.alpha)
+            for j = 1, NUM_LINES do
+                local width = OUTER_ARC_WIDTH - (OUTER_ARC_WIDTH - INNER_ARC_WIDTH) * (1 / (NUM_LINES - 1)) * (j-1)
+                local radius = (OUTER_ARC_DIST - (OUTER_ARC_DIST - INNER_ARC_DIST) * (1 / (NUM_LINES - 1)) * (j-1)) * gr.getScreenHeight()
+                gr.drawArc(radius, gr.getScreenWidth() / 2, gr.getScreenHeight() / 2,
+                    arc.angleCenter - arc.angleWidth * width,
+                    arc.angleCenter + arc.angleWidth * width,
+                    false)
+            end
+
+            if arc.stamp < mn.getMissionTime() then
+                table.remove(DamageArcs, i)
+            else
+                i = i + 1
+            end
+        end
+    end
+
+    gr.setLineWidth(1)
+]
+
+$On Weapon Collision: [
+    local ship = hv.Ship
+    if ship ~= hv.Player then
+        return
+    end
+
+    local wepvec
+    if hv.Weapon ~= nil then
+        wepvec = hv.Weapon:getfvec()
+    elseif hv.Beam ~= nil then
+        wepvec = hv.Beam:getStartDirectionInfo()
+    else
+        return
+    end
+
+    wepvec = hv.Player.Orientation:rotateVector(wepvec)
+
+    local crossmag = wepvec:getCrossProduct(vec(0,0,1)):getMagnitude()
+
+    local n = 10
+    if crossmag < 1 / n then
+        crossmag = 1/n
+    end
+
+    local alpha = 1
+    if FADE_FORWARD_FACING_ARCS then
+        alpha = wepvec:getDotProduct(vec(0,0,1)) + 1
+    end
+
+    local angleWidth = 180 * (1 / (n * crossmag))
+    local angleCenter = wepvec:projectOntoPlane(vec(0,0,1)):getNormalized()
+    angleCenter = ((math.atan2(angleCenter[1], angleCenter[2]) * 180) / math.pi) + 90
+
+    local newArc = {}
+    newArc.angleCenter = angleCenter
+    newArc.angleWidth = angleWidth
+    newArc.alpha = alpha
+    newArc.stamp = mn.getMissionTime() + ARC_DURATION
+    table.insert(DamageArcs, newArc)
+]
+
+#End
