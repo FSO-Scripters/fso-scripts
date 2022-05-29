@@ -17,6 +17,13 @@ function print(str)
     ba.print(str)
 end
 
+function println(str)
+    if (str) then
+        ba.print(str)
+    end
+    ba.print("\n")
+end
+
 function stackError(str, level)
     if (level == nil) then
         level = 2
@@ -52,7 +59,6 @@ function string.ends(str, e)
 end
 
 -- Nukes execute_lua_file function for executing lua files somewhere in the cfile system
-
 local chunck_cache = {}
 function loadLuaFile(filename)
     if (chunck_cache[filename] and chunck_cache[filename][1]) then
@@ -177,6 +183,7 @@ setmetatable(Globals, mt)
 
 -- InitialValues
 Globals.nullVec = ba.createVector(0, 0, 0)
+;;FSO 21.0.0;;    Globals.identityOrient = ba.createOrientationFromVectors(ba.createVector(1, 0, 0), ba.createVector(0, 1, 0), ba.createVector(0, 0, 1))
 
 -----------------------------------------------------------
 -- Implementation of a module loader for the CFilesystem --
