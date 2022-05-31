@@ -62,6 +62,45 @@ $Parameter:
 	+Description: Ships to lock down
 	+Type: Ship
 	
+$Operator: lua-set-targetable
+$Category: Change
+$Subcategory: Scripted
+$Minimum Arguments: 1
+$Return Type: Nothing
+$Description: Clears any flag that may prevent a ship to be targetted. (Invisible, stealthy, friendly-stealthy)
+$Repeat
+$Parameter:
+	+Description: Ships to become targetable
+	+Type: Ship
+	
+$Operator: lua-set-untargetable
+$Category: Change
+$Subcategory: Scripted
+$Minimum Arguments: 1
+$Return Type: Nothing
+$Description: Sets any flag that causes a ship to be targetted. (Invisible, stealthy, friendly-stealthy)
+$Repeat
+$Parameter:
+	+Description: Ships to become untargetable
+	+Type: Ship
+	
+$Operator: lua-set-cutscene-keylock
+$Category: Change
+$Subcategory: Scripted
+$Minimum Arguments: 1
+$Maximum Arguments: 1
+$Description: Sets/Unsets a lot of keys that if pressed, could make some immersion breaking interface sounds, and spoils your in game cutscene.
+$Parameter:
+	+Description: true = locks keys, false = unlocks keys
+	+Type: Boolean
+	
+$Operator: 	lua-remove-all-debris
+$Category: Change
+$Subcategory: Scripted
+$Minimum Arguments: 0
+$Maximum Arguments: 0
+$Description: Sets all debris to 0hp, removing it from the mission.
+		
 $Operator: lua-change-ship-class-2
 $Category: Change
 $Subcategory: Scripted
@@ -92,7 +131,7 @@ $Minimum Arguments: 0
 $Maximum Arguments: 0
 $Return Type: Boolean
 $Description: Detects if we are in a campaign state or not
-
+	
 $Operator: lua-swap-ship-position
 $Category: Change
 $Subcategory: Scripted
@@ -120,7 +159,65 @@ $Description: Changes the positions of a waypoint path so that they go in revers
 $Parameter:
 	+Description: Waypoint Path
 	+Type: waypointpath
+	
+$Operator: 	lua-dump-positions-to-file
+$Category: Change
+$Subcategory: Scripted
+$Minimum Arguments: 0
+$Maximum Arguments: 0
+$Description: Collects the position and orientation data of all ship objects on the frame this is run and exports it to a txt file in the root executable folder or %appdata% (or where your OS may have something like that). The filename will be '[timestamp]-pos.txt'. Use this to identify where ships are for cutscenes, placing ships in mission stage skips etc.
+		
+$Operator: 	lua-replace-texture
+$Category: Change
+$Subcategory: Scripted
+$Minimum Arguments: 3
+$Maximum Arguments: 3
+$Description: !!EXPERT USE ONLY!! Replaces a texture on a given ship. This only replaces a single texture, not a set. So replacing the base texture does not replace the shine/reflect/glow/normal/etc map. Be ***VERY*** conservative with this! BMPMan may not like it if you use this a lot. Use this as a last resort! Error detection is almost nil so be super sure what you are doing!
+$Parameter:
+	+Description: Ship to replace texture on
+	+Type: ship
+$Parameter:
+	+Description: Old texture filename
+	+Type: string
+$Parameter:
+	+Description: New texture filename
+	+Type: string
 
-
+$Operator: lua-get-ammo-pct
+$Category: Status
+$Subcategory: Mission
+$Minimum Arguments: 3
+$Maximum Arguments: 3
+$Return Type: Number
+$Description: Gets the ammo count by a percent for a given bank
+$Parameter:
+	+Description: Ship to change
+	+Type: ship
+$Parameter:
+	+Description: Bank Type (1=primary, 2=secondary)
+	+Type: number
+$Parameter:
+	+Description: Bank Number to get (0-2)
+	+Type: number
+	
+$Operator: lua-set-ammo-pct
+$Category: Change
+$Subcategory: Scripted
+$Minimum Arguments: 4
+$Maximum Arguments: 4
+$Return Type: Nothing
+$Description: Sets the ammo count by a percent for a given bank
+$Parameter:
+	+Description: Ship to change
+	+Type: ship
+$Parameter:
+	+Description: Bank Type (1=primary, 2=secondary)
+	+Type: number
+$Parameter:
+	+Description: Bank Number to change (0-2)
+	+Type: number
+$Parameter:
+	+Description: Percent (0-100) to adjust ammo count to
+	+Type: number
 
 #End
