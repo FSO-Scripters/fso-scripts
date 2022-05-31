@@ -6,7 +6,7 @@ NOTE: Requires SCPUI assets and scripts
 NOTE: Disables mainhall tips entirely
 
 ## Config file
-It should be named "notices_CAMPAIGNNAME.cfg" in data\config. An example file is included. The config lists notices that will be shown to the player on campaign start.
+It should be named "notices_CAMPAIGNFILENAME.cfg" in data\config. An example file is included. The config lists notices that will be shown to the player on campaign start.
 
 The config is JSON format. Each object includes "Text" and "Title". The data format accepts an XSTR; ("string", ####)
 
