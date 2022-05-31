@@ -1,0 +1,124 @@
+#Lua SEXPs
+
+$Operator: in-mission-jump
+$Category: Change
+$Subcategory: In-Mission Jumps
+$Minimum Arguments: 7
+$Maximum Arguments: 12
+$Description: Initiates a subspace jump for some ship(s) to a given waypoint. Upon arrival, these ships are spread out around the target waypoint in a reasonable formation for a fighter wing. The destination can also be offset from the target waypoint; to jump multiple groups of ships to the same waypoint, simply call this once for each group and set different offsets each time. This operator generates appropriate graphics for capital ships as well. Jump graphics will NOT be drawn for ships more than 40,000 meters away from the player; this can be used in conjunction with hud-set-max-targeting-range to represent multiple disparate mission zones. LIMITATIONS: Using this operator may remove ships from the escort list, or cause them to resume their initial orders(!) upon arrival. Subspace is represented by the point (0, -100000, 0) and below; using that region for anything else in the mission runs the risk of accidental collisions. Lastly, see register-cargo before using this operator with ships that may be docked to other ships.
+$Parameter:
+  +Description: The separation between ships in a wing, in meters. If this is set to zero or a negative number, it is automatically calculated as three times the radius of the largest ship, or 40 meters, whichever is larger.
+  +Type: number
+$Parameter:
+  +Description: The arrival point. The first ship (see below) arrives at the first waypoint in the path, facing the second waypoint in the path. Subsequent ships arrive in a reasonable formation. The waypoint path MUST contain at least two points!
+  +Type: waypointpath
+$Parameter:
+  +Description: Offset X-coordinate. The first ship in the group arrives at the waypoint offset by this much. Subsequent ships are positioned relative to the first ship. These offsets are applied after facing is calculated; two groups of ships arriving at the same waypoint list will always be parallel.
+  +Type: number
+$Parameter:
+  +Description: Offset Y-coordinate.
+  +Type: number
+$Parameter:
+  +Description: Offset Z-coordinate.
+  +Type: number
+$Parameter:
+  +Description: The time to spend in subspace, in milliseconds.
+  +Type: number
+$Repeat
+$Parameter:
+  +Description: A ship to jump. Up to six ships may be jumped at once; beyond that, you'll need to call this operator multiple times.
+  +Type: ship
+
+$Operator: in-mission-jump-leave
+$Category: Change
+$Subcategory: In-Mission Jumps
+$Minimum Arguments: 1
+$Maximum Arguments: 6
+$Description: Send some ships to subspace. These ships may be returned to realspace later by calling in-mission-jump-return. This operator is subject to the same limitations as in-mission-jump.
+$Repeat
+$Parameter:
+  +Description: A ship to jump. Up to six ships may be jumped at once; beyond that, you'll need to call this operator multiple times.
+  +Type: ship
+
+$Operator: in-mission-jump-leave-together
+$Category: Change
+$Subcategory: In-Mission Jumps
+$Minimum Arguments: 6
+$Maximum Arguments: 11
+$Description: Send some ships to subspace. Instead of the usual subspace calculation, the ships arrive at a waypoint list, interpreted as by in-mission-jump. This may be useful for battles in subspace.
+$Parameter:
+  +Description: The separation between ships in a wing, in meters. If this is set to zero or a negative number, it is automatically calculated as three times the radius of the largest ship, or 40 meters, whichever is larger.
+  +Type: number
+$Parameter:
+  +Description: The arrival point. The first ship (see below) arrives at the first waypoint in the path, facing the second waypoint in the path. Subsequent ships arrive in a reasonable formation. The waypoint path MUST contain at least two points!
+  +Type: waypointpath
+$Parameter:
+  +Description: Offset X-coordinate. The first ship in the group arrives at the waypoint offset by this much. Subsequent ships are positioned relative to the first ship. These offsets are applied after facing is calculated; two groups of ships arriving at the same waypoint list will always be parallel.
+  +Type: number
+$Parameter:
+  +Description: Offset Y-coordinate.
+  +Type: number
+$Parameter:
+  +Description: Offset Z-coordinate.
+  +Type: number
+$Repeat
+$Parameter:
+  +Description: A ship to jump. Up to six ships may be jumped at once; beyond that, you'll need to call this operator multiple times.
+  +Type: ship
+
+$Operator: in-mission-jump-return
+$Category: Change
+$Subcategory: In-Mission Jumps
+$Minimum Arguments: 6
+$Maximum Arguments: 11
+$Description: Returns some ships that had been sent to subspace with (either version of) in-mission-jump-leave. The ships arrive at a waypoint list, interpreted as by in-mission-jump.
+$Parameter:
+  +Description: The separation between ships in a wing, in meters. If this is set to zero or a negative number, it is automatically calculated as three times the radius of the largest ship, or 40 meters, whichever is larger.
+  +Type: number
+$Parameter:
+  +Description: The arrival point. The first ship (see below) arrives at the first waypoint in the path, facing the second waypoint in the path. Subsequent ships arrive in a reasonable formation. The waypoint path MUST contain at least two points!
+  +Type: waypointpath
+$Parameter:
+  +Description: Offset X-coordinate. The first ship in the group arrives at the waypoint offset by this much. Subsequent ships are positioned relative to the first ship. These offsets are applied after facing is calculated; two groups of ships arriving at the same waypoint list will always be parallel.
+  +Type: number
+$Parameter:
+  +Description: Offset Y-coordinate.
+  +Type: number
+$Parameter:
+  +Description: Offset Z-coordinate.
+  +Type: number
+$Repeat
+$Parameter:
+  +Description: A ship to jump. Up to six ships may be jumped at once; beyond that, you'll need to call this operator multiple times.
+  +Type: ship
+
+$Operator: register-cargo
+$Category: Change
+$Subcategory: In-Mission Jumps
+$Minimum Arguments: 4
+$Maximum Arguments: 4
+$Description: Notify in-mission-jump that one ship might be docked to another. Failing to use this operator (or calling it with the arguments in the wrong order) before docked ships jump will cause strange and highly visible effects in the mission! This operator merely notifies the script that it should check if ships are docked; it may be safely used on ships that are not docked yet, ships that may undock later, 
+$Parameter:
+  +Description: The ship. This should be the ship you intend to eventually call in-mission-jump on - using the cargo instead will not work!
+  +Type: ship
+$Parameter:
+  +Description: The ship's docking bay.
+  +Type: string
+$Parameter:
+  +Description: The cargo.
+  +Type: ship
+$Parameter:
+  +Description: The cargo's docking bay.
+  +Type: string
+
+$Operator: warp-in
+$Category: Change
+$Subcategory: In-Mission Jumps
+$Minimum Arguments: 1
+$Description: Call the warpIn scripting function to play a ship's arrival animation. This is mostly useful for the player's wing at mission start.
+$Repeat
+$Parameter:
+  +Description: A ship.
+  +Type: ship
+
+#End
