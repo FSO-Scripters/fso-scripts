@@ -2,7 +2,7 @@
 # Mainhall Notifications
 Provides a system and sexps to offer custom popup notifications at the mainhall between missions or at the start of a campaign. Notifications that have been seen are saved to a player file in %appdata%.
 
-NOTE: Requires SCPUI assets and scripts
+NOTE: Requires SCPUI assets and scripts  
 NOTE: Disables mainhall tips entirely
 
 ## Config file
