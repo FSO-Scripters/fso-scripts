@@ -10,6 +10,7 @@ This is a collection of user-made scripts for the [FreeSpace Open engine](https:
 |LafielsSEXPs|Some of Lafiels convenience SEXP, including turret information retrieval.|22.0||Lafiel|
 |RadarIcon|Adds configurable icons for ships and weapons onto the HUD, making it easier to keep an overview over the battlefield|20.0|AxBase|Lafiel|
 |RadarIcon_Generic|Optional prebuilt configuration using generic icons for RadarIcon, instead of the default per-ship-class icons.|20.0|AxBase, RadarIcon|Lafiel, JadedDragoon|
+|Send Message Alt SEXPS|More powerful versions of the built-in send-message SEXPs|22.0||Naomimyselfandi|
 |VN|A script allowing for integrating a fully-flegded Visual Novel into FSO|21.0|AxBase, AxMessage, AxMiscFunctions|Axem, Lafiel|
 |DirDmgIndicator|Displays a brief graphical directional indicator when the player takes damage|20.0||Asteroth|
 
