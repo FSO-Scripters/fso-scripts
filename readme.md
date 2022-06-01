@@ -9,6 +9,7 @@ This is a collection of user-made scripts for the [FreeSpace Open engine](https:
 |BtASystemViewer|A customizable 2D map built in FSO's Script Game State|21.0|AxBase|Axem/MjnMixael|
 |IM Jump Multie|Sexps for doing in-mission jumps with one or more ships simultaneously|22.0|Naomimyselfandi|
 |LafielsSEXPs|Some of Lafiels convenience SEXP, including turret information retrieval.|22.0||Lafiel|
+|Mainhall Notifications|Adds a system for custom popup messages displayed at the mainhall menu|22.0|SCPUI|Naomimyselfandi|
 |RadarIcon|Adds configurable icons for ships and weapons onto the HUD, making it easier to keep an overview over the battlefield|20.0|AxBase|Lafiel|
 |RadarIcon_Generic|Optional prebuilt configuration using generic icons for RadarIcon, instead of the default per-ship-class icons.|20.0|AxBase, RadarIcon|Lafiel, JadedDragoon|
 |Send Message Alt SEXPS|More powerful versions of the built-in send-message SEXPs|22.0||Naomimyselfandi|
