@@ -1,0 +1,80 @@
+#Conditional Hooks
+$Application: FS2_Open
+$On Game Init:
+[
+
+JumpManager = require('imjumpmulti')
+
+local function unbox(ships)
+  for i, v in ipairs(ships) do
+    -- FSO automatically boxes varargs in a table, and we don't want it to
+    ships[i] = v[1]
+  end
+  return ships
+end
+
+mn.LuaSEXPs["in-mission-jump"].Action = function(separation, waypointList, dx, dy, dz, transitMs, ...)
+  local ships = unbox({...})
+  local df = JumpManager:destinationFactory(separation, waypointList, dx, dy, dz, ships)
+  for _, ship in ipairs(ships) do
+    local destination = df:next()
+    JumpManager:jump(ship)
+               :doWarmup()
+               :toSubspace()
+               :driftForMs(transitMs)
+               :after(function() return JumpManager:jump(ship, destination):doCleanup():start() end)
+               :start()
+  end
+end
+
+mn.LuaSEXPs["in-mission-jump-leave"].Action = function(...)
+  local ships = unbox({...})
+  for _, ship in ipairs(ships) do
+    JumpManager:jump(ship)
+               :doWarmup()
+               :toSubspace()
+               :doCleanup()
+               :start()
+  end
+end
+
+mn.LuaSEXPs["in-mission-jump-leave-together"].Action = function(separation, waypointList, dx, dy, dz, ...)
+  local ships = unbox({...})
+  local df = JumpManager:destinationFactory(separation, waypointList, dx, dy, dz, ships)
+  for _, ship in ipairs(ships) do
+    JumpManager:jump(ship, df:next())
+               :doWarmup()
+               :toSubspace()
+               :doCleanup()
+               :start()
+  end
+end
+
+mn.LuaSEXPs["in-mission-jump-return"].Action = function(separation, waypointList, dx, dy, dz, ...)
+  local ships = unbox({...})
+  local df = JumpManager:destinationFactory(separation, waypointList, dx, dy, dz, ships)
+  for _, ship in ipairs(ships) do
+    JumpManager:jump(ship, df:next())
+               :doWarmup(true)
+               :doCleanup()
+               :start()
+  end
+end
+
+mn.LuaSEXPs["register-cargo"].Action = function(ship, point, cargo, cargoPoint)
+  JumpManager:registerCargo(ship, point, cargo, cargoPoint)
+end
+
+mn.LuaSEXPs["warp-in"].Action = function(...)
+  for _, v in ipairs({...}) do
+    v[1]:warpIn()
+  end
+end
+
+]
+
+$State: GS_STATE_GAME_PLAY
+$On Gameplay Start:
+[ JumpManager:reset() ]
+
+#End
