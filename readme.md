@@ -13,6 +13,7 @@ This is a collection of user-made scripts for the [FreeSpace Open engine](https:
 |DebugTools|Adds tools to easily debug SEXP variables and Lua Scripts|21.0|AxBase|Axem|
 |DirDmgIndicator|Displays a brief graphical directional indicator when the player takes damage|20.0||Asteroth|
 |ExtendedLoadingScreen|Allows further customization of the loading screen|21.0|AxBase|Axem|
+|Fennel|Runtime compiler for the Fennel Lisp(implemented in lua, compiles to Lua)|22.0||EatThePath|
 |HealthBars|Tools to display player health bars as well as boss healthbars|21.0|AxBase|Axem|
 |IM Jump Multie|Sexps for doing in-mission jumps with one or more ships simultaneously|22.0||Naomimyselfandi|
 |ItemDrops|A system to make enemies drop collectible items on death|21.0|AxBase|Axem|
