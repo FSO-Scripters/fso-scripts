@@ -1,0 +1,378 @@
+#Conditional Hooks
+
+$Application: FS2_Open
+
+$On Game Init: [
+
+	--Version 0.4, released on June 17, 2020 by wookieejedi
+	Object_Info_Help = {} --makes a global variable! This is the only global variable this script creates. 
+	
+	---------------------------------
+	--USER OPTIONS---
+	-----------------
+
+	--Position
+	--To change position of the gauge set values of origin and offset, similar to hud_gaugles.tbl: 
+	--Note this custom gauge only has three size scales (<= 1024 width, 1024 < width <= 3200, and > 3200)
+	--Also note that since this gauge dynamically changes in width and height two additional options for position are available:
+	--Object_Info_Help.start_point states where to start drawing the gauge. 
+		--Options for x include "left", "middle", and "right"
+		--Options for y include "top", "middle", and "bottom"
+	Object_Info_Help.origin = { x = 1.0, y = 0.0 }
+	Object_Info_Help.offset = { x = -300, y = 10 }
+	Object_Info_Help.start_point = { x = "right", y = "top" }
+	-----------------
+	
+	--Width
+	--By default the gauge will grow to accomodate the longest entry 
+	--To disable this behavior and set a constant width specify a maximum string for "maxstring"'
+	--If "is_width_dynamic" == true, then "maxstring" will not be used
+	--For "maxstring", write the longest string that may be needed here for the gauge
+	Object_Info_Help.is_width_dynamic = true
+	Object_Info_Help.maxstring = "MMMMMMMM: MMMMMMMMMMMMMMMMMM"
+	-----------------
+	
+	--Font	
+	--To set custom fonts for the gauge to use change the values of 'medium_resolution' and 'low_resolution' and 'high_resolution:
+	--Each value can be an integer index or font file name listed in fonts.tbl.
+	--If the font specific does not exist, the gauge will use the respective font listed in fonts.tbl.
+	--For reference font 1 is medium size, font 2 is large size, and font 3 is small size 
+	--If the player's screen is > 3200 pixels the gauge will use the high_resolution font
+	--If the player's screen is <= 1024 pixels the gauge will use the low_resolution font
+	Object_Info_Help.fonts = {medium_resolution = 4, low_resolution = 6, high_resolution = 5}
+
+	--Gauge Title
+	--To set the default title of the gauge simpy change the string value 
+	--For example, Object_Info_Help.gauge_title_default = "Ship Roles"
+	--The title can also be changed in mission by using the "role-gauge-set-title" sexp
+	Object_Info_Help.gauge_title_default = "Squadron Roles"
+
+	-----------------
+	--End of USER OPTIONS
+	---------------------------------
+
+	
+	--makes reminder list for object roles
+	Object_Info_Help.isactive = false
+	Object_Info_Help.basecolor = {35,35,35,255} --dark grey as default
+	Object_Info_Help.object_role_list = {}
+	
+
+	--reset all 
+	function Object_Info_Help:Reset()
+		self.object_role_list = {}
+		self.gauge_title = self.gauge_title_default
+		self.isactive = false
+		self.seperator = ": "
+	end
+	
+	--sets gauge color
+	function Object_Info_Help:setcolor()
+		local indexgag = 37
+		self.basecolor[1], self.basecolor[2], self.basecolor[3], self.basecolor[4] = hu.getHUDGaugeColor(indexgag)
+		if self.basecolor[4] <= 64 then
+			self.basecolor[4] = 0
+		end
+	end
+	
+	--insert object to Object_Info_Help.object_role_list
+	function Object_Info_Help:InsertObjectRole(object_name, role_description)
+		role_description = role_description or ""
+		if object_name ~= nil then 
+			local sep = self.seperator or ": "
+			local full_string = object_name..sep..role_description
+			table.insert(self.object_role_list, {name=object_name, full_string=full_string, role_description=role_description})
+			--table.sort(self.object_role_list)
+		end 		
+	end
+
+	--update object
+	function Object_Info_Help:UpdateObjectRole(object_name, role_description)
+		role_description = role_description or ""
+		if object_name ~= nil then
+			--find location in list where this name is 
+			for _,v in ipairs(self.object_role_list) do
+				if object_name == v.name then 
+					v.role_description = role_description
+					local sep = self.seperator or ": "
+					v.full_string = object_name..sep..role_description
+				end
+			end
+		end
+	end
+	
+	--remove object from Object_Info_Help.object_role_list
+	function Object_Info_Help:RemoveObjectRole(object_name)
+		--find location in list where this name is 
+		for i,v in ipairs(self.object_role_list) do
+			if object_name == v.name then 
+				table.remove(self.object_role_list, i)
+				break
+			end
+		end
+	end
+	
+	--draws the gauge
+	function Object_Info_Help:Draw()
+		
+		local drawtext_tbl = self.object_role_list
+		local num_to_draw = #drawtext_tbl
+		if #drawtext_tbl > 0 then 
+			
+			local res_type
+			local buf
+			local rect_linewidth
+			local fonttype
+			
+			local res = {x = gr.getScreenWidth(), y = gr.getScreenHeight()}
+			
+			--if high res
+			if res.x > 3200 then 
+				res_type = 2
+				buf = 8
+				rect_linewidth = 4
+				fonttype = "high_resolution"
+			--if normal res
+			elseif res.x > 1024 then
+				res_type = 1
+				buf = 4
+				rect_linewidth = 2
+				fonttype = "medium_resolution"
+			--then must be low res
+			else
+				res_type = 0
+				buf = 2
+				rect_linewidth = 1
+				fonttype = "low_resolution"
+			end
+			
+			--set and check font
+			local font = self.fonts[fonttype] or 1 --add this 1 in case user remove the option entry somehow 	
+			
+			--if this font doesn't actually exist then find it's closest match
+			local font_conversion = {medium_resolution=1, high_resolution=2, low_resolution=3}
+			if gr.Fonts[font] == nil then 
+				font = font_conversion[fonttype]
+			end 
+			
+			--double check to make sure this exists 
+			--if not then force it to be 1 (we really shouldn't get to this point)
+			if gr.Fonts[font] == nil then 
+				font = 1
+			end
+			
+			--now set the font
+			gr.CurrentFont = gr.Fonts[font]
+			
+			--set all dynamicly sized variables
+			
+			--get line sizes 
+			local slineh = gr.CurrentFont.Height
+			local lineh_add = slineh*0.2
+			--account for the low resolution situations where the multipliers make a lot of 0s
+			if res_type == 0 then 
+				lineh_add = 4
+			end
+
+			local maxwidth_str = 0
+			
+			--if dynamic find longest string width
+			if self.is_width_dynamic then 
+				for _,v in ipairs(drawtext_tbl) do
+					local str = v.full_string or ""
+					local str_width = gr.getStringWidth(str)
+					if str_width > maxwidth_str then
+						maxwidth_str = str_width
+					end
+				end
+				--also check the title
+				local tstr_width = gr.getStringWidth(self.gauge_title)
+				if tstr_width > maxwidth_str then
+					maxwidth_str = tstr_width
+				end
+			else 
+				maxwidth_str= gr.getStringWidth(self.maxstring)
+			end
+			
+			local r, g, b, int = self.basecolor[1], self.basecolor[2], self.basecolor[3], self.basecolor[4]
+			
+			gr.setColor(r, g, b, int)
+
+			--get size of gauge
+			local size = {
+				x = maxwidth_str + buf*3 + rect_linewidth*2,
+				y = rect_linewidth*2 + buf*4 + (num_to_draw)*(slineh+lineh_add) 
+			}
+			
+			--update position with user set position arguments
+			local pos_helper = {
+				x = {left = 0, middle = -0.5, right = -1.0},
+				y = {top = 0, middle = - 0.5, bottom = -1.0}
+			}
+			
+			--get converted offsets/start position
+			local start_coor = {x=0, y=0}
+			
+			for k,v in pairs(start_coor) do			
+				local pos = self.offset[k] + (res[k] * self.origin[k])
+				local helper_option = self.start_point[k]
+				local helper_x = pos_helper[k][helper_option] or 1
+				start_coor[k] = pos + (helper_x * size[k])
+			end
+			
+			local whole_rect = {
+				x1 = start_coor.x,
+				y1 = start_coor.y,
+				x2 = start_coor.x + size.x,
+				y2 = start_coor.y + size.y
+			}
+			
+			local header_rect = {
+				x1 = start_coor.x,
+				y1 = start_coor.y,
+				x2 = start_coor.x + size.x,
+				y2 = start_coor.y + slineh*1.4
+			}
+			
+			local headerbottom_line = {
+				x1 = start_coor.x,
+				y1 = start_coor.y + slineh*1.4,
+				x2 = start_coor.x + size.x,
+				y2 = start_coor.y + slineh*1.4
+			}		
+
+			--set to low intensity to draw background of gauge
+			local bckgrdint = 0.3
+			gr.setColor(r, g, b, int*bckgrdint)
+			--draw filled header rectangle
+			gr.drawRectangle(header_rect.x1, header_rect.y1, header_rect.x2, header_rect.y2, true)
+			--set back to reg intensity for outline and text
+			gr.setColor(r, g, b, int)
+			--draw bottom line
+			gr.drawLine(headerbottom_line.x1, headerbottom_line.y1, headerbottom_line.x2, headerbottom_line.y2)
+			--draw title
+			gr.drawString(self.gauge_title, whole_rect.x1 + buf, whole_rect.y1 + buf)
+			--draw main frame
+			gr.setLineWidth(rect_linewidth)
+			gr.drawRectangle(whole_rect.x1, whole_rect.y1, whole_rect.x2, whole_rect.y2, false)	
+			--draw reminder names 
+			local x1 = start_coor.x + buf + rect_linewidth
+			for i,v in ipairs(drawtext_tbl) do
+				local fstr = v.full_string or ""
+				local y1 = headerbottom_line.y1 + buf + (i-1)*(slineh+lineh_add)
+				gr.drawString(fstr, x1, y1)
+			end
+		
+		end
+		
+	end
+
+	--sexp API for Object_Info_Help:InsertObjectRole(object_name)
+	mn.LuaSEXPs["role-gauge-add-object"].Action = function(...) 
+		
+		if #arg <= 0 then return end
+		
+		for _, value in ipairs(arg) do
+		
+			local objectname = value[1]
+			local objectdescription = value[2]
+			Object_Info_Help:InsertObjectRole(objectname, objectdescription)
+		
+		end		
+		
+	end
+	
+	--sexp API for Object_Info_Help:UpdateObjectRole(object_name)
+	mn.LuaSEXPs["role-gauge-update-object"].Action = function(...) 
+		
+		if #arg <= 0 then return end
+		
+		for _, value in ipairs(arg) do
+		
+			local objectname = value[1]
+			local objectdescription = value[2]
+			Object_Info_Help:UpdateObjectRole(objectname, objectdescription)
+		
+		end
+		
+	end
+	
+	mn.LuaSEXPs["role-gauge-update-object-num"].Action = function(...)
+
+		if #arg <= 0 then return end
+		
+		for _, value in ipairs(arg) do
+		
+			local objectname = value[1]
+			local objectdescription = value[2]
+			Object_Info_Help:UpdateObjectRole(objectname, objectdescription)
+		
+		end
+		
+	end
+	
+	--sexp API for Object_Info_Help:InsertObjectRole(object_name)
+	mn.LuaSEXPs["role-gauge-remove-object"].Action = function(...) 
+		
+		if #arg <= 0 then return end
+		
+		for _, value in ipairs(arg) do
+		
+			local objectname = value[1]
+			Object_Info_Help:RemoveObjectRole(objectname)
+		
+		end
+
+	end
+	
+	mn.LuaSEXPs["role-gauge-toggle"].Action = function(toggle_status)
+		if type(toggle_status) == "boolean" then
+			Object_Info_Help.isactive = toggle_status
+		end
+	end
+
+	mn.LuaSEXPs["role-gauge-clear-all"].Action = function()
+		Object_Info_Help.object_role_list = {}
+	end
+
+	mn.LuaSEXPs["role-gauge-set-title"].Action = function(title_str)
+
+		if type(title_str) == "string" then
+			Object_Info_Help.gauge_title = title_str
+		end
+	
+	end
+	
+	mn.LuaSEXPs["role-gauge-set-seperator"].Action = function(seperator_str)
+
+		if type(seperator_str) == "string" then
+			Object_Info_Help.seperator = seperator_str
+		end
+	
+	end
+
+]
+
+$State: GS_STATE_HUD_CONFIG
+$On State End: [
+	Object_Info_Help:setcolor()
+]
+
+$State: GS_STATE_GAME_PLAY
+$On Gameplay Start: [
+	Object_Info_Help:setcolor()
+	Object_Info_Help:Reset()
+]
+
+$On HUD Draw: [
+	if hu.HUDDrawn and not hu.HUDDisabledExceptMessages and mn.getMissionTime() > 0.1 and Object_Info_Help.isactive then
+		Object_Info_Help:Draw()
+	end
+]
+
+$On State End: [
+	Object_Info_Help:Reset()
+]
+
+
+#End
