@@ -538,15 +538,31 @@ end
 function RadarIcon:Draw() 
 	self.PositionMaps = {}
 
+	--checkVisibility was added at this version to optimize this function
+	local modern = ba.isEngineVersionAtLeast(22,1,0,20220404)
 	for ship, texture in pairs(self.ShipIcons) do
-		-- Only Draw when fully visible on Radar
-		-- This is an evil hack since evaluateNumericSEXP seems to have trouble with OPF_POSITIVE SEXPs 
-		local name = texture[1].Name:gsub("!", "!!")
-		
-		if mn.evaluateSEXP("( = 2 ( is-ship-visible !" .. name .. "! ) )") and not texture[1].HiddenFromSensors then
-			RadarIcon:EvaluatePosition(texture[1], texture[2], nil, false)
-		elseif self.FuzzyIcon and (texture[1].HiddenFromSensors or mn.evaluateSEXP("( = 1 ( is-ship-visible !" .. name .. "! ) )")) then
-			RadarIcon:EvaluatePosition(texture[1], self.FuzzyIcon, nil, true)
+		local shipsig = mn.getObjectFromSignature(ship)
+		if shipsig:getBreedName() == "Ship" then
+			local hidden = texture[1].HiddenFromSensors
+			local visibility = 0
+
+			if modern then
+				visibility = shipsig:checkVisibility()
+				if (not hidden) and visibility == 2 then
+					RadarIcon:EvaluatePosition(texture[1], texture[2], nil, false)
+				elseif self.FuzzyIcon and (hidden or visibility == 1) then
+					RadarIcon:EvaluatePosition(texture[1], self.FuzzyIcon, nil, true)
+				end
+			else
+				local name = texture[1].Name:gsub("!", "!!")
+				--evalsexp is very expensive
+				--conditions ordered to try to take advantage of short circuiting
+				if (not hidden) and mn.evaluateSEXP("( = 2 ( is-ship-visible !" .. name .. "! ) )") then
+					RadarIcon:EvaluatePosition(texture[1], texture[2], nil, false)
+				elseif self.FuzzyIcon and (hidden or mn.evaluateSEXP("( = 1 ( is-ship-visible !" .. name .. "! ) )")) then
+					RadarIcon:EvaluatePosition(texture[1], self.FuzzyIcon, nil, true)
+				end
+			end
 		end
 	end
 	

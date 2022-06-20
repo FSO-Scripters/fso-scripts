@@ -1,0 +1,195 @@
+#Conditional Hooks
+$Application: FS2_Open
+$On Game Init:
+[
+
+MainHallNotices = {}
+MainHallNotices.Context = rocket:CreateContext('main_hall_notices', Vector2i.new(gr.getCenterWidth(), gr.getCenterHeight()))
+MainHallNotices.DefaultTitle = ba.XSTR('Between the Ashes', -1)
+MainHallNotices.Okay = ba.XSTR('Okay', -1)
+
+function MainHallNotices:ReadJSON(filename)
+  local directory = 'data/config'
+  if cf.fileExists(filename, directory, true) then
+    local json = require('dkjson')
+    local file = cf.openFile(filename, 'r', directory)
+    local contents = file:read('*a')
+    file:close()
+    local result = json.decode(contents)
+    if result then
+      return result
+    else
+      ba.error('Please ensure that ' .. filename .. ' is valid JSON.')
+    end
+  else
+    -- Default to an empty JSON object.
+    return {}
+  end
+end
+
+function MainHallNotices:GetMarker()
+  local player = ba.getCurrentPlayer()
+  local name = player:getName()
+  local campaign = player:getCampaignFilename()
+  return name .. ", " .. campaign
+end
+
+function MainHallNotices:ReadInitialMessages()
+  local directory = 'data/config'
+  local filename = 'notices_' .. ba.getCurrentPlayer():getCampaignFilename() .. '.cfg'
+  local cfg = self:ReadJSON(filename)
+  -- Currently, 'message' is the only field in a notices.cfg file.
+  local messages = cfg.messages
+  if messages then
+    -- Interpret each message as an XSTR reference for localization purposes.
+    for i, v in ipairs(messages) do
+      local text = v.text
+      v.text = ba.XSTR(text[1], text[2])
+      local title = v.title
+      if title then
+        v.title = ba.XSTR(title[1], title[2])
+      else
+        v.title = ''
+      end
+    end
+    return messages
+  else
+    return {}
+  end
+end
+
+function MainHallNotices:Load()
+  local filename = 'shown_initial_messages.cfg'
+  -- This file tracks which players we've shown the initial messages for the
+  -- current campign to. We don't want to show them more than once.
+  local shown = self:ReadJSON(filename)
+  local marker = self:GetMarker()
+  if shown[marker] then
+    -- We've already shown this campaign's initial messages to this player.
+    self.Queue = {}
+  else
+    -- We haven't, so enqueue the initial messages.
+    self.Queue = self:ReadInitialMessages()
+    -- Mark that we've shown those messages.
+    shown[marker] = true
+    local json = require('dkjson')
+    local file = cf.openFile(filename, 'w', 'data/config')
+    file:write(json.encode(shown))
+    file:close()
+  end
+end
+
+function MainHallNotices:GetTitle(message)
+  local title = message.title
+  -- If no title was given, use the default title. If a title
+  -- was given, include the default title as a prefix.
+  if not title or title == '' then
+    return self.DefaultTitle
+  else
+    return self.DefaultTitle .. ': ' .. title
+  end
+end
+
+function MainHallNotices:Show(message)
+  local text = message.text
+  local title = self:GetTitle(message)
+  -- Use the new SCPUI to show a modal dialog!
+  local dialogs = require('dialogs')
+  local that = self
+  dialogs.new()
+         :title(title)
+         :text(text)
+         :button(dialogs.BUTTON_TYPE_POSITIVE, self.Okay, true)
+         :show(self.Context)
+         -- When the dialog is closed, check for more messages.
+         :continueWith(function() that:Poll() end)
+  -- Route input to our context until the user dismisses the dialog box.
+  ui.enableInput(self.Context)
+end
+
+function MainHallNotices:Poll()
+  -- If this is the first time we're checking for messages, we
+  -- might need to load in the initial messages for this campaign.
+  if not self.Queue then self:Load() end
+  if #self.Queue > 0 then
+    -- If there are any messages, show the first one. When the player dismisses
+    -- that message, it will automatically call this again to check for more.
+    local message = table.remove(self.Queue, 1) 
+    -- Special case: If the message was sent from a mission and the player quit to
+    -- the main hall without continuing the campaign, skip this message.
+    if ca.getNextMissionFilename() == message.sentFrom then
+      self:Poll()
+    else
+      self:Show(message)
+    end
+  else
+    -- This method name is somewhat counterintuitive (blame SCP). It "disables"
+    -- SCPUI's exclusive access to user input, but it's easier to think of it as
+    -- re-enabling the normal UI.
+    ui.disableInput()
+  end
+end
+
+function MainHallNotices:Draw()
+  self.Context:Update()
+  self.Context:Render()
+end
+
+-- SEXPs
+
+function MainHallNotices:Enqueue(text, title)
+  table.insert(self.Queue, {text = text, title = title, sentFrom = mn.getMissionFilename()})
+end
+
+mn.LuaSEXPs['send-main-hall-notice'].Action = function(always, message, titleId)
+  if not message:isValid() then
+    ba.error('invalid message given to send-main-hall-notice')
+  end
+  if always or mn.isInCampaign() then
+    -- Oh, the joys of fixed-size strings. Passing the text of the message
+    -- directly would limit it to 32 characters in the mission editor.
+    -- Passing an FSO message handle instead works around that limitation.
+    -- It also queries the localization table for us, but we also need to
+    -- deal with the editor's weird escaping of forward slashes.
+    local text = message:getMessage(true):gsub('$slash', '/')
+    if titleId then
+      -- If a title ID is given, it tells us two things - that the notification
+      -- has a custom title, and what its XSTR ID is for localization purposes.
+      -- The English version of the custom title is just the message name.
+      local title = ba.XSTR(message.Name, titleId)
+      MainHallNotices:Enqueue(text, title)
+    else
+      MainHallNotices:Enqueue(text, '')
+    end
+  end
+end
+
+]
+
+$State: GS_STATE_MAIN_MENU
+$On Frame: [
+  MainHallNotices:Draw()
+]
+
+$State: GS_STATE_MAIN_MENU
+$On State Start: [
+  -- The tip of the day is fairly useless, and most people ignore them.
+  -- They really don't play nicely with the notification window, so let's just
+  -- turn them off.
+  ba.setTips(false)
+  -- If axcredits threw us into the credits screen or is about to, hold off on showing notifications.
+  ba.print('debug: game state is ' .. ba.getCurrentGameState().Name .. '\n')
+  if ForceCredits or (ba.getCurrentGameState().Name ~= 'GS_STATE_MAIN_MENU') then
+    ba.print('axcredits has been triggered - not showing main hall notices yet\n')
+  else
+    ba.print('polling main hall notices\n')
+    MainHallNotices:Poll()
+  end
+]
+
+$State: GS_STATE_CAMPAIGN_ROOM
+$On State End: [
+  MainHallNotices:Load()
+]
+
+#End

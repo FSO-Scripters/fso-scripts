@@ -1,0 +1,812 @@
+﻿#Conditional Hooks
+$Application: FS2_Open
+
+$On Game Init:
+[
+
+SystemViewer = {}
+
+local buttonExit = {"Exit", -1}
+local buttonBack = {"Back", -1}
+local messageNoSystem = {"No System Loaded", -1}
+
+--Intialize settings and stuff
+function SystemViewer:Init()
+
+	AXUI:ScreenInit(nil,nil,true)
+	AXUI:SetFocus(0)
+	
+	self.Enabled = true
+		
+	self.InGame = false
+	self.Allowed = false
+	self.PlayerMouse = io.MouseControlStatus
+
+	self.Buttons = {}
+	self.Buttons.Exit = AXUI:CreateButton(xstr(buttonExit), AXUI.Screen.w - 104 , AXUI.Screen.h - 74, 0, -30, "white", "ui_light_pink", "ui_pink", nil, 0, 0, "2_CAB_050001", "2_CAB_050002", false, 0)
+	
+	SystemViewer:L()
+	
+
+end
+
+function xstr(message)
+  if type(message) == 'string' then
+    ba.print('System Viewer: Got string with missing XSTR index: ' .. message .. "\n")
+    return message
+  else
+    return ba.XSTR(message[1], message[2])
+  end
+end
+
+function SystemViewer:L(filename)
+
+	if not filename then
+		filename = "sysview_" .. ba.getCurrentPlayer():getCampaignFilename() .. "_config.cfg"
+	else
+		filename = filename .. ".cfg"
+	end
+	--ba.print("System Viewer got current campaign as " .. filename .. "\n")
+
+	if cf.fileExists(filename, "data/config", true) then
+		self.Config = axemParse:ReadJSON(filename)
+		self.Systems = axemParse:ReadJSON(self.Config.File)
+		self:LoadNewSystem(self:AutoLoadSystem())
+	end
+
+
+end
+
+--Load a new system
+function SystemViewer:LoadNewSystem(systemname)
+
+	if systemname and self.Systems[systemname] then
+
+		ba.print("System Viewer loading system " .. systemname .. "\n")
+
+		self.CurrentSystem = self.Systems[systemname]
+		
+		--Get important information about the background (and by extension the view)
+		self.CurrentSystem.w = gr.getImageWidth(SystemViewer.CurrentSystem.Background)
+		self.CurrentSystem.h = gr.getImageHeight(SystemViewer.CurrentSystem.Background)
+		self.CurrentSystem.middle_x = (AXUI.Screen.w * 0.5) - (self.CurrentSystem.w * 0.5)
+		self.CurrentSystem.middle_y = (AXUI.Screen.h * 0.5) - (self.CurrentSystem.h * 0.5)
+		
+		--Setup the view and set it to the middle of the middle
+		self.View = {x = 0, y = 0}
+		self.View.Move = SystemViewer.MoveView
+		self.View:Move("center", "center")
+		
+		--Generate our buttons
+		self.Buttons = {}
+		self:GenerateElementButtons(self.CurrentSystem.Elements)
+		self.Buttons.Exit = AXUI:CreateButton(xstr(buttonExit), AXUI.Screen.w - 104 , AXUI.Screen.h - 74, 0, -30, "white", "ui_light_pink", "ui_pink", nil, 0, 0, "2_CAB_050001", "2_CAB_050002", false, 0)
+		self.Buttons.TextUp = AXUI:CreateButton(nil, 3, AXUI.Screen.h - 174, nil, nil, nil, nil, nil, nil, 0, 0, "2_CAB_020001", "2_CAB_020002", false, 1)
+		self.Buttons.TextDown = AXUI:CreateButton(nil, 3, AXUI.Screen.h - 100, nil, nil, nil, nil, nil, nil, 0, 0, "2_CAB_030001", "2_CAB_030002", false, 1)
+		
+		--And maybe a zoom out button
+		if self.CurrentSystem.ZoomOutTo then
+			self.Buttons.ZoomOut = AXUI:CreateButton(xstr(buttonBack), 13, 50, 53, 20, "white", "ui_light_green", "ui_green", "axui_return", 0, 0, "axui_return_h", "axui_return_c", "font", 0)
+			self.Buttons.ZoomOut.System = self.CurrentSystem.ZoomOutTo
+		end
+		
+	else
+		self.CurrentSystem = nil
+	end
+
+end
+
+--Move the view by a relative amount. Unless we specify center, then its absolutely in the center
+function SystemViewer:MoveView(x, y)
+
+	--"center" are special arguments, they'll automagically set the camera to the center of the view
+	
+	if x == "center" then
+		self.x = SystemViewer.CurrentSystem.middle_x
+	else
+		if SystemViewer.CurrentSystem.w > AXUI.Screen.w then
+			if self.x + x > 0 then  --Checking to make sure x isn't too small
+				self.x = 0
+			elseif self.x + x < (AXUI.Screen.w - SystemViewer.CurrentSystem.w) then  --Checking to make sure x isn't too big
+				self.x = (AXUI.Screen.w - SystemViewer.CurrentSystem.w)
+			else
+				self.x = self.x + x
+			end
+		end
+	end
+	
+	
+	if y == "center" then
+		self.y = SystemViewer.CurrentSystem.middle_y
+	else
+		if SystemViewer.CurrentSystem.h > AXUI.Screen.h then
+			if self.y + y > 0 then
+				self.y = 0
+			elseif self.y + y < (AXUI.Screen.h - SystemViewer.CurrentSystem.h) then
+				self.y = (AXUI.Screen.h - SystemViewer.CurrentSystem.h)
+			else
+				self.y = self.y + y
+			end
+		end
+	end
+		
+end
+
+--We decide if we're going to move the view here
+function SystemViewer:MaybeMoveView()
+
+	local mx, my = AXUI.MouseX, AXUI.MouseY
+	local x, y = 0, 0
+	local buffer = AXUI.Screen.w * 0.01
+	
+	--If the mouse is touching a buffer region then we change the potential x and y stuff
+	if mx < buffer then
+		x = 10
+	elseif mx > gr.getScreenWidth() - buffer then
+		x = -10
+	end
+	
+	if my < buffer then
+		y = 10
+	elseif my > gr.getScreenHeight() - buffer then
+		y = -10
+	end
+	
+	if x ~= 0 or y ~= 0 then
+	
+		self.View:Move(x, y) --Move the view
+		
+		--And move all the buttons!
+		for key, value in pairs(self.Buttons.Elements) do
+			value:Move()
+		end
+		
+	end
+
+end
+
+--Look through the config file stuff to see what we should load, first by mission name, then by "Default", if nothing then its nil
+function SystemViewer:AutoLoadSystem()
+
+	local systemname
+	local missionname
+	
+	--Get current mission
+	if mn.getMissionFilename() ~= "" and hv.OldState.Name ~= "GS_STATE_MAIN_MENU" then
+		missionname = mn.getMissionFilename() .. ".fs2"
+	else
+		missionname = ca.getNextMissionFilename()
+	end
+	
+	--ba.print("System Viewer detected next mission as " .. missionname .. "\n")
+	
+	--Find a match
+	if missionname ~= "" then
+		for key, value in pairs(self.Config) do
+			if missionname == key then
+				systemname = value
+			end	
+		end
+	end
+	
+	--Or just default
+	if not systemname and self.Config.Default then
+		systemname = self.Config.Default
+	end
+	
+	return systemname
+
+end
+
+--Look through the Elements Table and generate buttons. Only run when the script loads a new system.
+function SystemViewer:GenerateElementButtons(elementTable)
+
+	self.Buttons.Elements = {}
+	self.ElementGroup = AXUI:CreateRadioGroup() --Also stuff everything in a radio group so only one will be selectable at a time
+			
+	for key, value in pairs(elementTable) do
+	
+		if not value.Line then --If we're not a line...
+		
+			--Everything is just 0s since we're going to be changing positions a lot
+			local newButton = AXUI:CreateButton(xstr(value.Name), 0, 0, 0, 0, "white", "ui_light_green", "ui_green", value.Bitmap, 0, 0, value.Bitmap .. "_h", value.Bitmap .. "_c", false, 0)
+
+			if value.Selectable ~= true then
+				newButton.Level = 99
+			end
+			
+			newButton.Element = value 		--For easy access we'll stuff this entry's info into the button
+			
+			--Object-like functions
+			newButton.Move = self.MoveButton
+			newButton.DrawIcon = self.DrawIcon
+			newButton.MoveTo = self.MoveTo
+			
+			--Do we have a parent orbit? We should intialize it even if we don't.
+			if not newButton.Element.ParentOrbit then
+				newButton.Element.ParentOrbit = {}
+				newButton.Element.ParentOrbit.Distance = nil
+				newButton.Element.ParentOrbit.Angle = nil
+			end
+			
+			--Specify a parent orbit
+			if newButton.Element.Orbits then
+				newButton.Element.ParentOrbit.Distance = elementTable[newButton.Element.Orbits].Orbit.Distance
+				newButton.Element.ParentOrbit.Angle = elementTable[newButton.Element.Orbits].Orbit.Angle
+			end
+			
+			--If orbit is missing, we should slap in some dumb settings
+			if not newButton.Element.Orbit then
+				newButton.Element.Orbit = {}
+				newButton.Element.Orbit.Distance = 0
+				newButton.Element.Orbit.Angle = 0
+			end
+			
+			if not value.Orbit.Color then --If there's no color set up, make one
+				value.Orbit.Color = {}
+			end
+			
+			--Same here
+			if not newButton.Element.Offset then
+				newButton.Element.Offset = {}
+				newButton.Element.Offset.X = 0
+				newButton.Element.Offset.Y = 0
+			end
+			
+			--Move will move the button to the proper place
+			newButton:Move()
+			
+			--Now we actually move the newButton into the proper table and add it to the Radio Group
+			self.Buttons.Elements[key] = newButton
+			self.Buttons.Elements[key].Index = self.ElementGroup:AddToGroup(self.Buttons.Elements[key])
+		
+		else --we ARE a line
+		
+			--So lets do some line dancing
+			value.GenerateLine = self.GenerateLine
+			value:GenerateLine()
+		
+		end
+		
+	end
+
+end
+
+function SystemViewer:MoveButton()
+
+	--Sets coordinates for a button according to its specified polar coordinates
+
+	local px, py = nil, nil
+	
+	--If we have a parent orbit, calculate its coordinates first
+	if self.Element.ParentOrbit.Distance and self.Element.ParentOrbit.Angle then
+		px, py = SystemViewer:PolarToXY(self.Element.ParentOrbit.Distance, self.Element.ParentOrbit.Angle, nil, nil)
+	end
+	
+	--Its ok if px and py are nil. Don't worry, I'm a doctor.
+	local x, y = SystemViewer:PolarToXY(self.Element.Orbit.Distance, self.Element.Orbit.Angle, px, py)
+	
+	--Set up the bitmap and text positions
+	self.BitmapX = SystemViewer.View.x + x - (gr.getImageWidth(self.Bitmap)/2) + self.Element.Offset.X
+	self.BitmapY = SystemViewer.View.y + y - (gr.getImageHeight(self.Bitmap)/2)  + self.Element.Offset.Y
+	self.TextX = SystemViewer.View.x + x - (gr.getStringWidth(self.Text)/2)  + self.Element.Offset.X
+	self.TextY = SystemViewer.View.y + y + gr.getImageHeight(self.Bitmap) / 2  + self.Element.Offset.Y
+	
+	--Recalculate the region for the moved button
+	self:CalculateRegion(true)
+
+end
+
+--Convert polar coordinates to rectangular coordinates. By default uses the middle of the background as an origin point.
+function SystemViewer:PolarToXY(r, theta, origin_x, origin_y)
+
+	theta = math.rad(theta)
+	
+	if not origin_x or not origin_y then
+		origin_x = self.CurrentSystem.w/2
+		origin_y = self.CurrentSystem.h/2
+	end
+	
+	local x, y = (r * math.cos(theta)) + origin_x, (r * math.sin(theta)) + origin_y
+		
+	return x, y
+
+end
+
+--Generate a line's end points with MATH
+function SystemViewer:GenerateLine()
+
+	local elements = SystemViewer.CurrentSystem.Elements
+	local from = self.From
+	local to = self.To
+	
+	if not self.Color then
+		self.Color = {}
+	end
+	
+	self.Color = {self.Color[1] or 128, self.Color[2] or 128, self.Color[3] or 128, self.Color[4] or 255}
+
+	local theta1, theta2 = math.rad(elements[from].Orbit.Angle), math.rad(elements[to].Orbit.Angle)
+	
+	self.x1, self.y1 = SystemViewer:PolarToXY(elements[from].Orbit.Distance, elements[from].Orbit.Angle, nil, nil)
+	self.x2, self.y2 = SystemViewer:PolarToXY(elements[to].Orbit.Distance, elements[to].Orbit.Angle, nil, nil)
+	
+	self.x1 = self.x1 + elements[from].Offset.X
+	self.x2 = self.x2 + elements[to].Offset.X
+	
+	self.y1 = self.y1 + elements[from].Offset.Y
+	self.y2 = self.y2 + elements[to].Offset.Y
+	
+	local r1 = math.sqrt((self.x1-SystemViewer.CurrentSystem.w/2)^2 + (self.y1-SystemViewer.CurrentSystem.h/2)^2)
+	local r2 = math.sqrt((self.x2-SystemViewer.CurrentSystem.w/2)^2 + (self.y2-SystemViewer.CurrentSystem.h/2)^2)
+
+	--Not sure if understand the math or just copy pasted internet formulas. Either way it seems to work
+	
+	self.Distance = math.sqrt((r1^2) + (r2^2) - (2 * r1 * r2 * math.cos(theta1 - theta2)))
+	self.Distance = self.Distance * 0.93 --Stop the line just before its destination
+	self.Bearing = (math.pi/2) - math.atan2((self.y2-self.y1), (self.x2-self.x1))
+		
+end
+
+--Actual arrow drawing function
+function SystemViewer:DrawArrowFrom(x1, y1, length, bearing)
+
+--This function originally written by Ciarán Eaton
+--from http://svn.shinkutanku.com/defconutilities/draw.lua
+
+	gr.setLineWidth(2)
+	local head_ratio = 0.1
+	local head_angle = 0.25
+
+	--arrow body
+	local angle = bearing
+	local x2 = x1 + (math.sin(angle) * length)
+	local y2 = y1 + (math.cos(angle) * length)
+	gr.drawLine(x1, y1, x2, y2)
+
+	--arrow head left
+	x1 = x2
+	y1 = y2
+	angle = bearing - (head_angle * math.pi)
+	x2 = x1 - (math.sin(angle) * 25)
+	y2 = y1 - (math.cos(angle) * 25)
+	gr.drawLine(x1, y1, x2, y2)
+
+	--arrow head right
+	angle = bearing + (head_angle * math.pi)
+	x2 = x1 - (math.sin(angle) * 25)
+	y2 = y1 - (math.cos(angle) * 25)
+	gr.drawLine(x1, y1, x2, y2)
+	
+	return true
+	
+end
+
+--Move an object to another object. Ideally they would have different offsets...
+function SystemViewer:MoveTo(to)
+
+	self.Element.Orbit = to.Orbit
+	self:Move()
+
+end
+
+--Draw a rotating ship tech room thing
+function SystemViewer:DrawTechRoom(shipclass)
+
+	local thisShipClass = tb.ShipClasses[self.FullImage]
+
+	self.TechModelOri = self.TechModelOri or ba.createOrientation(0.3,0,math.pi)
+
+	thisShipClass:renderTechModel2(AXUI.Screen.x, AXUI.Screen.y, AXUI.Screen.x + AXUI.Screen.w, AXUI.Screen.y + AXUI.Screen.h, self.TechModelOri)
+
+	self.TechModelOri = self:ChangeTechModelOri(self.TechModelOri)
+
+end
+
+--And here's where we change the rotation
+function SystemViewer:ChangeTechModelOri(orientation)
+
+	return ba.createOrientation(orientation.p, orientation.b, orientation.h + (ba.getRealFrametime() * self.RotationRate * -1))
+
+end
+
+--Display a large image, across the entire screen and centered
+function SystemViewer:DisplayElementInfo(element)
+
+	local currentKey
+
+	--Get the current key's name for some future fun
+	for k,v in pairs(self.CurrentSystem.Elements) do
+		if v == element then
+			currentKey = k
+			break
+		end
+	end
+	
+	--First make the image box + close button
+	if element.LargeBitmap then
+		self.FullImage = AXUI:CreateImageBox(element.LargeBitmap, 0, 0, nil, nil, AXUI.Screen.w, AXUI.Screen.h, true, true, false)
+	elseif element.ShipClass then --ShipClass needs some extra work
+	
+		self.FullImage = element.ShipClass --Ooooh, this is probably baaaad but let's go with it
+		
+		if element.ModelOrientation then
+			self.TechModelOri = ba.createOrientation(math.rad(element.ModelOrientation[1]),math.rad(element.ModelOrientation[2]), math.rad(element.ModelOrientation[3]))
+		end
+
+		if element.RotationSpeed then
+			self.RotationRate = math.rad(element.RotationSpeed)
+		else
+			self.RotationRate = 0.5
+		end
+
+	else --If there's nothing to actually draw, draw an empty image box
+		self.FullImage = AXUI:CreateImageBox(nil, 0, 0, nil, nil, AXUI.Screen.w, AXUI.Screen.h, true, true, false)
+	end
+	
+	--Generate the close button
+	self.Buttons.CloseImage = AXUI:CreateButton(nil, (AXUI.Screen.w/2) - 50, AXUI.Screen.h - 250, nil, nil, nil, nil, nil, "axui_cancel", 0, 0, "axui_cancel_h", "axui_cancel_c", false, 1)
+	
+	--Generate our Zoom In button
+	if element.ZoomTo then
+		self.Buttons.zoomin2 = AXUI:CreateButton(nil, (AXUI.Screen.w/2) - 50, AXUI.Screen.h - 300, nil, nil, nil, nil, nil, "axui_zoomin2", 0, 0, "axui_zoomin2_h", "axui_zoomin2_c", false, 1)
+		self.Buttons.zoomin2.System = element.ZoomTo
+	end
+		
+	--Now make the textbox
+	self.TextBox = AXUI:CreateTextBox(xstr(element.Description), 60, AXUI.Screen.h - 180, 750, 200, "white", false)
+	self.TextBox.ScaleFont = true
+
+end
+
+--Draw an icon at a specified offset
+function SystemViewer:DrawIcon()
+
+	if self.Element.Icon then --Do we actually have an icon to draw?
+	
+	local thisIcon = self.Element.Icon
+	
+		local x = 0
+		local y = 0
+			
+		-- + and - are shortcuts!
+		if thisIcon.X == "+" then
+			x = gr.getImageWidth(self.Element.Bitmap) - (gr.getImageWidth(thisIcon.Bitmap)/2)
+		elseif thisIcon.X == "-" then
+			x = (gr.getImageWidth(self.Element.Bitmap) * -1) + (gr.getImageWidth(thisIcon.Bitmap)/2)
+		else
+			x = thisIcon.X
+		end
+			
+		x = x + self.BitmapX
+		
+		if thisIcon.Y == "+" then
+			y = 0
+		elseif thisIcon.Y == "-" then
+			y = gr.getImageHeight(self.Element.Bitmap)
+		else
+			y = thisIcon.Y
+		end
+			
+		y = y + self.BitmapY
+		
+		gr.drawImage(thisIcon.Bitmap, x, y)
+		
+	end
+	
+end
+
+--The MegaLarge Drawing Function
+function SystemViewer:Draw()
+
+	if self.CurrentSystem then --We need a real system here!
+
+		gr.setColor(0,0,0,255)
+		gr.drawRectangle(0,0,gr.getScreenWidth(), gr.getScreenHeight())
+
+		--ANYTHING THAT HAS TO MOVE AROUND GOES BELOW
+
+		gr.setClip(AXUI.Screen.x, AXUI.Screen.y, AXUI.Screen.w, AXUI.Screen.h)
+		
+			--Draw the background first
+			gr.drawImage(self.CurrentSystem.Background, self.View.x, self.View.y)
+				
+			--Draw all the orbits first, sure its an additional for loop but it prevents bad drawing
+			for key, value in pairs(self.CurrentSystem.Elements) do
+				if value.ShowOrbit and value.Visible then
+					
+					--Let's set the color and width
+					gr.setColor(value.Orbit.Color[1] or 128, value.Orbit.Color[2] or 128, value.Orbit.Color[3] or 128, value.Orbit.Color[4] or 255)
+					gr.setLineWidth(value.Orbit.Width or 3)
+					
+					--Is the center in the middle of the system or...
+					local x, y = self.View.x + self.CurrentSystem.w/2, self.View.y + self.CurrentSystem.h/2
+					
+					--Do we have a parent orbit?
+					if value.ParentOrbit.Distance and value.ParentOrbit.Angle then
+						x, y = SystemViewer:PolarToXY(value.ParentOrbit.Distance, value.ParentOrbit.Angle, nil, nil)
+						x = x + self.View.x
+						y = y + self.View.y
+					end
+					
+					gr.drawCircle(value.Orbit.Distance, x, y, false)
+					gr.setLineWidth(1)
+					
+				end
+			end
+			
+			--Draw all the buttans
+			for key, value in pairs(self.Buttons.Elements) do
+				if value.Element.Visible then
+					value:Draw()
+					value:DrawIcon()
+				end
+			end	
+			
+			--Draw lines
+			for key, value in pairs(self.CurrentSystem.Elements) do
+				if value.Line then
+					gr.setColor(value.Color[1], value.Color[2], value.Color[3], value.Color[4])
+					self:DrawArrowFrom(value.x1 + self.View.x, value.y1 + self.View.y, value.Distance, value.Bearing)
+				end
+			end
+			
+		gr.resetClip()
+			
+		--STATIC IMAGES GO BELOW!
+		
+		AXUI:SetColor("bright_white")
+		
+		gr.CurrentFont = AXUI.Fonts.Large
+		gr.drawString(xstr(self.CurrentSystem.Name), AXUI.Screen.x + 10, AXUI.Screen.y + 15)
+		gr.CurrentFont = AXUI.Fonts.Medium
+		gr.drawString(xstr(self.CurrentSystem.Description), AXUI.Screen.x + 25, AXUI.Screen.y + 35)
+		gr.CurrentFont = AXUI.Fonts.Small
+	else
+		gr.CurrentFont = AXUI.Fonts.Large
+		gr.setColor(255,255,255,255)
+		gr.drawString(xstr(messageNoSystem), AXUI.Screen.x + (AXUI.Screen.w / 2) - (gr.getStringWidth(xstr(messageNoSystem)) / 2), AXUI.Screen.y + (AXUI.Screen.h / 2) - (gr.CurrentFont.Height / 2))
+		gr.CurrentFont = AXUI.Fonts.Small
+	end
+		
+	--Exit should always be drawn, but it has to be sandwiched inbetween the top and the bottom for proper drawing.
+	gr.drawImage("axui_exit", AXUI.Screen.x + AXUI.Screen.w - 111, AXUI.Screen.y + AXUI.Screen.h - 97)
+	self.Buttons.Exit:Draw()
+	
+	if self.CurrentSystem then
+	
+		if self.FullImage then
+		
+			gr.setColor(0,0,0,128) --Slightly dimming the background like the cool kids do
+			gr.drawRectangle(0,0,gr.getScreenWidth(),gr.getScreenHeight(),true)
+			
+			if type(self.FullImage) == "string" then    --its probably a shipclass and we should do a tech room style render
+				self:DrawTechRoom(self.FullImage)
+			else  --Its a Full Image
+				self.FullImage:Draw()
+			end
+			
+			self.Buttons.CloseImage:Draw()
+			
+		end
+		
+		if self.Buttons.JumpTo then
+			self.Buttons.JumpTo:Draw()
+		end
+		
+		if self.Buttons.zoomin2 then
+			self.Buttons.zoomin2:Draw()
+		end
+		
+		if self.Buttons.ZoomOut then
+			self.Buttons.ZoomOut:Draw()
+		end
+		
+		if self.TextBox then
+			gr.drawImage("axui_box1", AXUI.Screen.x, AXUI.Screen.y + AXUI.Screen.h - 200)
+			self.TextBox:Draw()
+			self.Buttons.TextUp:Draw()
+			self.Buttons.TextDown:Draw()
+		end
+	
+	end
+	
+end
+
+function SystemViewer:MonitorActions()
+
+	if self.Buttons.Exit:Clicked() then
+		ad.playInterfaceSound(7)
+		if self.InGame then
+			SystemViewer:Activate(false)
+		else
+			Monitor:GoToState(Monitor.LastState) --Monitor is from imonitor-sct.tbm
+		end
+	end
+
+	if self.CurrentSystem then
+	
+		if self.Buttons.TextUp:Clicked() then
+			if self.TextBox then
+				if self.TextBox:ScrollText(10) then
+					ad.playInterfaceSound(0) --0 is the normal FreeSpace click sound
+				else
+					ad.playInterfaceSound(10) --10 is a fail sound
+				end
+			else
+				ad.playInterfaceSound(10)
+			end
+		end
+
+		if self.Buttons.TextDown:Clicked() then
+			if self.TextBox then
+				if self.TextBox:ScrollText(-10) then
+					ad.playInterfaceSound(0)
+				else
+					ad.playInterfaceSound(10)
+				end			
+			else
+				ad.playInterfaceSound(10)
+			end
+		end
+	
+		for key, value in pairs(self.Buttons.Elements) do
+			if value:Clicked() then
+				ad.playInterfaceSound(0)
+				self.ElementGroup:SwitchTo(value.Index)
+				self:DisplayElementInfo(value.Element)
+				AXUI:SetFocus(1)
+			end
+		end
+		
+		if self.Buttons.CloseImage then
+			if self.Buttons.CloseImage:Clicked() then
+				ad.playInterfaceSound(0)
+				self:CloseFullImage()
+			end
+		end
+		
+		if self.Buttons.zoomin2 then
+			if self.Buttons.zoomin2:Clicked() then
+				ad.playInterfaceSound(0)
+				self:LoadNewSystem(self.Buttons.zoomin2.System)
+				self:CloseFullImage()
+			end
+		end
+		
+		if self.Buttons.ZoomOut then
+			if self.Buttons.ZoomOut:Clicked() then
+				ad.playInterfaceSound(0)
+				self:LoadNewSystem(self.Buttons.ZoomOut.System)
+			end
+		end
+	
+	end
+
+end
+
+--Resetting a few variables when closing the full image
+function SystemViewer:CloseFullImage()
+
+	self.FullImage = nil
+	self.Buttons.Close = nil
+	self.Buttons.JumpTo = nil
+	self.Buttons.zoomin2 = nil
+	self.TextBox = nil
+	self.TechModelOri = nil
+	AXUI:SetFocus(0)
+	self.ElementGroup:SwitchTo(nil)
+	
+end
+
+--Resetting more variables when exiting the system viewer
+function SystemViewer:Exit()
+
+	self.FullImage = nil
+	self.Buttons.Close = nil
+	self.Buttons.JumpTo = nil
+	self.Buttons.zoomin2 = nil
+	self.TextBox = nil
+	self.TechModelOri = nil
+	AXUI:SetFocus(0)
+	if self.ElementGroup then
+		self.ElementGroup:SwitchTo(nil)
+	end
+	self.Buttons = {}
+
+end
+
+--In an ingame setting, we should set up some things when we activate it
+function SystemViewer:Activate(status)
+
+	local playerName = hv.Player.Name
+		
+	self.Enabled = status
+	
+	if status then
+		if self.PlayerMouse then
+			io.MouseControlStatus = false
+		end
+		
+		io.setCursorHidden(false)
+		
+		mn.runSEXP("(lock-primary-weapon !"..playerName.."!)")
+		mn.runSEXP("(lock-secondary-weapon !"..playerName.."!)")
+		mn.runSEXP("(lock-afterburner !"..playerName.."!)")
+		mn.runSEXP("(ignore-key !-1! !C!)")
+		mn.runSEXP("(set-time-compression !1!)")
+				
+		if self.CurrentSystem.Elements.Player then
+			self.SEXPVar = mn.SEXPVariables["navsys_destination"].Value
+			self.Buttons.Elements.Player:MoveTo(self.CurrentSystem.Elements[self.SEXPVar])
+		end
+		
+	else
+	
+		if self.PlayerMouse then
+			io.MouseControlStatus = true
+		end
+		
+		io.setCursorHidden(true)
+		self.UnlockTimer = mn.getMissionTime() + 1
+		mn.runSEXP("(unlock-afterburner !"..playerName.."!)")
+		mn.runSEXP("(ignore-key !0! !C!)")
+		mn.runSEXP("(set-time-compression !100!)")
+	end
+end
+
+]
+
+$State: GS_STATE_SCRIPTING
+$On State Start:
+[
+	if Monitor.Substate == "SystemViewer" then --Substate stuff handled by imonitor-sct.tbm
+		SystemViewer:Init()
+	end
+]
+
+$On State End:
+[
+	if Monitor.Substate == "SystemViewer" then
+		SystemViewer:Exit()
+	end
+]
+
+$On Frame:
+[
+	if Monitor.Substate == "SystemViewer" then
+		if SystemViewer.Enabled then
+			SystemViewer:Draw()
+			
+			if SystemViewer.CurrentSystem then
+				SystemViewer:MaybeMoveView()
+			end
+		end
+	end
+]
+
+$On Mouse Released:
+[
+	if Monitor.Substate == "SystemViewer" then
+		if SystemViewer.Enabled then
+			if bit.checkBit(hv.MouseButton, 0) then
+				SystemViewer:MonitorActions()
+			end
+		end
+	end
+]
+
+$On Key Pressed:
+[
+	if hv.Key == "Esc" then
+		--if ba.getCurrentGameState().Name == "GS_STATE_SCRIPTING" then
+		--	if not SystemViewer.CurrentSystem.ZoomOutTo then
+				Monitor:GoToState(Monitor.LastState)
+		--	else
+		--		SystemViewer:LoadNewSystem(SystemViewer.Buttons.ZoomOut.System)
+		--	end
+		--end
+	end
+]
+
+#End

@@ -1,0 +1,20 @@
+#Lua SEXPs
+
+$Operator: send-main-hall-notice
+$Category: Change
+$Subcategory: Mission and Campaign
+$Minimum Arguments: 2
+$Maximum Arguments: 3
+$Return Type: nothing
+$Description: Send a low-priority notification to the player. The notification will be displayed the next time the player views the main hall. Since strings in FRED have a maximum length of 32 charactrs, the text of the notification is taken from a mission message instead. (If the message is configured for localization, the notice will localize as well.) HTML markup is supported in the notification text, although libRocket only understands a few tags - consult the SCPUI documentation for more information. As a special case, the notification will not be displayed if the player quits to the main hall without continuing the campaign (either because they failed the mission, or because they chose not to accept the mission outcome).
+$Parameter:
+	+Description: Always send the notification, even if the mission is being played from the tech room. If this is set to true, the notification will be sent no matter how the message was launched. If it's st to false, the notification will only be sent when the mission is launched through the ready room. It's recommended to set this as true for testing, and set it to false before release.
+	+Type: boolean
+$Parameter:
+	+Description: A message with the notification's text.
+	+Type: message
+$Parameter:
+  +Description: Show a custom title for this notification? If this is set (to any number), then the message's name is interpreted as a custom title for the notice. The number itself is interpreted as an index into the XSTR localization table; if your mod isn't localized, just pass -1, which the XSTR system understands as "do not localize".
+  +Type: number
+
+#End
