@@ -1,0 +1,3 @@
+# Extended Loading Screen
+
+This script will allow the modder to more finely customize mission loading screens. Added features include customizeable loading bars, randomized loading images, ability to automatically draw the mission's title, and random text (for tips or lore, as well as associated images). Care must be taken with the placement of the loading bar, random text and images, since they will not scale with the game's resolution (however, the background does have the ability to scale). This script only overrides missions that are inside the loading screen table.
