@@ -1,0 +1,232 @@
+#Lua SEXPs
+
+
+$Operator: move-to-orientation
+$Category: Change
+$Subcategory: LUA-Movements
+$Minimum Arguments: 4
+$Maximum Arguments: 7
+$Return Type: Nothing
+$Description: Moves a ship to a given orientation over a specified time duration. This sexp only has to be called once and can be used to make a much more natural looking rotational effect for ships. By default this sexp will issue a play-dead-persistent order with priority 200, but this priority value can be changed and the order can also not be issued. Note, running this sexp on a ship that actively is already actively using the sexp will overwrite the first usage. The order 'clear-goals' will also stop this rotation. Note, this sexp will not work in multiplayer.
+$Parameter: 
+	+Description: Ship to rotate.
+	+Type: Ship
+$Parameter: 
+	+Description: Pitch of final orientation in degrees. Any value is valid and will be converted to range within 0-359.
+	+Type: Number
+$Parameter: 
+	+Description: Bank of final orientation in degrees. Any value is valid and will be converted to range within 0-359.
+	+Type: Number
+$Parameter: 
+	+Description: Heading of final orientation in degrees. Any value is valid and will be converted to range within 0-359.
+	+Type: Number
+$Parameter:
+	+Description: Time delay in seconds to start effect. Default is 0 (effect starts immediately). Any value <= 0 will evaluate to 0.
+	+Type: Number
+$Parameter: 
+	+Description: Time in seconds of rotation effect. The default duration is calculated as the time needed to move to the final orientation using the max rotational velocity of the ship. Any value < 0 will also use the default duration calculation. 
+	+Type: Number
+$Parameter: 
+	+Description: Priority for the automatic play-dead-persistent order. Default is 200. If set to a negative value then no play-dead-order-persistent order is issued. If set, the play-dead-persistent order will be removed automatically when the effect is over. 
+	+Type: Number
+
+$Operator: early-stop-move-to-orientation
+$Category: Change
+$Subcategory: LUA-Movements
+$Minimum Arguments: 1
+$Maximum Arguments: 1
+$Return Type: Nothing
+$Description: Immediately terminates the custom `move-to-orientation` sexp for a ship. Only use this sexp to prematurely stop `Move-To-Orientation` for a ship. Note, this sexp will not work in multiplayer. 
+$Parameter: 
+	+Description: Ship to terminate the rotate of.
+	+Type: Ship
+
+$Operator: add-waypoint-track-ship
+$Category: Change
+$Subcategory: LUA-Movements
+$Minimum Arguments: 2
+$Maximum Arguments: 9
+$Return Type: Nothing
+$Description: Sets a waypoint to a position relative to a ship continually. This sexp is an easier way to make a dynamic waypoint track a ship location. The waypoint will be moved to the specified coordinates relative to the ship at every time duration. To use absolute coordinate offsets instead set the last argument to false. If the ship is not present or destroyed, or departed then the waypoint will not update location. Note, this sexp will not work in multiplayer. 
+$Parameter: 
+	+Description: Ship to have the waypoint track. The following positions will be relative to this ship position. 
+	+Type: Ship
+$Parameter: 
+	+Description: Waypoint path containing the waypoint to update position.
+	+Type: Waypointpath 
+$Parameter: 
+	+Description: Number of the waypoint in the waypoint path. For example, to have the first waypoint position updated set this value to 1. Default is the first waypoint of the waypoint path.
+	+Type: Number  
+$Parameter: 
+	+Description: X offset in meters from the center of the ship that the waypoint will be set to. Default is 0.
+	+Type: Number
+$Parameter: 
+	+Description: Y offset in meters from the center of the ship that the waypoint will be set to. Default is 0.
+	+Type: Number
+$Parameter: 
+	+Description: Z offset in meters from the center of the ship that the waypoint will be set to. Default is 0.
+	+Type: Number
+$Parameter: 
+	+Description: Track interval in milliseconds. How often the game checks to see if the target ship has moved. Default is 1000. 
+	+Type: Number
+$Parameter: 
+	+Description: Track distance in meters. How far the waypoint must be from the previous location before the waypoint will update location. Default is 0.
+	+Type: Number
+$Parameter: 
+	+Description: Whether or not to use relative offsets. Default is true, which means all offsets will be relative to the target ship's orientation. To force the use of absolute offsets and not take account the ship's orientation, set to false. 
+	+Type: Boolean
+
+$Operator: remove-waypoint-track-ship
+$Category: Change
+$Subcategory: LUA-Movements
+$Minimum Arguments: 1
+$Maximum Arguments: 2
+$Return Type: Nothing
+$Description: Removes a waypoint tracking of a ship. This sexp removes the effect of 'add-Waypoint-Track-Ship'. Note, this sexp will not work in multiplayer.
+$Parameter: 
+	+Description: Waypoint path containing the waypoint to remove tracking.
+	+Type: Waypointpath  
+$Parameter: 
+	+Description: Number of the waypoint in the waypoint path. For example, to have the first waypoint position updated set this value to 1. Default is 1.
+	+Type: Number  
+
+$Operator: add-ai-goal-track-waypoint
+$Category: Change
+$Subcategory: LUA-Movements
+$Minimum Arguments: 3
+$Maximum Arguments: 5
+$Return Type: Nothing
+$Description: Adds a custom ai-goal for a ship to track a waypoint path. The ship will move to the final point in the waypoint path and remain in that position. If the waypoint path is moved the ship will follow the waypoint path again. Useful for having ships follow dynamic waypoints. Note, this order can only be removed via the sexps 'remove-ai-goal-track-waypoint' or 'clear-goals'. For best results do not add additional waypoints to the waypoint path once the mission has started. Note, running this sexp on a ship that is actively already using this sexp will overwrite the first usage, even if the waypoints are different. Note, this sexp will not work in multiplayer.
+$Parameter: 
+	+Description: Ship to order.
+	+Type: Ship
+$Parameter: 
+	+Description: Waypoint path to track.
+	+Type: Waypointpath
+$Parameter: 
+	+Description: Priority of order.
+	+Type: Number
+$Parameter: 
+	+Description: Track interval in milliseconds. How often the game checks to see if the waypoint has moved. Default is 1500. 
+	+Type: Number
+$Parameter: 
+	+Description: Track distance in meters. How far the final waypoint in the waypoint path must move before the ship will follow the waypoint path again. Default is the diameter of ship. Any value <= 0 will also use the default radius of the ship value.  
+	+Type: Number
+	
+$Operator: remove-ai-goal-track-waypoint
+$Category: Change
+$Subcategory: LUA-Movements
+$Minimum Arguments: 1
+$Maximum Arguments: 1
+$Return Type: Nothing
+$Description: Removes a custom `add-ai-goal-track-waypoint` goal. The sexp removes any custom order for that ship, even if there are more than one. This is the only way to remove the `add-ai-goal-track-waypoint` besides 'clear-goals'. Note, this sexp will not work in multiplayer.
+$Parameter: 
+	+Description: Ship to remove order.
+	+Type: Ship
+	
+$Operator: set-idle-track-orientation
+$Category: Change
+$Subcategory: LUA-Movements
+$Minimum Arguments: 4
+$Maximum Arguments: 7
+$Return Type: Nothing
+$Description: Sets an idle/resting orientation for a ship tracking a waypoint, either as an absolute orientation or an orientation relative to a given ship. When a ship that is tracking a waypoint is not moving forward it will move to this idle orientation. If a relative orientation is specified the sexp will get the target ship orientation and then add the pitch, bank, and heading values set in this sexp to create a final idle/resting orientation. The ship will actively mantain this orientation by default. This sexp will overwrite any previous idle orientation information for this ship. Note, this sexp will not work in multiplayer.
+$Parameter: 
+	+Description: Ship to set idle orientation values.
+	+Type: Ship
+$Parameter: 
+	+Description: Pitch of idle orientation in degrees. Any value is valid and will be converted to range within 0-359.
+	+Type: Number
+$Parameter: 
+	+Description: Bank of idle orientation in degrees. Any value is valid and will be converted to range within 0-359. 
+	+Type: Number
+$Parameter: 
+	+Description: Heading of idle orientation in degrees. Any value is valid and will be converted to range within 0-359.
+	+Type: Number
+$Parameter: 
+	+Description: Whether or not to set the pitch, bank, and heading coordinates relative to a target ship. Default is false. If set to true and a target ship is set then the pitch, bank, heading values will be relative to the target pitch, bank, and heading (ie idle heading = specified heading + target heading). If set to true then a target ship must be specified for this to have any effect. 
+	+Type: Boolean	
+$Parameter: 
+	+Description: Target ship that above listed pitch, bank, and heading values will be relative to. Default is to not use a target ship. If the target ship is set here but has not arrived or is destroyed or departs then the pitch, bank, and heading values will not be used. The preceding boolean parameter must be set to true for this parameter to work.
+	+Type: Ship
+$Parameter:
+	+Description: Boolean if the ship should actively mantain this orientation when at rest. Default is true. Keeping this value to true is useful for having a ship mantain an orientation relative to another ship, even if the target ship rotates.  
+	+Type: Boolean
+
+$Operator: unset-idle-track-orientation
+$Category: Change
+$Subcategory: LUA-Movements
+$Minimum Arguments: 1
+$Maximum Arguments: 1
+$Return Type: Nothing
+$Description: Unsets/removes the idle/resting orientation for a ship tracking a waypoint. This sexp will result in a ship tracking a waypoint to not attempt to change it's orientation when not moving. This removes both the idle pitch, bank, and heading and the target ship orientation (if one was present). Note, this sexp will not work in multiplayer.
+$Parameter: 
+	+Description: Ship to unset idle orientation values.
+	+Type: Ship
+
+$Operator: add-ai-goal-track-ship
+$Category: Change
+$Subcategory: LUA-Movements
+$Minimum Arguments: 3
+$Maximum Arguments: 13
+$Return Type: Nothing
+$Description: Adds a custom ai-goal for a ship to track another ship. The ordered ship will move to follow the target ship and then once stopped will rotate to the target ship orientation, or a variant to that orientation. This is a higher level sexp that runs 'add-waypoint-track-ship' with 'add-ai-goal-track-waypoint' and 'set-idle-track-orientation'. This sexp uses a time interval of 1 second for updating positional data and a track distance of the radius of the ship following the track order. Note, use a waypoint path with only 1 waypoint. The order 'clear-goals' will also stop this custom order. Also the ship will continually maintain the specified orientation when at rest. Note, this sexp will not work in multiplayer.
+$Parameter: 
+	+Description: Ship to order.
+	+Type: Ship
+$Parameter: 
+	+Description: Target ship to track.
+	+Type: Ship
+$Parameter: 
+	+Description: Waypoint path to use for the ship to follow. This waypoint should have only 1 point. 
+	+Type: Waypointpath
+$Parameter: 
+	+Description: Priority of order. Default is 100.
+	+Type: Number
+$Parameter: 
+	+Description: X offset in meters from the center of the target ship that the ordered ship will move to. Default value is 1.5 x the combined radi of the ship to order and the ship to track.
+	+Type: Number
+$Parameter: 
+	+Description: Y offset in meters from the center of the target ship that the ordered ship will move to. Default value is 1.5 x the combined radi of the ship to order and the ship to track.
+	+Type: Number
+$Parameter: 
+	+Description: Z offset in meters from the center of the target ship that the ordered ship will move to. Default value is 1.5 x the combined radi of the ship to order and the ship to track.
+	+Type: Number
+$Parameter: 
+	+Description: Pitch of idle orientation in degrees relative to target ship orientation. Default is 0 (same pitch as target). Any value is valid and will be converted to range within 0-359.
+	+Type: Number
+$Parameter: 
+	+Description: Bank of idle orientation in degrees relative to target ship orientation. Default is 0 (same bank as target). Any value is valid and will be converted to range within 0-359. 
+	+Type: Number
+$Parameter: 
+	+Description: Heading of idle orientation in degrees relative to target ship orientation. Default is 0 (same heading as target). Any value is valid and will be converted to range within 0-359.
+	+Type: Number
+$Parameter: 
+	+Description: Whether or not to use relative offsets. Default is true, which means all offsets will be relative to the target ship's orientation. To force the use of absolute offsets and not take account the ship's orientation, set to false. 
+	+Type: Boolean	
+$Parameter:
+	+Description: Boolean if the ship should actively mantain this orientation when at rest. Default is true. Keeping this value to true is useful for having a ship mantain an orientation relative to another ship, even if the target ship rotates.  
+	+Type: Boolean
+$Parameter: 
+	+Description: Priority for the automatic play-dead-persistent order issued when rotating to an idle orientation. Default is 200. If set to a negative value then no play-dead-order-persistent order is issued. If set, the play-dead-persistent order will be removed automatically when the effect is over. 
+	+Type: Number
+
+$Operator: remove-ai-goal-track-ship
+$Category: Change
+$Subcategory: LUA-Movements
+$Minimum Arguments: 2
+$Maximum Arguments: 3
+$Return Type: Nothing
+$Description: Removes a custom ai-goal for a ship to track another ship. This is a higher level sexp that runs 'remove-waypoint-track-ship' with 'remove-ai-goal-track-waypoint' and 'unset-idle-track-orientation'. Note, this sexp will not work in multiplayer.
+$Parameter: 
+	+Description: Ship to remove track order.
+	+Type: Ship
+$Parameter: 
+	+Description: Waypoint path used in the initial 'add-ai-goal-Track-Ship' sexp.
+	+Type: Waypointpath
+$Parameter: 
+	+Description: Number of the waypoint in the waypoint path used in the initial 'add-ai-goal-Track-Ship' sexp. For example, if the first waypoint was used in that sexp set this value to 1. Default is the first waypoint of the waypoint path.
+	+Type: Number	
+
+
+#End

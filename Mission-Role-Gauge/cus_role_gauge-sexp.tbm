@@ -1,0 +1,101 @@
+#Lua SEXPs
+
+$Operator: role-gauge-set-title
+$Category: Change
+$Subcategory: LUA-Custom Role Gauge
+$Minimum Arguments: 1
+$Maximum Arguments: 1
+$Return Type: Nothing
+$Description: Sets the title of the object role gauge to the specified string.
+$Parameter: 
+	+Description: Title of gauge.
+	+Type: String
+
+$Operator: role-gauge-add-object
+$Category: Change
+$Subcategory: LUA-Custom Role Gauge
+$Minimum Arguments: 2
+; No maximum arguments means that it accepts a variable number of arguments
+$Return Type: Nothing
+$Description: Adds the specified object and role description to the list of object roles displayed.
+$Repeat
+$Parameter: 
+	+Description: Object to add to the object role gauge.
+	+Type: String
+$Parameter: 
+	+Description: Object role description.
+	+Type: String
+
+$Operator: role-gauge-update-object
+$Category: Change
+$Subcategory: LUA-Custom Role Gauge
+$Minimum Arguments: 2
+; No maximum arguments means that it accepts a variable number of arguments
+$Return Type: Nothing
+$Description: Updates the specified object and role description. Will not do anything if the object is not present. 
+$Repeat
+$Parameter: 
+	+Description: Object to update in the object role gauge.
+	+Type: String
+$Parameter: 
+	+Description: New object role description.
+	+Type: String
+
+$Operator: role-gauge-update-object-num
+$Category: Change
+$Subcategory: LUA-Custom Role Gauge
+$Minimum Arguments: 2
+; No maximum arguments means that it accepts a variable number of arguments
+$Return Type: Nothing
+$Description: Updates the specified object and role description using a number. Will not do anything if the object is not present. 
+$Repeat
+$Parameter: 
+	+Description: Object to update in the object role gauge.
+	+Type: String
+$Parameter: 
+	+Description: New object role description.
+	+Type: Number	
+	
+$Operator: role-gauge-remove-object
+$Category: Change
+$Subcategory: LUA-Custom Role Gauge
+$Minimum Arguments: 1
+; No maximum arguments means that it accepts a variable number of arguments
+$Return Type: Nothing
+$Description: Removes the specified object from the list of object roles displayed.
+$Repeat
+$Parameter: 
+	+Description: Object to remove from the object role gauge.
+	+Type: String
+	
+$Operator: role-gauge-clear-all
+$Category: Change
+$Subcategory: LUA-Custom Role Gauge
+$Minimum Arguments: 0
+$Maximum Arguments: 0
+$Return Type: Nothing
+$Description: Removes the all objects from the custom roles gauge.
+
+$Operator: role-gauge-toggle
+$Category: Change
+$Subcategory: LUA-Custom Role Gauge
+$Minimum Arguments: 1
+$Maximum Arguments: 1
+$Return Type: Nothing
+$Description: Toggles the custom roles gauge.
+$Parameter: 
+	+Description: Gauge toggle, true for on, false for off. 
+	+Type: Boolean
+	
+$Operator: role-gauge-set-seperator
+$Category: Change
+$Subcategory: LUA-Custom Role Gauge
+$Minimum Arguments: 1
+$Maximum Arguments: 1
+$Return Type: Nothing
+$Description: String to use as the seperator between the object name and object description in the custom roles gauge. The default is ": ".
+$Parameter: 
+	+Description: String to use as the seperator. 
+	+Type: String
+	
+#End
