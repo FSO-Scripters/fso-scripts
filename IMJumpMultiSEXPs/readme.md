@@ -1,6 +1,6 @@
 
 # In Mission Jump Multi SEXPs
-These sexps are for doing in-mission jumps for one or more ships simultaneously. For player ships, they will perform all the associated effects for a jump including the warp effect and the subspace tunnel. For non player ships, they will perform warp outs, move the ships far away and set them as untargettable, and then return them at the appropriate time with a warp effect.
+These sexps are for doing in-mission jumps for one or more ships simultaneously. For player ships, they will perform all the associated effects for a jump including the warp effect and the subspace tunnel. For non player ships, they will perform warp outs, move the ships far away and set them as untargetable, and then return them at the appropriate time with a warp effect.
 
 You can jump multiple ships with a single sexp and they will be placed a set distance apart from each other at the target waypoint upon emerging from subspace.
 
