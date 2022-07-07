@@ -144,7 +144,7 @@ end
 
 mn.LuaSEXPs["lua-unlockdown"].Action = UnLockdownSEXP
 
-function Targettable(name)
+function Targetable(name)
 
 local isplayer = "false"
 
@@ -160,7 +160,7 @@ mn.runSEXP("( friendly-stealth-visible !" .. name .. "! )")
 
 end
 
-function UnTargettable(name)
+function UnTargetable(name)
 
 local isplayer = "false"
 
@@ -181,7 +181,7 @@ mn.LuaSEXPs["lua-set-targetable"].Action = function(...)
 	for _, data in ipairs(arg) do
 		local ship = data[1]
 		if ship:isValid() then
-			Targettable(ship.Name)
+			Targetable(ship.Name)
 		end
 	end
 
@@ -192,7 +192,7 @@ mn.LuaSEXPs["lua-set-untargetable"].Action = function(...)
 	for _, data in ipairs(arg) do
 		local ship = data[1]
 		if ship:isValid() then
-			UnTargettable(ship.Name)
+			UnTargetable(ship.Name)
 		end
 	end
 
