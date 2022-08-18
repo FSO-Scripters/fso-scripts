@@ -25,6 +25,7 @@ This is a collection of user-made scripts for the [FreeSpace Open engine](https:
 |PromptBox|A tool to prompt the player for decisions|21.0|AxBase|Axem|
 |RadarIcon|Adds configurable icons for ships and weapons onto the HUD, making it easier to keep an overview over the battlefield|20.0|AxBase|Lafiel|
 |RadarIcon_Generic|Optional prebuilt configuration using generic icons for RadarIcon, instead of the default per-ship-class icons.|20.0|AxBase, RadarIcon|Lafiel, JadedDragoon|
+|SaveLoadX|A streamlined checkpoint and savestate system|21.0|AxBase|Axem|
 |ScrollWrite|Draws text on-screen letter by letter, for cutscenes mostly|21.0|AxBase|Axem|
 |Send Message Alt SEXPS|More powerful versions of the built-in send-message SEXPs|22.0||Naomimyselfandi|
 |SpawnSystem|A system for infinite auto-spawning of ships|21.0|AxBase|Axem|
