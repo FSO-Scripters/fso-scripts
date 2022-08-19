@@ -592,7 +592,7 @@ function SaveState:ApplyData(ship,data,external)
 				if thisSubsys.PrimaryBanks and thisSubsys.PrimaryBanks:isValid() then
 					ba.print("        Has primary banks...\n")
 					for j=1, #thisSubsys.PrimaryBanks do
-						if thisSubsys.PrimaryBanks[j] and thisSubsys.PrimaryBanks[j]:isValid() then
+						if thisSubsys.PrimaryBanks[j] and thisSubsys.PrimaryBanks[j]:isValid() and ssdata.PBanks[j] then
 							ba.print("        Bank " .. j .. ": " .. tostring(ssdata.PBanks[j].Class) .. "\n")
 							thisSubsys.PrimaryBanks[j].WeaponClass = tb.WeaponClasses[ssdata.PBanks[j].Class]
 							thisSubsys.PrimaryBanks[j].AmmoLeft = (self:GetAmmo(ssdata.PBanks[j].AmmoLeft,data.Name)/100) * thisSubsys.PrimaryBanks[j].AmmoMax
@@ -603,7 +603,7 @@ function SaveState:ApplyData(ship,data,external)
 				if thisSubsys.SecondaryBanks and thisSubsys.SecondaryBanks:isValid() then
 					ba.print("        Has secondary banks...\n")
 					for j=1, #thisSubsys.SecondaryBanks do
-						if thisSubsys.SecondaryBanks[j] and thisSubsys.SecondaryBanks[j]:isValid() then
+						if thisSubsys.SecondaryBanks[j] and thisSubsys.SecondaryBanks[j]:isValid() and ssdata.SBanks[j] then
 							ba.print("        Bank " .. j .. ": " .. tostring(ssdata.SBanks[j].Class) .. "\n")
 							thisSubsys.SecondaryBanks[j].WeaponClass = tb.WeaponClasses[ssdata.SBanks[j].Class]
 							thisSubsys.SecondaryBanks[j].AmmoLeft = (self:GetAmmo(ssdata.SBanks[j].AmmoLeft,data.Name)/100) * thisSubsys.SecondaryBanks[j].AmmoMax
