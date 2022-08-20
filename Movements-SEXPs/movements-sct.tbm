@@ -20,7 +20,7 @@ $On Game Init: [
 	
 	Movements = {} --makes a global variable! This is the only global variable this script creates.
 
-	function math.atan2safe(y,x)
+	function math.atan2safe(y, x)
 			
 		local ang 
 		local pi = math.pi
@@ -56,8 +56,8 @@ $On Game Init: [
 		self.Active_Rotations_Sum = 0
 		self.Active_Ships_trk_Wpts = {}
 		self.Active_Ships_trk_Wpts_Sum = 0
-		self.Active_Wpts_trk_Ships = {}
-		self.Active_Wpts_trk_Ships_Sum = 0
+		self.Active_Wpts_trk_Objects = {}
+		self.Active_Wpts_trk_Objects_Sum = 0
 		self.is_enabled = true
 		
 		if ba.MultiplayerMode then
@@ -227,15 +227,16 @@ $On Game Init: [
 		
 	end
 
-
-	function Movements:NormalizePBH(pbh, initial_pbh)  --in form {p=,b=h=}
+	function Movements:NormalizePBH(pbh, initial_pbh)  --in form {p=,b=h=}, initial comes from game so should already be normalized
 		--Remember: 270 ends up being -90 and 360 ends up being 0
         if self:PBHisValid(pbh) then 
 			local m3x3 = self:PBH_3x3(pbh)
             local pbh_adjusted = self:m3x3_to_PBH(m3x3)
-            local pi = math.pi
-            local pi2 = pi*2
+			--initial is just if there is a target ship..
+			--it's used just once in RunRotation, and in theory is not needed, but just keeping here as a failsafe
             if initial_pbh ~= nil and self:PBHisValid(initial_pbh) then
+				local pi = math.pi
+				local pi2 = pi*2
                 for _,v in ipairs({"p", "b", "h"}) do
                     --only doing this if distance > 180 degrees
                     local initial = initial_pbh[v]
@@ -243,7 +244,7 @@ $On Game Init: [
                     if math.abs(final - initial) > pi then
                         local adjusted
                         --4 cases for initial and final angles: + with + or - and - with + or -
-                        -- + + <- is initial > or final?
+                        --1) + + (is initial > or final?)
                         if initial >= 0 and final >= 0 then
                             if initial > final then
                                 --ie i=250 and f=10
@@ -253,17 +254,17 @@ $On Game Init: [
                                 adjusted = final - pi2
                             end
                         end
-                        -- + - 
+                        --2) + - 
                         if initial >= 0 and final < 0 then
                             --ie i=92 and f=-90
                             adjusted = final + pi2
                         end
-                        -- - + 
+                        --3) - + 
                         if initial < 0 and final >= 0 then
                             --ie i=-90 and f=250
                             adjusted = final - pi2
                         end
-                        -- - - <- both are negative so already in same quandrant
+                        --4) - - (both are negative so already in same quandrant)
                         if adjusted ~= nil then
                             pbh_adjusted[v] = adjusted
                         end
@@ -272,39 +273,38 @@ $On Game Init: [
             end
 			return pbh_adjusted
 		else
-			ba.print("Movements Error: input pbh value for function Movements:NormalizePBH() is invalid, returning input...\n")
+			ba.print("Movements Error: input pbh value for function Movements : NormalizePBH() is invalid, returning input...\n")
 			return pbh
 		end	
 	end
 
-	function Movements:GetFinal_PBH(shipname, final_pbh, shiptarget_name) --final_pbh in {p=,b=,h=}
+	function Movements:GetFinal_PBH(shipname, final_pbh, objecttarget_name) --final_pbh in {p=,b=,h=}
 		
 		if shipname == nil then return nil end 
 		if not self:PBHisValid(final_pbh) then return nil end
 		
 		local pbh = {p=self:Chop(final_pbh.p), b=self:Chop(final_pbh.b), h=self:Chop(final_pbh.h)}
 	
-		--if no target ship set then run regular, if target ship is set and it isn't present then don't run
-		--has to be two separate ones to avoid case where there is a target ship defined but it is not present
+		--if no target object set then run regular, if target object is set and it isn't present then don't run
+		--has to be two separate ones to avoid case where there is a target object defined but it is not present
 		--(^ie it would use the relative coordinates without the target ship)
-		if type(shiptarget_name) ~= "string" then
+		if type(objecttarget_name) ~= "string" then
 			return pbh
 		end
 
 		--if it corresponds to a ship
-		if type(shiptarget_name) == "string" then
-			--if that ship is in mission, then get p,b,h and add target p,b,h values
-			local target_ship = mn.Ships[shiptarget_name]
-			if target_ship ~= nil and target_ship:isValid() then
-				local target_or = target_ship.Orientation
+		if type(objecttarget_name) == "string" then
+			--if that object is in mission, then get p,b,h and add target p,b,h values
+			local target_object = self:GetShip_or_Waypoint_Object(objecttarget_name)
+			if target_object ~= nil and target_object:isValid() then
+				local target_or = target_object.Orientation
 				if target_or ~= nil then
 					for k,v in pairs(pbh) do
 						pbh[k] = v + self:Chop(target_or[k])
 						--remember this is in radians
 					end
 					--make sure to normalize to what the game uses
-					local final_pbh = self:NormalizePBH({p=pbh.p, b=pbh.b, h=pbh.h})
-					return final_pbh
+					return self:NormalizePBH({p=pbh.p, b=pbh.b, h=pbh.h})
 				end
 			--if not correspond to ship in mission (ie not arrived or dod) then don't do anything
 			end
@@ -315,7 +315,96 @@ $On Game Init: [
 		
 	end
 
-	function Movements:Add_Rotation(shipname, final_pbh, time_delay, time_for_rotation, play_dead_PR, targetship_name) --requires pbh table in radians with {p=,b=,h=}
+	function Movements:WaypointName(waypointpath_name, waypoint_i)
+	
+		return waypointpath_name .. ":" .. waypoint_i
+	
+	end
+
+	function Movements:GetShip_or_Waypoint_Object(objectname)
+
+		if type(objectname) ~= "string" or objectname == "" then 
+			ba.print("Movements Error: nil or empty provided to function for getting ship_or_waypoint...\n")
+			return nil 
+		end
+
+		local function check_get_Waypoint(objectname)
+
+			local object
+
+			--if not ship then perhaps waypoint
+			--first need to seperate path name and path point i
+
+			local wp_path_name
+			local wp_point_i
+	
+			local index = objectname:find(":", 0, true)
+			if index ~= nil then
+				wp_path_name = objectname:sub(1, index - 1)
+				wp_point_i = objectname:sub(index+1, #objectname)
+			end
+
+			--ba.print("Movements: waypoint path name is "..wp_path_name.." and point number is "..wp_point_i.."...\n")
+
+			if wp_path_name ~= nil and wp_point_i ~= nil then
+				wp_point_i = tonumber(wp_point_i)
+				local wp_path = mn.WaypointLists[wp_path_name]
+				if wp_path ~= nil and wp_path:isValid() and wp_path[wp_point_i] ~= nil and wp_path[wp_point_i]:isValid() then
+					object = wp_path[wp_point_i]
+				end
+			end
+
+			if object == nil then
+				ba.print("Movements Error: nil or empty found for function for getting ship_or_waypoint...\n")
+			end
+
+			return object
+
+		end
+
+		--check if object is ship or waypoint
+		local object = mn.Ships[objectname]
+		if object == nil then
+			object = check_get_Waypoint(objectname)
+		end
+		if not object:isValid() then
+			object = check_get_Waypoint(objectname)
+		end
+
+		return object
+
+	end
+
+	function Movements:Set_Pos_Relative_to_Object(object_to_set_name, relative_target_name, offset_tbl, is_relative)
+
+		local object_to_set = self:GetShip_or_Waypoint_Object(object_to_set_name)
+		local relative_target = self:GetShip_or_Waypoint_Object(relative_target_name)
+
+		if object_to_set == nil or relative_target == nil then 
+			--ba.print("Movements Warning: object and/or relative target are not valid ...\n")
+			return 
+		end
+
+		local offset
+		if type(offset_tbl) == "table" and #offset_tbl == 3 then
+			offset = offset_tbl
+		else
+			offset = {0, 0, 0}
+		end
+
+		local new_vec
+		if is_relative then
+			new_vec = relative_target.Position + relative_target.Orientation:unrotateVector(ba.createVector(offset[1], offset[2], offset[3]))
+		else
+			new_vec = ba.createVector(relative_target.Position[1] + offset_x, relative_target.Position[2] + offset_y, relative_target.Position[3] + offset_z)
+		end
+
+		object_to_set.Position = ba.createVector(new_vec[1], new_vec[2], new_vec[3])
+
+	end
+
+
+	function Movements:Add_Rotation(shipname, final_pbh, time_delay, time_for_rotation, play_dead_PR, targetobject_name) --requires pbh table in radians with {p=,b=,h=}
 		
 		--set times and keep everything positive
 		--all times in seconds from sexp
@@ -392,7 +481,7 @@ $On Game Init: [
 						angular_velocity = self:Get_safe_number(angular_velocity, false, false, true) --iswholenumber, onlypositive, abovezero
 						--ba.print("Movements Status: safe angular_velocity of radians/sec "..angular_velocity.." for ship "..shipname.."...\n")
 						
-						local l_time = angular_distance/angular_velocity
+						local l_time = angular_distance * (1/angular_velocity)
 						--ba.print("Movements Status: Rotation duration of sec "..l_time.." for ship "..shipname.."...\n")
 						
 						if l_time > time_for_rotation then
@@ -401,11 +490,14 @@ $On Game Init: [
 						
 					end
 					
-					--floor at 10% max rotation time
-					local floor_percent = 0.1
-					local floor_time = math.max(vels[1], vels[2], vels[3]) * (1-floor_percent)					
-					if time_for_rotation < floor_time then
-						time_for_rotation = floor_time
+					--floor at 20% longest rotation time
+					local floor_percent = 0.2
+					local slowest_rotation_rate = math.min(vels[1], vels[2], vels[3])
+					local slowest_rotation_time = 3.141592 * (1/slowest_rotation_rate) * 0.2
+				
+					if time_for_rotation < slowest_rotation_time then
+						time_for_rotation = slowest_rotation_time
+						ba.print("Movements Status: Selected rotation duration of sec "..time_for_rotation.." for ship "..shipname.."...\n")
 					end
 					
 				else
@@ -450,12 +542,12 @@ $On Game Init: [
 			shipname = shipname, 
 			initial_pbh = initial_pbh,
 			final_pbh = final_pbh, --this is the base final pbh we never want to change
-			final_pbh_updated = final_pbh_updated, --this adds the target's oreintation and can change, is set when rotation starts
+			final_pbh_updated = final_pbh_updated, --this adds the target's orientation and can change, is set when rotation starts
 			start_time = start_time, 
 			end_time = end_time,
 			play_dead_PR = play_dead_PR,
 			isrotating = false,
-			final_pbh_target_name = targetship_name
+			final_pbh_target_name = targetobject_name
 		}
 		
 		self.Active_Rotations_Sum = self.Active_Rotations_Sum + 1
@@ -490,11 +582,11 @@ $On Game Init: [
 			--only check if start time has come
 			
 			--local ship1 = mn.Ships[v.shipname]
-			--ba.print("checking ship oreintation 1 "..v.shipname.." to p,b,h "..math.deg(ship1.Orientation.p)..", "..math.deg(ship1.Orientation.b)..", ".. math.deg(ship1.Orientation.h).."...\n")
+			--ba.print("checking ship orientation 1 "..v.shipname.." to p,b,h "..math.deg(ship1.Orientation.p)..", "..math.deg(ship1.Orientation.b)..", ".. math.deg(ship1.Orientation.h).."...\n")
 			
-			--print("Start_time: "..v.start_time.."...\n")
-			--print("End_time: "..v.end_time.."...\n")
-			--print("Mission_time: "..mtime.."...\n")
+			--ba.print("Start_time: "..v.start_time.."...\n")
+			--ba.print("End_time: "..v.end_time.."...\n")
+			--ba.print("Mission_time: "..mtime.."...\n")
 			
 			if mtime >= v.start_time and v.shipname ~= nil then
 				local percent_done = (mtime - v.start_time) / (v.end_time - v.start_time)
@@ -520,10 +612,10 @@ $On Game Init: [
 							
 							--update target ship's orientation if not nil
 							local pbh_updated = self:GetFinal_PBH(v.shipname, v.final_pbh, v.final_pbh_target_name)
-							--^ will be nil if tracker nil and also if targetship_name is set but not in mission
-							--^will also return pbh if not target ship set
+							--^ will be nil if tracker nil and also if targetobject_name is set but not in mission
+							--^will also return pbh if no target ship set
 							if pbh_updated ~= nil then
-								--make sure to normalize to inital 
+								--make sure to normalize to initial 
 								pbh_updated = self:NormalizePBH(pbh_updated, v.initial_pbh)
 								for k,val in pairs(pbh_updated) do
 									v.final_pbh_updated[k] = val
@@ -603,9 +695,9 @@ $On Game Init: [
 				local ort = self:PBH_Lerp(initial_pbh, final_pbh, percent_done)
 				local forcestop = false
 				if forcestop then
-					ship.Physics.Velocity = ba.createVector(0, 0, 0)
+					ship.Physics.Velocity = ship.Physics.Velocity * 0
 					--mn.runSEXP("( set-object-speed-z !"..shipname.."! 0 ( true ) )")
-					ship.Physics.RotationalVelocity = ba.createVector(0, 0, 0)
+					ship.Physics.RotationalVelocity = ship.Physics.RotationalVelocity * 0
 				end
 				
 				--[[
@@ -691,32 +783,11 @@ $On Game Init: [
 		end
 	end
 
-	
-	function Movements:WaypointName(waypointpath_name, waypoint_i)
-	
-		return waypointpath_name .. ":" .. waypoint_i
-	
-	end
 
-	function Movements:Set_Pos_Relative_to_Ship(name_to_set, targetname, xyz_tbl, userelative)
-		
-		if type(xyz_tbl) ~= "table" then return end
-		if #xyz_tbl ~= 3 then return end
-		if type(name_to_set) ~= "string" or type(targetname) ~= "string" then return end
-		local x,y,z = xyz_tbl[1], xyz_tbl[2], xyz_tbl[3]
-		
-		if userelative == false then
-			mn.runSEXP("( set-object-position !"..name_to_set.."! ( + ( get-object-x !"..targetname.."! ) !"..x.."! ) ( + ( get-object-y !"..targetname.."! ) !"..y.."! ) ( + ( get-object-z !"..targetname.."! ) !"..z.."! ) )")
-		else
-			mn.runSEXP(" ( set-object-position !"..name_to_set.."! ( get-object-x !"..targetname.."! !<none>! !"..x.."! !"..y.."! !"..z.."! ) ( get-object-y !"..targetname.."! !<none>! !"..x.."! !"..y.."! !"..z.."! ) ( get-object-z !"..targetname.."! !<none>! !"..x.."! !"..y.."! !"..z.."! ) ) ")
-		end
-		
-	end
-
-	function Movements:Add_Wpts_trk_Ships(waypointpath_name, shiptarget_name, waypoint_i, offset_xyz, track_interval, track_distance, userelative)
+	function Movements:Add_Wpt_trk_Object(waypointpath_name, objecttarget_name, waypoint_i, offset_xyz, track_interval, track_distance, userelative)
 		
 		--validity checks
-		if waypointpath_name == nil or shiptarget_name == nil then return end
+		if waypointpath_name == nil or objecttarget_name == nil then return end
 		
 		if type(offset_xyz) == "table" then
 			if #offset_xyz ~= 3 then
@@ -745,11 +816,12 @@ $On Game Init: [
 		end
 
 		if type(waypointpath_name) ~= "string" then return end
-		if type(shiptarget_name) ~= "string" then return end
+		if type(objecttarget_name) ~= "string" then return end
 	
-		local ship = mn.Ships[shiptarget_name]
-		if ship == nil then return end
-		if not ship:isValid() then return end
+		--check if object is ship or waypoint
+		local object = self:GetShip_or_Waypoint_Object(objecttarget_name)
+		if object == nil then return end
+		if not object:isValid() then return end
 		
 		local waypointpath = mn.WaypointLists[waypointpath_name]
 		if waypointpath == nil then return end
@@ -768,45 +840,45 @@ $On Game Init: [
 		local entry = {
 			waypoint_i = waypoint_i,
 			waypointpath_name = waypointpath_name,
-			shiptarget_name = shiptarget_name,
+			objecttarget_name = objecttarget_name,
 			offset_xyz = offset_xyz,
 			track_interval = track_interval,
 			time_last_check = mn.getMissionTime(),
 			track_distance = track_distance, 
 			userelative = userelative
-		}	
-		self.Active_Wpts_trk_Ships[waypoint_name] = entry		
+		}
+		self.Active_Wpts_trk_Objects[waypoint_name] = entry
 		
 		--set position if needed
-		local dis_wp_to_ship = waypoint.Position:getDistance(ship.Position)
-		if dis_wp_to_ship > track_distance then
-			self:Set_Pos_Relative_to_Ship(waypoint_name, shiptarget_name, offset_xyz, userelative)
+		local dis_wp_to_object = waypoint.Position:getDistance(object.Position)
+		if dis_wp_to_object > track_distance then
+			self:Set_Pos_Relative_to_Object(waypoint_name, objecttarget_name, offset_xyz, userelative)
 		end
 		
 		--update tracker variables
-		self.Active_Wpts_trk_Ships_Sum = self.Active_Wpts_trk_Ships_Sum + 1
+		self.Active_Wpts_trk_Objects_Sum = self.Active_Wpts_trk_Objects_Sum + 1
 		
 	end
 
-	function Movements:Check_Wpts_trk_Ships()
+	function Movements:Check_Wpt_trk_Object()
 
-		if self.Active_Wpts_trk_Ships_Sum > 0 then
+		if self.Active_Wpts_trk_Objects_Sum > 0 then
 			local mtime = mn.getMissionTime()
-			for k_waypointname, v in pairs(self.Active_Wpts_trk_Ships) do
+			for k_waypointname, v in pairs(self.Active_Wpts_trk_Objects) do
 				--only check if interval time has surpased
 				if mtime > v.time_last_check + v.track_interval then
 					v.time_last_check = mtime
 					--validity checks
-					local ship = mn.Ships[v.shiptarget_name]
-					if ship ~= nil and ship:isValid() then
+					local object = self:GetShip_or_Waypoint_Object(v.objecttarget_name)
+					if object ~= nil and object:isValid() then
 						local wppath = mn.WaypointLists[v.waypointpath_name]
 						if wppath ~= nil and wppath:isValid() then
 							local wpoint = wppath[v.waypoint_i]
 							if wpoint ~= nil and wpoint:isValid() then
-								--then only continue if target ship has moved far enough
-								local dis_wp_to_ship = wpoint.Position:getDistance(ship.Position)
-								if dis_wp_to_ship > v.track_distance then
-									self:Set_Pos_Relative_to_Ship(k_waypointname, v.shiptarget_name, v.offset_xyz, v.userelative)
+								--then only continue if target object has moved far enough
+								local dis_wp_to_object = wpoint.Position:getDistance(object.Position)
+								if dis_wp_to_object > v.track_distance then
+									self:Set_Pos_Relative_to_Object(k_waypointname, v.objecttarget_name, v.offset_xyz, v.userelative)
 								end
 							end
 						end
@@ -817,21 +889,21 @@ $On Game Init: [
 
 	end
 
-	function Movements:Remove_Wpts_trk_Ships(waypointname_key)
+	function Movements:Remove_Wpt_trk_Object(waypointname_key)
 	
 		if waypointname_key == nil then return end
-		local entry = self.Active_Wpts_trk_Ships[waypointname_key]
+		local entry = self.Active_Wpts_trk_Objects[waypointname_key]
 		
 		if entry ~= nil then
-			self.Active_Wpts_trk_Ships[waypointname_key] = nil
-			self.Active_Wpts_trk_Ships_Sum = self.Active_Wpts_trk_Ships_Sum - 1
-			--ba.print("running Remove_Wpts_trk_Ships...\n")
+			self.Active_Wpts_trk_Objects[waypointname_key] = nil
+			self.Active_Wpts_trk_Objects_Sum = self.Active_Wpts_trk_Objects_Sum - 1
+			--ba.print("running Remove_Wpt_trk_Object...\n")
 		end
 		
 	end
 
 	mn.LuaSEXPs["add-waypoint-track-ship"].Action = function(shiptarget, waypointpath, waypoint_i, offset_x, offset_y, offset_z, track_interval, track_distance, userelative)
-			
+		
 		if waypointpath == nil or shiptarget == nil then return end
 		if not waypointpath:isValid() or not shiptarget:isValid() then return end
 		
@@ -852,7 +924,7 @@ $On Game Init: [
 		
 		local xyz_tbl = {offset_x, offset_y, offset_z}
 		
-		Movements:Add_Wpts_trk_Ships(waypointpath.Name, shiptarget.Name, waypoint_i, xyz_tbl, track_interval, track_distance, userelative)
+		Movements:Add_Wpt_trk_Object(waypointpath.Name, shiptarget.Name, waypoint_i, xyz_tbl, track_interval, track_distance, userelative)
 		
 	end
 
@@ -870,7 +942,7 @@ $On Game Init: [
 		if not waypoint:isValid() then return end
 		
 		local waypoint_name = Movements:WaypointName(waypointpath.Name, waypoint_i)
-		Movements:Remove_Wpts_trk_Ships(waypoint_name)
+		Movements:Remove_Wpt_trk_Object(waypoint_name)
 	
 	end
 
@@ -910,7 +982,7 @@ $On Game Init: [
 		
 	end
 
-	function Movements:Add_Ships_trk_Wpts(shipname, waypoint_path_name, priority, track_interval, track_distance, input_final_pbh, final_pbh_target_name, continuous_pbh_check, play_dead_PR) --input_final_pbh should be {p=0,b=0,h=0} in radians
+	function Movements:Add_Ship_trk_Wpt(shipname, waypoint_path_name, priority, track_interval, track_distance, input_final_pbh, final_pbh_target_name, continuous_pbh_check, play_dead_PR) --input_final_pbh should be {p=0,b=0,h=0} in radians
 		
 		--validity checks
 		if shipname == nil then return end
@@ -1033,7 +1105,7 @@ $On Game Init: [
 		
 	end
 
-	function Movements:Remove_Ships_trk_Wpts(shipname_key)
+	function Movements:Remove_Ship_trk_Wpt(shipname_key)
 	
 		if shipname_key == nil then return end
 		local entry = self.Active_Ships_trk_Wpts[shipname_key]
@@ -1053,7 +1125,7 @@ $On Game Init: [
 		
 	end
 
-	function Movements:Pause_Ships_trk_Wpts(shipname, done_wp_path_name)
+	function Movements:Pause_Ship_trk_Wpt(shipname, done_wp_path_name)
 		
 		--change waypoint status and save location of last waypoint
 		
@@ -1117,7 +1189,7 @@ $On Game Init: [
 		
 	end
 
-	function Movements:Check_Ships_trk_Wpts()
+	function Movements:Check_Ship_trk_Wpt()
 	
 		if self.Active_Ships_trk_Wpts_Sum > 0 then
 			local mtime = mn.getMissionTime()
@@ -1194,7 +1266,7 @@ $On Game Init: [
 			--function takes a waypoint_path_name as string but this sexp takes the entire waypoint_path object
 			local waypointpath_name = waypointpath.Name
 			
-			Movements:Add_Ships_trk_Wpts(ship.Name, waypointpath_name, priority, track_interval, track_distance) --recall target is not used in this sexp, so it won't be used
+			Movements:Add_Ship_trk_Wpt(ship.Name, waypointpath_name, priority, track_interval, track_distance) --recall target is not used in this sexp, so it won't be used
 		end
 		
 	end
@@ -1202,12 +1274,12 @@ $On Game Init: [
 	mn.LuaSEXPs["remove-ai-goal-track-waypoint"].Action = function(ship)
 		if ship ~= nil and ship:isValid() then
 			--number checks are completed in function below 
-			Movements:Remove_Ships_trk_Wpts(ship.Name)
+			Movements:Remove_Ship_trk_Wpt(ship.Name)
 		end	
 	end
 
 
-	function Movements:Set_Idle_Tracking_PBH(shipname, pitch, bank, heading, taretship_name, continuous_pbh_check) --remember needs to be in radians
+	function Movements:Set_Idle_Tracking_PBH(shipname, pitch, bank, heading, targetobject_name, continuous_pbh_check) --remember needs to be in radians
 		
 		--use this to update or set the idle orientation of a ship tracking a waypoint
 		--remember needs to be in radians
@@ -1226,8 +1298,8 @@ $On Game Init: [
 			entry.continuous_pbh_check = continuous_pbh_check
 			
 			--update target ship
-			if type(taretship_name) == "string" then
-				entry.final_pbh_target_name = taretship_name
+			if type(targetobject_name) == "string" then
+				entry.final_pbh_target_name = targetobject_name
 			else
 				entry.final_pbh_target_name = nil
 			end
@@ -1256,13 +1328,13 @@ $On Game Init: [
 			if usetargetship == nil then
 				usetargetship = false
 			end
-			local taretship_name
+			local targetobject_name
 			if usetargetship then --if false then it's nil
 				if input_targetship == nil then return end
 				if not input_targetship:isValid() then return end
 				--^those function termination lines prevent set idle tracking from running with a nil target ship, because the target is not really supposed to be nil (it just hasn't arrived yet or is dod) 
 				if input_targetship:isValid() then
-					taretship_name = input_targetship.Name
+					targetobject_name = input_targetship.Name
 				end
 			end
 			
@@ -1271,7 +1343,7 @@ $On Game Init: [
 				return 
 			end
 			
-			Movements:Set_Idle_Tracking_PBH(ship.Name, math.rad(pitch), math.rad(bank), math.rad(heading), taretship_name, continuous_pbh_check)
+			Movements:Set_Idle_Tracking_PBH(ship.Name, math.rad(pitch), math.rad(bank), math.rad(heading), targetobject_name, continuous_pbh_check)
 		end
 		
 	end
@@ -1285,7 +1357,8 @@ $On Game Init: [
 	end
 
 
-	function Movements:GetRadius(shipname) --gets a random value that is between the radius and diameter of a ship with a - or + sign
+	function Movements:GetRadius(shipname, donotround) --gets radius of ship
+
 		local final = 100
 
 		if shipname ~= nil then
@@ -1297,19 +1370,24 @@ $On Game Init: [
 					if model ~= nil then
 						local radius = model.Radius
 						if radius ~= nil then
-							final = self:Round(radius)
+							if donotround then
+								final = radius
+							else
+								final = self:Round(radius)
+							end
 						end	
 					end
 				end
 			end
 		end
 		return final
+
 	end
 
-	function Movements:Add_Ship_trk_Ship(ship_to_order_name, ship_to_track_name, waypointpath_name, waypoint_i, priority, off_x, off_y, off_z, pbh_p, pbh_b, pbh_h, userelative, continuous_pbh_check, play_dead_PR) --pbh should be in radians
+	function Movements:Add_Ship_trk_Ship(ship_to_order_name, ship_to_track_name, waypointpath_name, waypoint_i, priority, offset, pbh, userelative, continuous_pbh_check, play_dead_PR) --pbh should be in radians
 		--higher level function that runs all the above functions
 		--recall this has access to some other arguments that the individual lower level sexps do not such as userelative, continuous_pbh_check, and play_dead_PR
-		
+
 		--set defaults 
 		if type(ship_to_order_name) ~= "string" then return end
 		if type(ship_to_track_name) ~= "string" then return end
@@ -1323,41 +1401,29 @@ $On Game Init: [
 		local track_interval = 1.0 --default
 		local track_distance = 0	--default
 
-		--set defaults for offset is 1.5 x the combined radi of the ship to order and the ship to track (see sexp documentation)
-		if type(off_x) ~= "number" then 
-			off_x = ( self:GetRadius(ship_to_order_name) + self:GetRadius(ship_to_track_name) ) * 1.5
-		end
-		if type(off_y) ~= "number" then 
-			off_y = ( self:GetRadius(ship_to_order_name) + self:GetRadius(ship_to_track_name) ) * 1.5
-		end
-		if type(off_z) ~= "number" then 
-			off_z = ( self:GetRadius(ship_to_order_name) + self:GetRadius(ship_to_track_name) ) * 1.5
-		end
-		
-		local offset_xyz = {off_x, off_y, off_z}		
-		
-		if type(pbh_p) ~= "number" then
-			pbh_p = 0
-		end
-		
-		if type(pbh_b) ~= "number" then
-			pbh_b = 0
+		local offset_xyz
+		local default_offset = ( self:GetRadius(ship_to_order_name) + self:GetRadius(ship_to_track_name) ) * 1.5
+		if type(offset) == "table" and type(offset[1]) == "number" and type(offset[2]) == "number" and type(offset[3]) == "number" then
+			offset_xyz = offset
+		else
+			offset_xyz = {default_offset, default_offset, default_offset}
 		end
 
-		if type(pbh_h) ~= "number" then
-			pbh_h = 0
+		local idle_pbh = {} --if blank then does not rotate at end
+		if self:PBHisValid(pbh) then
+			for _,v in ipairs({"p", "b", "h"}) do
+				idle_pbh[v] = self:Chop(pbh[v])
+			end
 		end
-		
-		local idle_pbh = {p=self:Chop(pbh_p), b=self:Chop(pbh_b), h=self:Chop(pbh_h)}
-		
+
 		--run waypoint track ship 
-		self:Add_Wpts_trk_Ships(waypointpath_name, ship_to_track_name, waypoint_i, offset_xyz, track_interval, track_distance, userelative)
-		
+		self:Add_Wpt_trk_Object(waypointpath_name, ship_to_track_name, waypoint_i, offset_xyz, track_interval, track_distance, userelative)
+
 		--run ship track waypoint, include setting 
 		local track_distance_ship = -1 --so it uses default ship radius
 		--other defaults and validity checks are performed in function below
-		self:Add_Ships_trk_Wpts(ship_to_order_name, waypointpath_name, priority, track_interval, track_distance_ship, idle_pbh, ship_to_track_name, continuous_pbh_check, play_dead_PR)
-		
+		self:Add_Ship_trk_Wpt(ship_to_order_name, waypointpath_name, priority, track_interval, track_distance_ship, idle_pbh, ship_to_track_name, continuous_pbh_check, play_dead_PR)
+
 	end
 	
 	function Movements:Remove_Ship_trk_Ship(shipname_to_remove_order, waypointpath_name, waypoint_i)
@@ -1373,7 +1439,7 @@ $On Game Init: [
 		mn.runSEXP("( remove-waypoint-track-ship !"..waypointpath_name.."! !"..waypoint_i.."! )")
 		
 		--then remove ship_order tracking of that waypoint 
-		self:Remove_Ships_trk_Wpts(shipname_to_remove_order)
+		self:Remove_Ship_trk_Wpt(shipname_to_remove_order)
 		
 	end
 
@@ -1401,8 +1467,11 @@ $On Game Init: [
 		pbh_h = math.rad(pbh_h)
 		
 		local waypoint_i = 1
+
+		local offset = {off_x, off_y, off_z}
+		local pbh = {p=pbh_p, b=pbh_b, h=pbh_h}
 		
-		Movements:Add_Ship_trk_Ship(ship_to_order_name, ship_to_track_name, waypointpath_name, waypoint_i, priority, off_x, off_y, off_z, pbh_p, pbh_b, pbh_h, userelative, continuous_pbh_check, play_dead_PR)
+		Movements:Add_Ship_trk_Ship(ship_to_order_name, ship_to_track_name, waypointpath_name, waypoint_i, priority, offset, pbh, userelative, continuous_pbh_check, play_dead_PR)
 		
 	end
 	
@@ -1429,10 +1498,10 @@ $On Game Init: [
 		self:Remove_Rotation(shipname)
 		
 		--go through waypoints track ship and search for this ship name 
-		if self.Active_Wpts_trk_Ships_Sum > 0 then
-			for k_waypointname, v in pairs(self.Active_Wpts_trk_Ships) do
-				if v.shiptarget_name == shipname then
-					self:Remove_Wpts_trk_Ships(k_waypointname)
+		if self.Active_Wpts_trk_Objects_Sum > 0 then
+			for k_waypointname, v in pairs(self.Active_Wpts_trk_Objects) do
+				if v.objecttarget_name == shipname then
+					self:Remove_Wpt_trk_Object(k_waypointname)
 				end
 			end
 		end
@@ -1448,12 +1517,12 @@ $On Game Init: [
 		end		
 		
 		--remove any ship tracking waypoints 
-		self:Remove_Ships_trk_Wpts(shipname)
+		self:Remove_Ship_trk_Wpt(shipname)
 		
 	end
 
 	function Movements:OnSimulation()
-		
+
 		if self.is_enabled then
 			local current_time = mn.getMissionTime()
 			if current_time > 0.1 then
@@ -1465,19 +1534,19 @@ $On Game Init: [
 				if current_time > self.Time_Previous_Check + self.G_Time_Check_Interval then
 					self.Time_Previous_Check = current_time
 					--check waypoints tracking ships
-					if self.Active_Wpts_trk_Ships_Sum > 0 then
-						self:Check_Wpts_trk_Ships()
+					if self.Active_Wpts_trk_Objects_Sum > 0 then
+						self:Check_Wpt_trk_Object()
 					end 
 					--check ships tracking waypoints
 					if self.Active_Ships_trk_Wpts_Sum > 0 then
-						self:Check_Ships_trk_Wpts()
+						self:Check_Ship_trk_Wpt()
 					end
 				end
 			end	
 		end
 
 	end
-	
+
 ]
 
 
@@ -1492,14 +1561,14 @@ $On Gameplay Start: [
 $On Waypoints Done: [
 	local hs = hv.Ship
 	local hswpp = hv.Waypointlist
-	if Movements and Movements.is_enabled and hs ~= nil and hs:isValid() and hswpp ~= nil and hswpp:isValid() and mn.getMissionTime() > 0.1 then
-		Movements:Pause_Ships_trk_Wpts(hs.Name, hswpp.Name)
+	if Movements and Movements.is_enabled and hs ~= nil and hs:isValid() and hswpp ~= nil and hswpp:isValid() then
+		Movements:Pause_Ship_trk_Wpt(hs.Name, hswpp.Name)
 	end
 ]
 
-$On Death: [
-	local hook_ship = hv.Self
-	if Movements and Movements.is_enabled and hook_ship ~= nil and hook_ship:isValid() and mn.getMissionTime() > 0.1 and hook_ship:getBreedName() == "Ship" then
+$On Ship Death Started: [
+	local hook_ship = hv.Ship
+	if Movements and Movements.is_enabled and hook_ship ~= nil and hook_ship:isValid() and hook_ship:getBreedName() == "Ship" then
 		local shipname = tostring(hook_ship)
 		Movements:Ship_DoD_Remove(shipname)
 	end
@@ -1509,24 +1578,24 @@ $On Warp Out: [
 	--also checking for warpout just because it triggers sooner
 	--perfectly safe to remove many times because it only removes it if it is on the list
 	local hook_ship = hv.Self
-	if Movements and Movements.is_enabled and hook_ship ~= nil and hook_ship:isValid() and mn.getMissionTime() > 0.1 then
+	if Movements and Movements.is_enabled and hook_ship ~= nil and hook_ship:isValid() then
 		Movements:Ship_DoD_Remove(hook_ship.Name)
 	end	
 ]
 
 $On Ship Depart: [
 	local hook_ship = hv.Ship
-	if Movements and Movements.is_enabled and hook_ship ~= nil and hook_ship:isValid() and mn.getMissionTime() > 0.1 then
+	if Movements and Movements.is_enabled and hook_ship ~= nil and hook_ship:isValid() then
 		Movements:Ship_DoD_Remove(hook_ship.Name)
 	end	
 ]
 
 $On Goals Cleared: [
 	local hook_ship = hv.Ship
-	if Movements and Movements.is_enabled and hook_ship ~= nil and hook_ship:isValid() and mn.getMissionTime() > 0.1 then
+	if Movements and Movements.is_enabled and hook_ship ~= nil and hook_ship:isValid() then
 		local shipname = hook_ship.Name
 		Movements:Remove_Rotation(shipname)
-		Movements:Remove_Ships_trk_Wpts(shipname)
+		Movements:Remove_Ship_trk_Wpt(shipname)
 	end		
 ]
 

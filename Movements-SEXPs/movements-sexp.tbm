@@ -130,7 +130,7 @@ $Subcategory: LUA-Movements
 $Minimum Arguments: 4
 $Maximum Arguments: 7
 $Return Type: Nothing
-$Description: Sets an idle/resting orientation for a ship tracking a waypoint, either as an absolute orientation or an orientation relative to a given ship. When a ship that is tracking a waypoint is not moving forward it will move to this idle orientation. If a relative orientation is specified the sexp will get the target ship orientation and then add the pitch, bank, and heading values set in this sexp to create a final idle/resting orientation. The ship will actively mantain this orientation by default. This sexp will overwrite any previous idle orientation information for this ship. Note, this sexp will not work in multiplayer.
+$Description: Sets an idle/resting orientation for a ship tracking a waypoint, either as an absolute orientation or an orientation relative to a given ship. When a ship that is tracking a waypoint is not moving forward it will move to this idle orientation. If a relative orientation is specified the sexp will get the target ship orientation and then add the pitch, bank, and heading values set in this sexp to create a final idle/resting orientation. The ship will actively maintain this orientation by default. This sexp will overwrite any previous idle orientation information for this ship. Note, this sexp will not work in multiplayer.
 $Parameter: 
 	+Description: Ship to set idle orientation values.
 	+Type: Ship
@@ -150,7 +150,7 @@ $Parameter:
 	+Description: Target ship that above listed pitch, bank, and heading values will be relative to. Default is to not use a target ship. If the target ship is set here but has not arrived or is destroyed or departs then the pitch, bank, and heading values will not be used. The preceding boolean parameter must be set to true for this parameter to work.
 	+Type: Ship
 $Parameter:
-	+Description: Boolean if the ship should actively mantain this orientation when at rest. Default is true. Keeping this value to true is useful for having a ship mantain an orientation relative to another ship, even if the target ship rotates.  
+	+Description: Boolean if the ship should actively maintain this orientation when at rest. Default is true. Keeping this value to true is useful for having a ship maintain an orientation relative to another ship, even if the target ship rotates.  
 	+Type: Boolean
 
 $Operator: unset-idle-track-orientation
@@ -205,7 +205,7 @@ $Parameter:
 	+Description: Whether or not to use relative offsets. Default is true, which means all offsets will be relative to the target ship's orientation. To force the use of absolute offsets and not take account the ship's orientation, set to false. 
 	+Type: Boolean	
 $Parameter:
-	+Description: Boolean if the ship should actively mantain this orientation when at rest. Default is true. Keeping this value to true is useful for having a ship mantain an orientation relative to another ship, even if the target ship rotates.  
+	+Description: Boolean if the ship should actively maintain this orientation when at rest. Default is true. Keeping this value to true is useful for having a ship maintain an orientation relative to another ship, even if the target ship rotates.  
 	+Type: Boolean
 $Parameter: 
 	+Description: Priority for the automatic play-dead-persistent order issued when rotating to an idle orientation. Default is 200. If set to a negative value then no play-dead-order-persistent order is issued. If set, the play-dead-persistent order will be removed automatically when the effect is over. 
