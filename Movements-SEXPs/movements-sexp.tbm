@@ -1,13 +1,42 @@
 #Lua SEXPs
 
 
+$Operator: set-bank-constant
+$Category: Change
+$Subcategory: LUA-Movements
+$Minimum Arguments: 2
+$Return Type: Nothing
+$Description: Sets the bank constant of a given ship. Bank constant is the amount of roll (bank) a ship does when turning (yawing).
+$Parameter: 	
+	+Description: New bank constant value. Values range from 0 (no bank while turning) to 100 (full bank while turning). Value of 50 is tabled default for ships (banks 50% with full turn). Note, this sexp will not work in multiplayer.
+	+Type: Number
+$Repeat
+$Parameter: 
+	+Description: Ship(s) to set.
+	+Type: Ship
+
+$Operator: set-deceleration-time
+$Category: Change
+$Subcategory: LUA-Movements
+$Minimum Arguments: 2
+$Return Type: Nothing
+$Description: Sets the deceleration time of a given ship. Setting this to 0 will ensure that ships stop precisely at waypoints. Note, stopping may look a bit rigid. Also, this sexp will not work in multiplayer.
+$Parameter: 	
+	+Description: New deceleration time in milliseconds. Any negative values will be converted to 0.  
+	+Type: Number
+$Repeat
+$Parameter: 
+	+Description: Ship(s) to set.
+	+Type: Ship
+
+
 $Operator: move-to-orientation
 $Category: Change
 $Subcategory: LUA-Movements
 $Minimum Arguments: 4
 $Maximum Arguments: 7
 $Return Type: Nothing
-$Description: Moves a ship to a given orientation over a specified time duration. This sexp only has to be called once and can be used to make a much more natural looking rotational effect for ships. By default this sexp will issue a play-dead-persistent order with priority 200, but this priority value can be changed and the order can also not be issued. Note, running this sexp on a ship that actively is already actively using the sexp will overwrite the first usage. The order 'clear-goals' will also stop this rotation. Note, this sexp will not work in multiplayer.
+$Description: Moves a ship to a given orientation over a specified time duration. This sexp only has to be called once and can be used to make a much more natural looking rotational effect for ships. This sexp also includes the option to issue a play-dead-persistent order with a specified priority, which will be removed when the rotation is over. Note, running this sexp on a ship that actively is already actively using the sexp will overwrite the first usage. The order 'clear-goals' will also stop this rotation. Also, this sexp will not work in multiplayer.
 $Parameter: 
 	+Description: Ship to rotate.
 	+Type: Ship
@@ -27,7 +56,7 @@ $Parameter:
 	+Description: Time in seconds of rotation effect. The default duration is calculated as the time needed to move to the final orientation using the max rotational velocity of the ship. Any value < 0 will also use the default duration calculation. 
 	+Type: Number
 $Parameter: 
-	+Description: Priority for the automatic play-dead-persistent order. Default is 200. If set to a negative value then no play-dead-order-persistent order is issued. If set, the play-dead-persistent order will be removed automatically when the effect is over. 
+	+Description: Priority for the automatic play-dead-persistent order. If not set or set to a negative value then no play-dead-order-persistent order is issued. If set, the play-dead-persistent order will be removed automatically when the rotation is over. 
 	+Type: Number
 
 $Operator: early-stop-move-to-orientation
@@ -96,7 +125,7 @@ $Subcategory: LUA-Movements
 $Minimum Arguments: 3
 $Maximum Arguments: 5
 $Return Type: Nothing
-$Description: Adds a custom ai-goal for a ship to track a waypoint path. The ship will move to the final point in the waypoint path and remain in that position. If the waypoint path is moved the ship will follow the waypoint path again. Useful for having ships follow dynamic waypoints. Note, this order can only be removed via the sexps 'remove-ai-goal-track-waypoint' or 'clear-goals'. For best results do not add additional waypoints to the waypoint path once the mission has started. Note, running this sexp on a ship that is actively already using this sexp will overwrite the first usage, even if the waypoints are different. Note, this sexp will not work in multiplayer.
+$Description: Adds a custom ai-goal for a ship to track a waypoint path. The ship will move to the final point in the waypoint path and remain in that position. If the waypoint path is moved the ship will follow the waypoint path again. Useful for having ships follow dynamic waypoints. Note, this order can only be removed via the sexps 'remove-ai-goal-track-waypoint' or 'clear-goals'. For best results do not add additional waypoints to the waypoint path once the mission has started. Also, running this sexp on a ship that is actively already using this sexp will overwrite the first usage, even if the waypoints are different. Finally, this sexp will not work in multiplayer.
 $Parameter: 
 	+Description: Ship to order.
 	+Type: Ship
@@ -170,7 +199,7 @@ $Subcategory: LUA-Movements
 $Minimum Arguments: 3
 $Maximum Arguments: 13
 $Return Type: Nothing
-$Description: Adds a custom ai-goal for a ship to track another ship. The ordered ship will move to follow the target ship and then once stopped will rotate to the target ship orientation, or a variant to that orientation. This is a higher level sexp that runs 'add-waypoint-track-ship' with 'add-ai-goal-track-waypoint' and 'set-idle-track-orientation'. This sexp uses a time interval of 1 second for updating positional data and a track distance of the radius of the ship following the track order. Note, use a waypoint path with only 1 waypoint. The order 'clear-goals' will also stop this custom order. Also the ship will continually maintain the specified orientation when at rest. Note, this sexp will not work in multiplayer.
+$Description: Adds a custom ai-goal for a ship to track another ship. The ordered ship will move to follow the target ship and then once stopped will rotate to the target ship orientation, or a variant to that orientation. This is a higher level sexp that runs 'add-waypoint-track-ship' with 'add-ai-goal-track-waypoint' and 'set-idle-track-orientation'. This sexp uses a time interval of 1 second for updating positional data and a track distance of the radius of the ship following the track order. Note, use a waypoint path with only 1 waypoint. The order 'clear-goals' will also stop this custom order. Also the ship will continually maintain the specified orientation when at rest. Also, this sexp will not work in multiplayer.
 $Parameter: 
 	+Description: Ship to order.
 	+Type: Ship
@@ -208,7 +237,7 @@ $Parameter:
 	+Description: Boolean if the ship should actively maintain this orientation when at rest. Default is true. Keeping this value to true is useful for having a ship maintain an orientation relative to another ship, even if the target ship rotates.  
 	+Type: Boolean
 $Parameter: 
-	+Description: Priority for the automatic play-dead-persistent order issued when rotating to an idle orientation. Default is 200. If set to a negative value then no play-dead-order-persistent order is issued. If set, the play-dead-persistent order will be removed automatically when the effect is over. 
+	+Description: Priority for the automatic play-dead-persistent order issued when rotating to an idle orientation. If not set or set to a negative value then no play-dead-order-persistent order is issued. If set, the play-dead-persistent order will be removed automatically when the rotation matching is over. 
 	+Type: Number
 
 $Operator: remove-ai-goal-track-ship
