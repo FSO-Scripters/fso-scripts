@@ -1119,55 +1119,55 @@ $On Game Init: [
 
 			for _, v in pairs(self.Active_Ships_trk_Wpts) do
 
-				--first only check if ship is not already running ai-waypoints-once order
-				--also make sure ship is not actively running a rotate-to-orientation order
-				if not v.is_running_waypoints_once and self.Active_Rotations[v.shipname] == nil then
+				--only check if ship is not already running ai-waypoints-once order
+				--and if the tracker time has elapsed
+				if not v.is_running_waypoints_once and mtime > v.time_last_check + v.track_interval then
 
-					--then only continue if the tracker time has elapsed 
-					if mtime > v.time_last_check + v.track_interval  then
-						v.time_last_check = mtime
-						local wpname = v.waypoint_path_name
-						local ship = mn.Ships[v.shipname]
+					v.time_last_check = mtime
+					local wpname = v.waypoint_path_name or ""
+					local wppath = mn.WaypointLists[wpname]
+					local ship = mn.Ships[v.shipname]
 
-						--validity checks
-						if wpname ~= nil and ship ~= nil and ship:isValid() then
+					--validity checks
+					if wppath ~= nil and wppath:isValid() and ship ~= nil and ship:isValid() then
 
-							--check if we are using the option to always match orientations
-							--if so, then run the orientation if the previous orientation is substantially different 
-							if v.continuous_pbh_check then
-								local fo = self:GetFinal_PBH(v.shipname, v.final_pbh, v.final_pbh_target_name) --final_pbh in {p=,b=,h=}
-								if not self:Orientations_are_Equal(ship.Orientation, fo, 0.02) then 
-									local rotate_time = -1 --for default rotate time
-									local rotate_delay = 1
-									self:Add_Rotation(v.shipname, v.final_pbh, rotate_delay, rotate_time, v.play_dead_PR, v.final_pbh_target_name)
-									--^ add rotation updates the previous pitch, bank, heading of any ship in the Active_Ships_trk_Wpts
-								end
-							end
+						local lastwp = wppath[v.num_waypoints]
+						if lastwp ~= nil and lastwp:isValid() then
 
-							--then only continue if last waypoint has moved far enough
-							local wppath = mn.WaypointLists[wpname]
+							--get distance between waypoint's last location and it's current new location (it might have moved)
+							local dis_wp_previous_to_wp_now = lastwp.Position:getDistance(v.previous_waypoint_location)
 
-							--only move to waypoints if we are not in an active rotation
-							if self.Active_Rotations[v.shipname] == nil and wppath ~= nil and wppath:isValid() then
-								local lastwp = wppath[v.num_waypoints]
-								if lastwp ~= nil and lastwp:isValid() then
-									local dis_wp_previous_to_wp = lastwp.Position:getDistance(v.previous_waypoint_location)
-									--see if distance between last waypoint path and ship is too far
-									--and if distance between waypoint's last location and it's possible new location is too far
-									--using last known location of last waypoint helps mitigate effects of the ship overshootinng the final waypoint
-									--remove play dead persistent order 
-									--add goal and set to tracking
-									if dis_wp_previous_to_wp > v.track_distance then
-										--remove any play dead persistent just in case it did not get properly removed when rotation over
-										if v.play_dead_PR >= 0 then 
-											mn.runSEXP("( remove-goal !" .. v.shipname .."! ( ai-play-dead-persistent !".. v.play_dead_PR .."! ) )")
-										end
-										--start waypoints once
-										mn.runSEXP("( add-goal !"..v.shipname.."! ( ai-waypoints-once !"..v.waypoint_path_name.."! !"..v.priority.."! ))")
-										v.is_running_waypoints_once = true
+							--see if distance between last waypoint path and ship is too far
+								--using last known location of last waypoint helps mitigate effects of the ship overshootinng the final waypoint
+								--add goal and set to tracking
+							if dis_wp_previous_to_wp_now > v.track_distance then
+
+								--if waypoint has moved too far then we need to stop what we are doing and follow it
+								--recall the parent conditionals check if 'ai-waypoints-once order' is already running
+
+								--run remove rotation just to be on the safe side
+								self:Remove_Rotation(v.shipname)
+
+								--start waypoints once
+								mn.runSEXP("( add-goal !"..v.shipname.."! ( ai-waypoints-once !"..v.waypoint_path_name.."! !"..v.priority.."! ))")
+								v.is_running_waypoints_once = true
+
+							else
+								--if the ship does not have resume the waypoint order then
+								--check if we are using the option to always match orientations
+								--if so, then run the rotate order if the previous orientation is substantially different and not actively rotating
+								if v.continuous_pbh_check and self.Active_Rotations[v.shipname] == nil then
+									local fo = self:GetFinal_PBH(v.shipname, v.final_pbh, v.final_pbh_target_name) --final_pbh in {p=,b=,h=}
+									if not self:Orientations_are_Equal(ship.Orientation, fo, 0.02) then 
+										local rotate_time = -1 --for default rotate time
+										local rotate_delay = 1
+										self:Add_Rotation(v.shipname, v.final_pbh, rotate_delay, rotate_time, v.play_dead_PR, v.final_pbh_target_name)
+										--^ add rotation updates the previous pitch, bank, heading of any ship in the Active_Ships_trk_Wpts
 									end
 								end
+
 							end
+
 						end
 					end
 				end
@@ -1328,7 +1328,7 @@ $On Game Init: [
 			waypoint_i = 1
 		end
 		local track_interval = 1.0 --default
-		local track_distance = 0	--default
+		local track_distance = -1	---1 for radius default of ship radius
 
 		local offset_xyz
 		local default_offset = ( self:GetRadius(ship_to_order_name) + self:GetRadius(ship_to_track_name) ) * 1.5
