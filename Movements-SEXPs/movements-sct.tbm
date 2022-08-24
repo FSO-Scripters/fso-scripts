@@ -14,10 +14,11 @@ $Application: FS2_Open
 
 $On Game Init: [
 
-	--Version 1.8, released on Auguest 21, 2022 by wookieejedi
+	--Version 2.0, released on August 24, 2022 by wookieejedi
+	--Requires FSO build of August 24, 2022 or newer
 	--Description: custom sexps and functions that allow for much easier ship movements and rotations
 	--Usage: custom sexps are included and listed in FRED under the LUA-Movements tab
-	
+
 	Movements = {} --makes a global variable! This is the only global variable this script creates.
 
 	function math.atan2safe(y, x)
@@ -272,10 +273,11 @@ $On Game Init: [
 
 		if orientation_1 == nil or orientation_2 == nil then return false end
 
-		--set threshold default 
+		--set threshold default (tests work with all the following)
 			--1 degree = 0.0174532925 rad
-			--0.5 degree = 0.0174532925 rad
-		threshold = threshold or 0.0174532925
+			--0.5 degree = 0.00872665 rad
+			--0.25 degree = 0.004363323 rad
+		threshold = threshold or 0.00872665
 
 		local abs = math.abs
 
@@ -410,7 +412,7 @@ $On Game Init: [
 		if is_relative then
 			new_vec = relative_target.Position + relative_target.Orientation:unrotateVector(ba.createVector(offset[1], offset[2], offset[3]))
 		else
-			new_vec = ba.createVector(relative_target.Position[1] + offset_x, relative_target.Position[2] + offset_y, relative_target.Position[3] + offset_z)
+			new_vec = ba.createVector(relative_target.Position[1] + offset[1], relative_target.Position[2] + offset[2], relative_target.Position[3] + offset[3])
 		end
 
 		object_to_set.Position = ba.createVector(new_vec[1], new_vec[2], new_vec[3])
@@ -471,6 +473,8 @@ $On Game Init: [
 		if time_delay < 0 then
 			time_delay = 0
 		end
+
+		--negative number runs default value of tabled turn times
 		if type(time_for_rotation) ~= "number" then
 			time_for_rotation = -1
 		end
@@ -497,74 +501,16 @@ $On Game Init: [
 		final_pbh = self:NormalizePBH(final_pbh)
 		local final_pbh_updated = self:NormalizePBH(final_pbh, initial_pbh)
 
-		--for default find highest number within rotational vector
-		--negative number runs default value --#TODO- default should just use tabled turn times
-		if time_for_rotation < 0 then
-			local physics = ship.Physics
-			local pbh_list = {"p", "h", "b"} --this is the order in RotationalVelocityMax
-			if physics ~= nil then
-				local vels = physics.RotationalVelocityMax
-				--note that these values are a modified version of the $Rotation time: values in ships.tbl
-				--in ships.tbl the value is seconds to do a full rotation (2pi or 360 deg)
-				--returned value from the physics handle is number of radians per second
-				--ie 75 seconds/360 degrees = 1 second/ x degrees = 75 * x = 360 = 360/75 = 4.8 degrees = 0.083 radians
-				--^this needs to match the order of the rotation vector (x,y,z)
-				--calculate the longest rotation time
-				if vels ~= nil then
-					for i=1,3 do
-						--calculate the largest magnitude of radians the ship has to transverse to get to the final orientation
-						local k = pbh_list[i]
-						local ship_k = self:Round(initial_pbh[k], 7)
-						local final_k = self:Round(final_pbh_updated[k], 7)
-						--^make sure ship_k and final_k are not pi! it causes a nan
-						
-						--angles already normalized to find shortest distance
-						local angular_distance = math.abs(final_k - ship_k)
-						
-						--cap at pi radians (180 degrees)
-						if angular_distance > 3.141592 then
-							angular_distance = 3.141592
-						end
-						local angular_velocity = vels[i] --radians/sec
-						--make sure we are NOT dividing by 0
-						angular_velocity = self:Get_safe_number(angular_velocity, false, false, true) --iswholenumber, onlypositive, abovezero
-						
-						local l_time = angular_distance * (1/angular_velocity)
-						
-						if l_time > time_for_rotation then
-							time_for_rotation = l_time
-						end
-						
-					end
-					
-					--floor at 20% longest rotation time
-					local floor_percent = 0.2
-					local slowest_rotation_rate = math.min(vels[1], vels[2], vels[3])
-					local slowest_rotation_time = 3.141592 * (1/slowest_rotation_rate) * 0.2
-				
-					if time_for_rotation < slowest_rotation_time then
-						time_for_rotation = slowest_rotation_time
-						--ba.print("Movements Status: Selected rotation duration of sec "..time_for_rotation.." for ship "..shipname.."...\n")
-					end
-					
-				else
-					ba.print("Movements Error: ship.Physics.RotationalVelocityMax == nil for ship "..shipname.."...\n")
-				end
-				--cap at max time/2
-			else
-				ba.print("Movements Error: ship.Physics == nil for ship "..shipname.."...\n")
-			end
-		end
-
 		--set times, and double check default determined time for rotation
 		local start_time = time_delay + current_time
-		if type(time_for_rotation) ~= "number" then
-			time_for_rotation = 0
+
+		local end_time
+		--if using default rotation time then we do not precisely know the end time, so just set to -1
+		if time_for_rotation < 0 then
+			end_time = -1
+		else 
+			end_time = start_time + time_for_rotation
 		end
-		if time_for_rotation < 0 then 
-			time_for_rotation = 0
-		end
-		local end_time = start_time + time_for_rotation
 
 		--run play dead order if needed, default is disabled
 		--negative value turns off play dead order
@@ -577,10 +523,8 @@ $On Game Init: [
 			play_dead_PR = 200 
 		end
 
-		--run play dead if needed (ie not negative value)
-		if play_dead_PR >= 0 then
-			mn.runSEXP("( add-goal !"..shipname.."! ( ai-play-dead-persistent !"..play_dead_PR.."! ) )")
-		end
+		--remove any other active rotations for this ship
+		self:Remove_Rotation(shipname)
 
 		--add entry using shipname as key and update total number variable
 		local entry = {
@@ -608,13 +552,18 @@ $On Game Init: [
 
 		--remove any play dead orders, remove from table and update tracker totals
 		if entry ~= nil then
+
 			--remove play dead order if it was using one
 			if entry.play_dead_PR >= 0 then 
 				mn.runSEXP("( remove-goal !"..entry.shipname.."! ( ai-play-dead-persistent !"..entry.play_dead_PR.."! ) )")
 			end
+
+			--ba.print("Movements: rotation for ship "..shipname_key.." is removed ...\n")
+
 			--set to nil and update tracker variables
 			self.Active_Rotations[shipname_key] = nil
 			self.Active_Rotations_Sum = self.Active_Rotations_Sum - 1
+
 		end
 
 	end
@@ -629,67 +578,109 @@ $On Game Init: [
 			--only check and run if start time has come
 			if mtime >= v.start_time and v.shipname ~= nil then
 				--note: using both forcestop and no chop doesn't improve final pbh matching any better
-				local percent_done = (mtime - v.start_time) / (v.end_time - v.start_time)
 
-				if percent_done < 0 then
-					percent_done = 0
-				end
+				local ship = mn.Ships[v.shipname]
+				if ship ~= nil and ship:isValid() then
 
-				if percent_done <= 1 then
-					local continue_with_rotation = true
+					--overall, we should start the rotation if it has not started or continue it if it has started
+					--so check which method of rotation we are using (two cases), both are useful in different situations
+						--1. using specifed rotation time (specified end_time)  
+							--specified rotation time is precise and works on non-AI ships
+						--2. using default ship AI turn time (end_time -1)
+							--AI turn time looks more natural and accounts for physics better
 
-					--if ship rotation has not started then check and start it
-					--this mitigates issues with delayed starts
-					if not v.isrotating then
-						local ship = mn.Ships[v.shipname]
-						--update initial orientation with ships current orientation
-						if ship ~= nil and ship:isValid() then
+					local percent_done
+					local using_ai_rotation = v.end_time < 0
+
+					if using_ai_rotation then
+						--AI turn time
+						if (not v.isrotating) or (v.isrotating and not self:Orientations_are_Equal(ship.Orientation, v.final_pbh_updated)) then
+							percent_done = 0 --bit hacky, but that's okay b/c with ai version we only use it to check if rotation is done
+							--really this value is just to check to see if we should keep rotation per frame or not
+						else
+							percent_done = 1.1
+						end
+					else
+						--specified rotation time
+						percent_done = (mtime - v.start_time) / (v.end_time - v.start_time)
+
+						if percent_done < 0 then
+							percent_done = 0
+						end
+
+					end
+
+					if percent_done <= 1 then
+
+						local continue_with_rotation = true
+
+						--if ship rotation has not started then check and start it (runs once to setup)
+						--this mitigates issues with delayed starts
+						if not v.isrotating then
+
+							--update initial orientation with ships current orientation
 							local shipor = ship.Orientation
-
-							v.isrotating = true
-
 							for _,val in ipairs({"p","b","h"}) do
 								v.initial_pbh[val] = shipor[val]
 							end
 
-							--update target ship's orientation if not nil
+							--if we specified a final target name then update final pbh relative to target ship's orientation
 							local pbh_updated = self:GetFinal_PBH(v.shipname, v.final_pbh, v.final_pbh_target_name)
-							--^ will be nil if tracker nil and also if targetobject_name is set but not in mission
-							--^will also return pbh if no target ship set
+							--^ will return pbh if no target ship set
+							--^ will be nil if targetobject_name is set but not in mission
 							if pbh_updated ~= nil then
 								--make sure to normalize to initial 
 								pbh_updated = self:NormalizePBH(pbh_updated, v.initial_pbh)
-								for k,val in pairs(pbh_updated) do
-									v.final_pbh_updated[k] = val
+
+								--save whole orientation now, as full orientation to use in AI function if needed
+								v.final_pbh_updated = nil
+								v.final_pbh_updated = ba.createOrientation(pbh_updated.p, pbh_updated.b, pbh_updated.h)
+
+								--run play dead if needed (ie not negative value)
+								if v.play_dead_PR >= 0 then
+									mn.runSEXP("( add-goal !"..v.shipname.."! ( ai-play-dead-persistent !"..v.play_dead_PR.."! ) )")
 								end
+
+								--finally, set that the ship is rotating
+								v.isrotating = true
+
 							else
-								--if the target ship is gone then we don't need to rotate and we can set to nil 
+								--if the target ship was set and is gone then we don't need to rotate and we can set to nil 
 								continue_with_rotation = false
 								self:Remove_Rotation(v.shipname)
 							end
 
-						else
-							--ship not valid so don't continue_with_rotation 
-							continue_with_rotation = false
+						--else --already rotating so continue rotating
 						end
-					--else --already rotating so continue rotating
+
+						if continue_with_rotation then
+							if using_ai_rotation then
+								ship:turnTowardsOrientation(v.final_pbh_updated)
+							else
+								local ort = self:PBH_Lerp(v.initial_pbh, v.final_pbh_updated, percent_done)
+								ship.Orientation = ba.createOrientation(ort.p, ort.b, ort.h)
+							end
+						end
+
+					else --if more then percent done, then remove from list
+						--set ship orientation to final (in theory that should already be done)
+						--setting may cause a jerking motion if the off chance the preceeding rotation didn't work, 
+						--so only do with precise, specified rotation
+						if not using_ai_rotation then
+							ship.Orientation = ba.createOrientation(v.final_pbh_updated.p, v.final_pbh_updated.b, v.final_pbh_updated.h)
+						end
+
+						--set just for consistency, technically it gets removed in the next function anyway
+						v.isrotating = false
+
+						--remove and update total variable
+						self:Remove_Rotation(v.shipname)
 					end
 
-					if continue_with_rotation then
-						self:RotateToOrientation(v.shipname, v.initial_pbh, v.final_pbh_updated, percent_done)
-					end
-
-				else --if more then percent done, then remove from list
-					--set ship orientation to final (though that should already be done and may cause a jerking motion?)
-					self:RotateToOrientation(v.shipname, v.initial_pbh, v.final_pbh_updated, 1)
-					if v.play_dead_PR >= 0 then 
-						mn.runSEXP("( remove-goal !"..v.shipname.."! ( ai-play-dead-persistent !"..v.play_dead_PR.."! ) )")
-					end
-
-					--remove and update total variable
-					self:Remove_Rotation(v.shipname)
 				end
+
 			end
+
 		end
 
 	end
@@ -702,19 +693,6 @@ $On Game Init: [
 		end
 
 		return pbh
-
-	end
-
-	function Movements:RotateToOrientation(shipname, initial_pbh, final_pbh, percent_done)
-
-		if initial_pbh ~= nil and final_pbh ~= nil and percent_done ~= nil and shipname ~= nil then
-			local ship = mn.Ships[shipname]
-			if ship ~= nil and ship:isValid() then
-				--update ship orientation		
-				local ort = self:PBH_Lerp(initial_pbh, final_pbh, percent_done)
-				ship.Orientation = ba.createOrientation(ort.p, ort.b, ort.h)
-			end
-		end
 
 	end
 
@@ -926,15 +904,14 @@ $On Game Init: [
 					local max_speed_z = sphycis.VelocityMax[3]
 					max_speed_z = self:Get_safe_number(max_speed_z)
 
-					local decleration_time = sphycis.ForwardDecelerationTime
-					decleration_time = self:Get_safe_number(decleration_time)
+					local decleration_time = self:Get_safe_number(sphycis.ForwardDecelerationTime)
 
-					local decleration_time_adjusted = decleration_time * 4.0 --(from object.cpp line 826, though it should be the damp *4)
 					local percent_speed = current_speed_z/max_speed_z
-					local stop_adusted = math.ceil ( decleration_time_adjusted * percent_speed )
-					--^go the nearest second just to be safe
-					--even going 10 m/s with 10 s declaration time it still takes ship 13 seconds to come to complete stop
-					--stoptime = decleration_time + stop_adusted
+						--local decleration_time_adjusted = decleration_time * 4.0 --(from object.cpp line 826, though it should be the damp *4)
+						--local stop_adusted = math.ceil ( decleration_time_adjusted * percent_speed )
+						--^go the nearest second just to be safe
+						--even going 10 m/s with 10 s declaration time it still takes ship 13 seconds to come to complete stop
+						--stoptime = decleration_time + stop_adusted
 					stoptime = math.ceil ( decleration_time * percent_speed )
 					--^ this is not systematic at all, just based on observations and guesses
 					--fortunately the ship will rotate no matter what
@@ -1063,6 +1040,9 @@ $On Game Init: [
 			entry.is_running_waypoints_once = true
 		end
 
+		--remove any other tracking of waypoints for this ship
+		self:Remove_Ship_trk_Wpt(shipname)
+
 		self.Active_Ships_trk_Wpts_Sum = self.Active_Ships_trk_Wpts_Sum + 1
 
 		self.Active_Ships_trk_Wpts[shipname] = entry
@@ -1070,22 +1050,26 @@ $On Game Init: [
 	end
 
 	function Movements:Remove_Ship_trk_Wpt(shipname_key)
-	
+
 		if shipname_key == nil then return end
 		local entry = self.Active_Ships_trk_Wpts[shipname_key]
-		
+
 		if entry ~= nil then
-			--remove any play dead order 
+
+			--remove any play dead order just in case they did not get removed when rotation done
 			if entry.play_dead_PR >= 0 then 
 				mn.runSEXP("( remove-goal !" .. entry.shipname .."! ( ai-play-dead-persistent !".. entry.play_dead_PR .."! ) )")
 			end
+
 			--remove any waypoints once order
 			mn.runSEXP("( remove-goal !" .. entry.shipname .."! ( ai-waypoints-once !".. entry.waypoint_path_name .."! !".. entry.priority .."! ) )")
+
 			--remove from list and update variables
 			self.Active_Ships_trk_Wpts[shipname_key] = nil
 			self.Active_Ships_trk_Wpts_Sum = self.Active_Ships_trk_Wpts_Sum - 1
+
 		end
-		
+
 	end
 
 	function Movements:Pause_Ship_trk_Wpt(shipname, done_wp_path_name)
@@ -1114,11 +1098,6 @@ $On Game Init: [
 		--change status
 		entry.is_running_waypoints_once = false
 
-		--remove play dead persistent order 
-		if entry.play_dead_PR >= 0 then 
-			mn.runSEXP("( remove-goal !" .. entry.shipname .."! ( ai-play-dead-persistent !".. entry.play_dead_PR .."! ) )")
-		end
-
 		--save last known waypoint location
 		--using last known location of last waypoint helps mitigate effects of the ship over-shooting the final waypoint
 		if entry.previous_waypoint_location ~= nil and entry.waypoint_path_name ~= nil then
@@ -1133,25 +1112,8 @@ $On Game Init: [
 
 	end
 
-	function Movements:ShouldUpdate_PBH(old_pbh, new_pbh)
-
-		if not self:PBHisValid(old_pbh) or not self:PBHisValid(new_pbh) then return false end
-		local answer = false 
-		local diff = 0.02 --math.deg(0.02) = 1.14 degrees
-		for _,v in pairs({"p", "b", "h"}) do
-			local old, new = old_pbh[v], new_pbh[v]
-			if math.abs(old - new) > diff then
-				answer = true
-				break
-			end
-		end
-
-		return answer 
-
-	end
-
 	function Movements:Check_Ship_trk_Wpt()
-	
+
 		if self.Active_Ships_trk_Wpts_Sum > 0 then
 			local mtime = mn.getMissionTime()
 
@@ -1170,12 +1132,11 @@ $On Game Init: [
 						--validity checks
 						if wpname ~= nil and ship ~= nil and ship:isValid() then
 
-							--at this point run the orientation if the previous orientation is substantially different 
-							--only run if we are using that boolean option
+							--check if we are using the option to always match orientations
+							--if so, then run the orientation if the previous orientation is substantially different 
 							if v.continuous_pbh_check then
-								local so = ship.Orientation --start orientation
 								local fo = self:GetFinal_PBH(v.shipname, v.final_pbh, v.final_pbh_target_name) --final_pbh in {p=,b=,h=}
-								if self:Orientations_are_Equal(so, fo, 0.02) then 
+								if not self:Orientations_are_Equal(ship.Orientation, fo, 0.02) then 
 									local rotate_time = -1 --for default rotate time
 									local rotate_delay = 1
 									self:Add_Rotation(v.shipname, v.final_pbh, rotate_delay, rotate_time, v.play_dead_PR, v.final_pbh_target_name)
@@ -1186,7 +1147,7 @@ $On Game Init: [
 							--then only continue if last waypoint has moved far enough
 							local wppath = mn.WaypointLists[wpname]
 
-							--don't move to waypoints if we have added a rotation to do
+							--only move to waypoints if we are not in an active rotation
 							if self.Active_Rotations[v.shipname] == nil and wppath ~= nil and wppath:isValid() then
 								local lastwp = wppath[v.num_waypoints]
 								if lastwp ~= nil and lastwp:isValid() then
@@ -1197,7 +1158,7 @@ $On Game Init: [
 									--remove play dead persistent order 
 									--add goal and set to tracking
 									if dis_wp_previous_to_wp > v.track_distance then
-										--remove play dead persistent
+										--remove any play dead persistent just in case it did not get properly removed when rotation over
 										if v.play_dead_PR >= 0 then 
 											mn.runSEXP("( remove-goal !" .. v.shipname .."! ( ai-play-dead-persistent !".. v.play_dead_PR .."! ) )")
 										end
@@ -1238,10 +1199,12 @@ $On Game Init: [
 	end
 
 	mn.LuaSEXPs["remove-ai-goal-track-waypoint"].Action = function(ship)
+
 		if ship ~= nil and ship:isValid() then
 			--number checks are completed in function below 
 			Movements:Remove_Ship_trk_Wpt(ship.Name)
-		end	
+		end
+
 	end
 
 
@@ -1288,7 +1251,7 @@ $On Game Init: [
 	end
 
 	mn.LuaSEXPs["set-idle-track-orientation"].Action = function(ship, pitch, bank, heading, usetargetship, input_targetship, continuous_pbh_check)
-		
+
 		if ship ~= nil and ship:isValid() then
 			--if target ship is specified only run if it's in mission
 			if usetargetship == nil then
@@ -1303,23 +1266,23 @@ $On Game Init: [
 					targetobject_name = input_targetship.Name
 				end
 			end
-			
+
 			if not Movements:PBHisValid({p=pitch, b=bank, h=heading}) then 
 				ba.print("Movements SEXP Warning: set-idle-track-orientation sexp provided with invalid pitch, bank, or heading values, not setting orientation...\n")
 				return 
 			end
-			
+
 			Movements:Set_Idle_Tracking_PBH(ship.Name, math.rad(pitch), math.rad(bank), math.rad(heading), targetobject_name, continuous_pbh_check)
 		end
-		
+
 	end
 
 	mn.LuaSEXPs["unset-idle-track-orientation"].Action = function(ship)
-		
+
 		if ship ~= nil and ship:isValid() then
 			Movements:Unset_Idle_Tracking_PBH(ship.Name)
 		end
-		
+
 	end
 
 
@@ -1393,7 +1356,7 @@ $On Game Init: [
 	end
 
 	function Movements:Remove_Ship_trk_Ship(shipname_to_remove_order, waypointpath_name, waypoint_i)
-		
+
 		--validity checks
 		if type(shipname_to_remove_order) ~= "string" then return end
 		--if type(ship_to_track_name) ~= "string" then return end
@@ -1403,10 +1366,10 @@ $On Game Init: [
 		end
 		--first stop waypoint tracking ship, using sexp so can use waypointpath name and i
 		mn.runSEXP("( remove-waypoint-track-ship !"..waypointpath_name.."! !"..waypoint_i.."! )")
-		
+
 		--then remove ship_order tracking of that waypoint 
 		self:Remove_Ship_trk_Wpt(shipname_to_remove_order)
-		
+
 	end
 
 	mn.LuaSEXPs["add-ai-goal-track-ship"].Action = function(ship_to_order, ship_to_track, waypointpath, priority, off_x, off_y, off_z, pbh_p, pbh_b, pbh_h, userelative, continuous_pbh_check, play_dead_PR)
@@ -1456,13 +1419,13 @@ $On Game Init: [
 
 
 	function Movements:Ship_DoD_Remove(shipname)
-		
+
 		--goes through all movements lists and removes entries of that ship where needed to save memory
 		if type(shipname) ~= "string" then return end
-		
+
 		--stop any rotations
 		self:Remove_Rotation(shipname)
-		
+
 		--go through waypoints track ship and search for this ship name 
 		if self.Active_Wpts_trk_Objects_Sum > 0 then
 			for k_waypointname, v in pairs(self.Active_Wpts_trk_Objects) do
@@ -1471,7 +1434,7 @@ $On Game Init: [
 				end
 			end
 		end
-		
+
 		--remove any idle orientations that are using this ship has a relative orientation base
 		if self.Active_Ships_trk_Wpts_Sum > 0 then
 			for _, v in pairs(self.Active_Ships_trk_Wpts) do
@@ -1481,10 +1444,10 @@ $On Game Init: [
 				end
 			end
 		end		
-		
+
 		--remove any ship tracking waypoints 
 		self:Remove_Ship_trk_Wpt(shipname)
-		
+
 	end
 
 	function Movements:OnSimulation()
