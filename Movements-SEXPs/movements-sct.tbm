@@ -14,8 +14,8 @@ $Application: FS2_Open
 
 $On Game Init: [
 
-	--Version 2.0, released on August 24, 2022 by wookieejedi
-	--Requires FSO build of August 24, 2022 or newer
+	--Version 2.1, released on August 27, 2022 by wookieejedi
+	--Requires FSO build of August 27, 2022 or newer
 	--Description: custom sexps and functions that allow for much easier ship movements and rotations
 	--Usage: custom sexps are included and listed in FRED under the LUA-Movements tab
 
@@ -83,38 +83,6 @@ $On Game Init: [
 		end
 
 		return output
-
-	end
-
-	function Movements:Get_safe_number(num, iswholenumber, onlypositive, abovezero) --defaults are all true
-
-		if type(num) ~= "number" then
-			num = 0
-		end
-		
-		--DO NOT use or true to set defaults since it make make it true even if setting it to false (ie false or true = true)
-		
-		if iswholenumber == nil then 
-			iswholenumber = true
-		end
-		if onlypositive == nil then 
-			onlypositive = true
-		end
-		if abovezero == nil then 
-			abovezero = true
-		end
-		
-		if iswholenumber then
-			num = self:Round(num)
-		end
-		if onlypositive and num < 0 then
-			num = 0
-		end
-		if abovezero and num <= 0 then
-			num = 1
-		end
-
-		return num
 
 	end
 
@@ -523,9 +491,6 @@ $On Game Init: [
 			play_dead_PR = 200 
 		end
 
-		--remove any other active rotations for this ship
-		self:Remove_Rotation(shipname)
-
 		--add entry using shipname as key and update total number variable
 		local entry = {
 			shipname = shipname, 
@@ -538,6 +503,9 @@ $On Game Init: [
 			isrotating = false,
 			final_pbh_target_name = targetobject_name
 		}
+
+		--remove any other active rotations for this ship
+		self:Remove_Rotation(shipname)
 
 		self.Active_Rotations_Sum = self.Active_Rotations_Sum + 1
 
@@ -728,10 +696,10 @@ $On Game Init: [
 
 
 	function Movements:Add_Wpt_trk_Object(waypointpath_name, objecttarget_name, waypoint_i, offset_xyz, track_interval, track_distance, userelative)
-		
+
 		--validity checks
 		if waypointpath_name == nil or objecttarget_name == nil then return end
-		
+
 		if type(offset_xyz) == "table" then
 			if #offset_xyz ~= 3 then
 				offset_xyz = {0,0,0}
@@ -739,46 +707,46 @@ $On Game Init: [
 		else
 			offset_xyz = {0,0,0}
 		end
-		
+
 		if type(track_interval) ~= "number" then
 			track_interval = 1.0
 		end
 		if track_interval < 0 then
 			track_interval = 0
 		end
-		
+
 		if type(track_distance) ~= "number" then
 			track_distance = 0
 		end
 		if track_distance < 0 then
 			track_distance = 0
 		end
-		
+
 		if type(waypoint_i) ~= "number" then
 			waypoint_i = 1
 		end
 
 		if type(waypointpath_name) ~= "string" then return end
 		if type(objecttarget_name) ~= "string" then return end
-	
+
 		--check if object is ship or waypoint
 		local object = self:GetShip_or_Waypoint_Object(objecttarget_name)
 		if object == nil then return end
 		if not object:isValid() then return end
-		
+
 		local waypointpath = mn.WaypointLists[waypointpath_name]
 		if waypointpath == nil then return end
 		if not waypointpath:isValid() then return end
-		
+
 		local waypoint = waypointpath[waypoint_i]
 		if waypoint == nil then return end
 		if not waypoint:isValid() then return end
 		local waypoint_name = self:WaypointName(waypointpath_name, waypoint_i)
-		
+
 		if type(userelative) ~= "boolean" then
 			userelative = true
 		end
-		
+
 		--add entry
 		local entry = {
 			waypoint_i = waypoint_i,
@@ -790,17 +758,21 @@ $On Game Init: [
 			track_distance = track_distance, 
 			userelative = userelative
 		}
+
+		--clear any previous entry
+		self:Remove_Wpt_trk_Object(waypoint_name)
+
 		self.Active_Wpts_trk_Objects[waypoint_name] = entry
-		
+
 		--set position if needed
 		local dis_wp_to_object = waypoint.Position:getDistance(object.Position)
 		if dis_wp_to_object > track_distance then
 			self:Set_Pos_Relative_to_Object(waypoint_name, objecttarget_name, offset_xyz, userelative)
 		end
-		
+
 		--update tracker variables
 		self.Active_Wpts_trk_Objects_Sum = self.Active_Wpts_trk_Objects_Sum + 1
-		
+
 	end
 
 	function Movements:Check_Wpt_trk_Object()
@@ -833,15 +805,15 @@ $On Game Init: [
 	end
 
 	function Movements:Remove_Wpt_trk_Object(waypointname_key)
-	
+
 		if waypointname_key == nil then return end
 		local entry = self.Active_Wpts_trk_Objects[waypointname_key]
-		
+
 		if entry ~= nil then
 			self.Active_Wpts_trk_Objects[waypointname_key] = nil
 			self.Active_Wpts_trk_Objects_Sum = self.Active_Wpts_trk_Objects_Sum - 1
 		end
-		
+
 	end
 
 	mn.LuaSEXPs["add-waypoint-track-ship"].Action = function(shiptarget, waypointpath, waypoint_i, offset_x, offset_y, offset_z, track_interval, track_distance, userelative)
@@ -896,25 +868,21 @@ $On Game Init: [
 		if shipname ~= nil then
 			local ship = mn.Ships[shipname]
 			if ship ~= nil and ship:isValid() then
-				local sphycis = ship.Physics
-				if sphycis ~= nil then
-					local current_speed_z = sphycis:getForwardSpeed()
-					current_speed_z = self:Get_safe_number(current_speed_z) --iswholenumber, onlypositive, abovezero all default to true
+				local sphysics = ship.Physics
+				if sphysics ~= nil then
 
-					local max_speed_z = sphycis.VelocityMax[3]
-					max_speed_z = self:Get_safe_number(max_speed_z)
-
-					local decleration_time = self:Get_safe_number(sphycis.ForwardDecelerationTime)
+					local max_speed_z = math.max(sphysics.VelocityMax[3], 1)
+					local current_speed_z = math.max(sphysics:getForwardSpeed(), 0)
+					local decleration_time = math.max(sphysics.ForwardDecelerationTime, 1)
 
 					local percent_speed = current_speed_z/max_speed_z
-						--local decleration_time_adjusted = decleration_time * 4.0 --(from object.cpp line 826, though it should be the damp *4)
-						--local stop_adusted = math.ceil ( decleration_time_adjusted * percent_speed )
-						--^go the nearest second just to be safe
-						--even going 10 m/s with 10 s declaration time it still takes ship 13 seconds to come to complete stop
-						--stoptime = decleration_time + stop_adusted
-					stoptime = math.ceil ( decleration_time * percent_speed )
-					--^ this is not systematic at all, just based on observations and guesses
+					if percent_speed > 1 then
+						percent_speed = 1
+					end
+
+					--not systematic at all, but chose to go with X percent of deceleration time
 					--fortunately the ship will rotate no matter what
+					stoptime = math.ceil ( decleration_time * percent_speed )
 				end
 			end
 		end
@@ -923,14 +891,84 @@ $On Game Init: [
 
 	end
 
-	function Movements:Add_Ship_trk_Wpt(shipname, waypoint_path_name, priority, track_interval, track_distance, input_final_pbh, final_pbh_target_name, continuous_pbh_check, play_dead_PR) --input_final_pbh should be {p=0,b=0,h=0} in radians
+	function Movements:ObstacleInPath(ship, stop_ray_distance_min, ignore_ships_with_this_radius, time_check_interval, myship_radius) --assumes args are valid
+
+		--failsafe validity checks, if either of these are -1 then we are not supposed to use smart stop
+		if stop_ray_distance_min < 0 or ignore_ships_with_this_radius < 0 then
+			return false, -1
+		end
+
+		local sphysics = ship.Physics
+		if sphysics == nil then 
+			return false, -1
+		end
+
+		--quick out if we are not even facing the waypoint?
+		--if a ship blocks us, it woud be nice to rotate to at least face the waypoint?
+		--possibly not, especially with less frequent interval checks
+			--not facing waypoint, so start turning, 10 seconds later we could have already started moving and smashed into something 
+
+		--get how fast ship is moving and time until next check
+		--how far will ship have moved in that amount of time?
+		local current_speed_z = sphysics:getForwardSpeed() --iswholenumber, onlypositive, abovezero all default to true
+		if current_speed_z < 0 then
+			current_speed_z = 0 
+		end
+		local decleration_time = sphysics.ForwardDecelerationTime
+
+		local extra_slow_down_multiplier = math.max(decleration_time, 3) --minimum is bit of a magic number
+		local distance_covered_by_next_check = time_check_interval * current_speed_z * extra_slow_down_multiplier -- ie 10 m/s * 1.5 seconds = 15 meters covered until next check
+		--if that math.max(distance * 2, ship_radius*2) is > the closest obstacle then we better hit the brakes now
+		local danger_zone_distance = math.max(stop_ray_distance_min * 1.2, distance_covered_by_next_check * 1.25) --bit more magic numbers
+
+		--has line of sight only uses vectors, so make sure we ignore ourselves when doing obstacle checks
+		--to fix this, lets cast the ray from the nose of the ship
+		local ship_pos = ship.Position
+		--the actual ray cast should extend quite a bit more from the front of the ship
+		local ray_end_pos = ship_pos + ship.Orientation:unrotateVector(ba.createVector(0, 0, danger_zone_distance*3))
+
+		--boolean, number getLineOfSightFirstIntersect(vector from, vector to, [table excludedObjects (expects list of objects, empty by default), boolean testForShields = false, boolean testForHull = true, number threshold = 10.0])
+		--Checks whether the to-position is in line of sight from the from-position and returns the distance to the first interruption of the line of sight, disregarding specific excluded objects and objects with a radius of less then threshold.
+		--Returns: true and zero if there is line of sight, false and the distance otherwise.
+		local has_line_of_sight, closest_obstacle_distance, intersecting_obj = mn.getLineOfSightFirstIntersect(ship_pos, ray_end_pos, {ship}, false, true, ignore_ships_with_this_radius, true)
+
+		local obstacle_in_way = false
+		--no for 'line of sight' means there is an obstacle somewhere, so we should check where
+			--obstacle is witin danger zone -> obstacle in way = true
+			--obstacle not witin danger zone -> obstacle in way = false
+		--yes for 'line of sight' means no possibility for obstacles
+		if not has_line_of_sight and intersecting_obj ~= nil and intersecting_obj:isValid() then
+
+			--if there is an obstacle
+			--account for ship and target self and any obstacle radius too
+			local extra_safety_radius = myship_radius + self:GetRadius(tostring(intersecting_obj), true, 0)
+
+			--update distance with safety radius and do check
+			closest_obstacle_distance = closest_obstacle_distance - extra_safety_radius
+
+			if closest_obstacle_distance < 0 then 
+				closest_obstacle_distance = 0 
+			end
+
+			if closest_obstacle_distance <= danger_zone_distance then
+				obstacle_in_way = true
+			--else --no obstacles in the way
+			end
+		--else --no obstacles in the way
+		end
+
+		return obstacle_in_way, intersecting_obj
+
+	end
+
+	function Movements:Add_Ship_trk_Wpt(shipname, waypoint_path_name, priority, track_interval, track_distance, input_final_pbh, final_pbh_target_name, continuous_pbh_check, play_dead_PR, uses_smart_stop, smart_stop_ray_distance_min, smart_stop_ignore_radius) --input_final_pbh should be {p=0,b=0,h=0} in radians
 
 		--validity checks
 		if shipname == nil then return end
 		if not mn.Ships[shipname]:isValid() then return end
 		if waypoint_path_name == nil then return end
 		if mn.WaypointLists[waypoint_path_name] == nil then return end
-		
+
 		if type(continuous_pbh_check) ~= "boolean" then
 			continuous_pbh_check = true
 		end
@@ -957,9 +995,11 @@ $On Game Init: [
 		local mtime = mn.getMissionTime()
 
 		--default for track time interval
-		track_interval = track_interval or 1.500
 		if type(track_interval) ~= "number" then
 			track_interval = 1.500
+		end
+		if track_interval < 0 then
+			track_interval = 0
 		end
 
 		local ship = mn.Ships[shipname]
@@ -981,22 +1021,16 @@ $On Game Init: [
 		--set known waypoint location (use this to counter act ship over-shooting waypoint)
 		local previous_waypoint_location = last_wp.Position
 
-		--set default track distance to ship radius*1
+		local ship_radius = self:GetRadius(shipname, true, 1)
+
+		--set default track distance to ship radius
 		--negative value also uses default value
 		if type(track_distance) ~= "number" then
 			track_distance = -1
 		end
 		if track_distance < 0 then
-			local class = ship.Class
-			if class ~= nil then
-				local model = class.Model
-				if model ~= nil then
-					track_distance = model.Radius
-					if track_distance ~= nil then
-						track_distance = track_distance*1
-					end	
-				end
-			end
+			track_distance = ship_radius
+			--final safety check 
 			if track_distance <= 0 then
 				track_distance = 100
 			end
@@ -1015,6 +1049,35 @@ $On Game Init: [
 			final_pbh_target_name = nil
 		end
 
+		--check if the ship will try to stop if it is about to hit something
+		--if using smart_stop then get radius of the ship *2 (-1 is default and disables this)
+		--checks every track_interval
+		if uses_smart_stop == nil then
+			uses_smart_stop = false
+		end
+
+		if uses_smart_stop then --recall, 'uses smart stop' is the only 'smart stop' option exposed in sexps
+			--if obstacle is within this distance it will trigger a stop
+			if type(smart_stop_ray_distance_min) ~= "number" then
+				smart_stop_ray_distance_min = -1 -- -1 triggers default
+			end
+			if smart_stop_ray_distance_min < 0 then
+				smart_stop_ray_distance_min = ship_radius * 2
+			--else --keep as is
+			end
+
+			--any obstacles this radius or smaller will not be registered as obstacles
+			if type(smart_stop_ignore_radius) ~= "number" then
+				smart_stop_ignore_radius = -1 -- -1 triggers default
+			end
+			if smart_stop_ignore_radius < 0 then 
+				smart_stop_ignore_radius = 25 --default value of 25
+			end
+		else
+			smart_stop_ray_distance_min = -1
+			smart_stop_ignore_radius = -1
+		end
+
 		--add entry using shipname as key and update total number variable
 		local entry = {
 			shipname = shipname,
@@ -1026,22 +1089,40 @@ $On Game Init: [
 			time_last_check = mtime,
 			previous_waypoint_location = previous_waypoint_location,
 			track_distance = track_distance,
-			is_running_waypoints_once = false,
+			is_running_waypoints_once = true,
 			final_pbh = final_pbh, --remember needs to be in radians
 			final_pbh_target_name = final_pbh_target_name,
-			continuous_pbh_check = continuous_pbh_check
+			continuous_pbh_check = continuous_pbh_check,
+			ship_radius = ship_radius,
+			uses_smart_stop = uses_smart_stop,
+			smart_stop_ray_distance_min = smart_stop_ray_distance_min, --only used if using smart stop
+			smart_stop_triggered = false, --only used if using smart stop
+			smart_stop_ignore_radius = smart_stop_ignore_radius --only used if using smart stop
 		}
-
-		--only give it the order if the ship is far enough away from the first waypoint
-		local dis_to_wp1 = first_wp.Position:getDistance(ship.Position)
-		if dis_to_wp1 > track_distance then
-			--give initial waypoint order
-			mn.runSEXP("( add-goal !"..shipname.."! ( ai-waypoints-once !"..waypoint_path_name.."! !"..priority.."! ))")
-			entry.is_running_waypoints_once = true
-		end
 
 		--remove any other tracking of waypoints for this ship
 		self:Remove_Ship_trk_Wpt(shipname)
+
+		--only give it the order if the ship is far enough away from the first waypoint
+		--if the distance is not far enough away then it will keep checking on the ship track waypoint function
+		--check to make sure there is not an obstacle in the path, too
+		local dis_to_wp1 = first_wp.Position:getDistance(ship.Position)
+		if dis_to_wp1 > track_distance then
+			--if ship has space to actually run waypoints
+			local run_order = true
+			local obstacle_in_path, _ = self:ObstacleInPath(ship, entry.smart_stop_ray_distance_min, entry.smart_stop_ignore_radius, entry.track_interval, entry.ship_radius)
+			if uses_smart_stop and obstacle_in_path then
+				run_order = false
+				entry.smart_stop_triggered = true
+				--if the obstacle ship is the target ship then the per simulation frame checks will take care of that
+			end
+			--give initial waypoint order if no obstacles
+			if run_order then
+				mn.runSEXP("( add-goal !"..shipname.."! ( ai-waypoints-once !"..waypoint_path_name.."! !"..priority.."! ))")
+			end
+		else -- if distance is too small then the ship is considered to have done its waypoint path instantly (On Waypoints Done)
+			entry.is_running_waypoints_once = false
+		end
 
 		self.Active_Ships_trk_Wpts_Sum = self.Active_Ships_trk_Wpts_Sum + 1
 
@@ -1072,7 +1153,7 @@ $On Game Init: [
 
 	end
 
-	function Movements:Pause_Ship_trk_Wpt(shipname, done_wp_path_name)
+	function Movements:Pause_Ship_trk_Wpt(shipname, done_wp_path_name) --has to be only called with 'On Waypoints Done'
 
 		--change waypoint status and save location of last waypoint
 
@@ -1084,18 +1165,7 @@ $On Game Init: [
 		--only continue if the completed waypoint was the one specified in tracker goal
 		if entry.waypoint_path_name ~= done_wp_path_name then return end
 
-		--if there is a target orientation then run rotate-to-orientation sexp
-		if self:PBHisValid(entry.final_pbh) and self.Active_Rotations[shipname] == nil then
-			--need time delay so the craft is not moving forward anymore
-			local rotate_delay = self:TimeUntilStop(shipname)
-			--calculate how long until it stops
-
-			local rotate_time = -1 --for default rotate time
-			self:Add_Rotation(shipname, entry.final_pbh, rotate_delay, rotate_time, entry.play_dead_PR, entry.final_pbh_target_name)
-		--if not valid final orientation then don't run rotate-to-orientation
-		end
-
-		--change status
+		--change status, this (On Waypoints Done) is the only time this gets set to false (besides special instant waypoint finish on initiation)
 		entry.is_running_waypoints_once = false
 
 		--save last known waypoint location
@@ -1110,73 +1180,225 @@ $On Game Init: [
 			end
 		end
 
+		--if there is a target orientation and no active rotations then add a run rotation order
+			--recall that continuous checking of target pbh is done in ':Check_Ship_trk_Wpt()'
+		if self:PBHisValid(entry.final_pbh) and self.Active_Rotations[shipname] == nil then
+
+			--recall the ship just finished a waypoint..
+			--need time delay so the craft is not moving forward anymore
+			--calculate how long until it stops
+			local rotate_delay = self:TimeUntilStop(shipname)
+			local rotate_time = -1 --for default rotate time
+
+			--add rotation
+			self:Add_Rotation(shipname, entry.final_pbh, rotate_delay, rotate_time, entry.play_dead_PR, entry.final_pbh_target_name)
+
+		--if not valid final orientation then don't run rotate-to-orientation
+		end
+
 	end
 
-	function Movements:Check_Ship_trk_Wpt()
+	function Movements:Obstacle_Is_FinalTarget(final_target_name, current_obstacle_obj)
+
+		local answer = false
+
+		if final_target_name ~= "" and final_target_name ~= nil then
+			local final_target = mn.Ships[final_target_name]
+			if final_target ~= nil and final_target:isValid() and current_obstacle_obj ~= nil and current_obstacle_obj:isValid() then
+				--does final target == current obstacle?
+				if current_obstacle_obj:getSignature() == final_target:getSignature() then
+					answer = true
+				end
+			end
+		end
+
+		return answer
+
+	end
+
+	function Movements:Check_Ship_trk_Wpt() --checked every simulation frame
 
 		if self.Active_Ships_trk_Wpts_Sum > 0 then
 			local mtime = mn.getMissionTime()
 
 			for _, v in pairs(self.Active_Ships_trk_Wpts) do
 
-				--only check if ship is not already running ai-waypoints-once order
-				--and if the tracker time has elapsed
-				if not v.is_running_waypoints_once and mtime > v.time_last_check + v.track_interval then
+				--only check if the tracker time has elapsed
+				if mtime > v.time_last_check + v.track_interval then
 
 					v.time_last_check = mtime
-					local wpname = v.waypoint_path_name or ""
-					local wppath = mn.WaypointLists[wpname]
-					local ship = mn.Ships[v.shipname]
 
-					--validity checks
-					if wppath ~= nil and wppath:isValid() and ship ~= nil and ship:isValid() then
+					--check if ship is currently following waypoint order or not
+						--if following then check if we need to do smart stop
+						--if just chillin then check what ship needs to do now
+					if v.is_running_waypoints_once then
+						--does this ship use smart stop, if so then check if it needs to stop or if it needs to keep moving
+						if v.uses_smart_stop then
+							--validity checks
+							local wpname = v.waypoint_path_name or ""
+							local wppath = mn.WaypointLists[wpname]
+							local ship = mn.Ships[v.shipname]
+							if wppath ~= nil and wppath:isValid() and ship ~= nil and ship:isValid() then
+								--more validity checks before get line of sight results
+								local lastwp = wppath[v.num_waypoints]
+								if lastwp ~= nil and lastwp:isValid() then 
 
-						local lastwp = wppath[v.num_waypoints]
-						if lastwp ~= nil and lastwp:isValid() then
+									--cases
+									--yes obstacle found
+										--ship currently moving -> stop
+										--ship not moving -> do nothing
+									--no obstacles found
+										--ship currently moving -> do nothing
+										--ship not moving -> go and start moving again
 
-							--get distance between waypoint's last location and it's current new location (it might have moved)
-							local dis_wp_previous_to_wp_now = lastwp.Position:getDistance(v.previous_waypoint_location)
+									local ship_currently_moving = not v.smart_stop_triggered
+									local obstacle_in_path, intersecting_obj = self:ObstacleInPath(ship, v.smart_stop_ray_distance_min, v.smart_stop_ignore_radius, v.track_interval, v.ship_radius)
 
-							--see if distance between last waypoint path and ship is too far
-								--using last known location of last waypoint helps mitigate effects of the ship overshootinng the final waypoint
-								--add goal and set to tracking
-							if dis_wp_previous_to_wp_now > v.track_distance then
+									if obstacle_in_path then  --found obstacle
+										if ship_currently_moving then
+											--stop ship
+											mn.runSEXP("( remove-goal !"..v.shipname.."! ( ai-waypoints-once !"..v.waypoint_path_name.."! !"..v.priority.."! ))")
+											v.smart_stop_triggered = true
+										else --ship not moving
+											--what if the ship stopped b/c it got too close to it's final target? (ie final target is the obstacle)
+											--if that happens then this ship will never rotate to match target b/c it will never complete its waypoints
+											--so, if the ship has been told to stop moving, then check if it's within distance to its target, then fake a waypoints complete
+											local obstacle_is_target = false
 
-								--if waypoint has moved too far then we need to stop what we are doing and follow it
-								--recall the parent conditionals check if 'ai-waypoints-once order' is already running
+											--if the ship is already within the wiggle room for a waypoint track then go ahead as a shortcut
+											local dis_wp = lastwp.Position:getDistance(ship.Position)
+											if dis_wp <= v.track_distance then
 
-								--run remove rotation just to be on the safe side
-								self:Remove_Rotation(v.shipname)
+												obstacle_is_target = true
 
-								--start waypoints once
-								mn.runSEXP("( add-goal !"..v.shipname.."! ( ai-waypoints-once !"..v.waypoint_path_name.."! !"..v.priority.."! ))")
-								v.is_running_waypoints_once = true
+											else --shortcut didn't work so check if obstacle is target ship
 
-							else
-								--if the ship does not have resume the waypoint order then
-								--check if we are using the option to always match orientations
-								--if so, then run the rotate order if the previous orientation is substantially different and not actively rotating
-								if v.continuous_pbh_check and self.Active_Rotations[v.shipname] == nil then
-									local fo = self:GetFinal_PBH(v.shipname, v.final_pbh, v.final_pbh_target_name) --final_pbh in {p=,b=,h=}
-									if not self:Orientations_are_Equal(ship.Orientation, fo, 0.02) then 
-										local rotate_time = -1 --for default rotate time
-										local rotate_delay = 1
-										self:Add_Rotation(v.shipname, v.final_pbh, rotate_delay, rotate_time, v.play_dead_PR, v.final_pbh_target_name)
-										--^ add rotation updates the previous pitch, bank, heading of any ship in the Active_Ships_trk_Wpts
+												obstacle_is_target = self:Obstacle_Is_FinalTarget(v.final_pbh_target_name, intersecting_obj)
+
+											end
+
+											--if close enough to final waypoint or obstacle is target then consider "On Waypoints Done"
+											if obstacle_is_target then
+												self:Pause_Ship_trk_Wpt(v.shipname, v.waypoint_path_name)
+											end
+
+										end
+
+									else --no obstacles
+										if not ship_currently_moving then
+											--start moving again
+											mn.runSEXP("( add-goal !"..v.shipname.."! ( ai-waypoints-once !"..v.waypoint_path_name.."! !"..v.priority.."! ))")
+											v.smart_stop_triggered = false
+										--else --ship is moving, and no obstacles so keep on doing what we are already doing
+										end
 									end
+
+								end
+							end
+						--else --keep doing what we are already doing (following waypoints)
+						end
+
+					else --not running waypoint order (waypoints have been completed, waiting to see if need to update)
+
+						--cases 
+							--waypoint has moved far enough away to trigger refreshed path order
+								--using smart stop and there is an obstacle
+									--obstacle is target ship
+										-->do not give refreshed order yet and do run about idle rotations
+									--obstacle is not target ship 
+										-->do not give refreshed order yet also do not worry about idle rotations
+								--using smart stop and no obstacle or just not using smart stop
+							--waypoint still within wiggle room for no new order
+								--using smart stop and there is an obstacle
+									--> does not matter, just rotating, and waypoints have already been completed so run idle rotation
+								--using smart stop and no obstacle or just not using smart stop
+									--> does not matter, just rotating, and waypoints have already been completed so run idle rotation
+
+						local wpname = v.waypoint_path_name or ""
+						local wppath = mn.WaypointLists[wpname]
+						local ship = mn.Ships[v.shipname]
+
+						--validity checks
+						if wppath ~= nil and wppath:isValid() and ship ~= nil and ship:isValid() then
+
+							local lastwp = wppath[v.num_waypoints]
+							if lastwp ~= nil and lastwp:isValid() then
+
+								--get distance between waypoint's last location and it's current new location (it might have moved)
+								local dis_wp_previous_to_wp_now = lastwp.Position:getDistance(v.previous_waypoint_location)
+
+								--see if distance between last waypoint path and ship is too far
+									--using last known location of last waypoint helps mitigate effects of the ship overshootinng the final waypoint
+									--add goal and set to tracking
+
+								local check_run_pbh = false
+
+								if dis_wp_previous_to_wp_now > v.track_distance then
+
+									--if waypoint has moved too far then we need to stop what we are doing and follow it
+									--recall the parent conditionals check if the waypoints order is already running
+
+									--might have case where waypoint is far enough away to trigger new path order, but obstacle is the target ship
+									local obstacle_in_path, intersecting_obj = self:ObstacleInPath(ship, v.smart_stop_ray_distance_min, v.smart_stop_ignore_radius, v.track_interval, v.ship_radius)
+			
+									if v.uses_smart_stop and obstacle_in_path then
+
+										if self:Obstacle_Is_FinalTarget(v.final_pbh_target_name, intersecting_obj) then
+											check_run_pbh = true
+										end
+
+									else --not using smart stop, or using smart stop and obstacle not in the way
+										--run remove rotation just to be on the safe side
+										self:Remove_Rotation(v.shipname)
+
+										--start waypoints once
+										mn.runSEXP("( add-goal !"..v.shipname.."! ( ai-waypoints-once !"..v.waypoint_path_name.."! !"..v.priority.."! ))")
+										v.is_running_waypoints_once = true
+									end
+
+								else
+
+									check_run_pbh = true
+
+								end
+
+								if check_run_pbh then
+
+									--if the ship does not have resume the waypoint order then
+									--check if we are using the option to always match orientations
+									--if so, then run the rotate order if the previous orientation is substantially different and not actively rotating
+									--recall inital rotating to target pbh was already called when waypoint path was completed on :Pause_Ship_trk_Wpt()
+									if v.continuous_pbh_check and self.Active_Rotations[v.shipname] == nil then
+
+										--only using 'get final PBH' to check if current and final orientations are equal or not
+										--recall that 'get final PBH checks' for validity 
+										local fo = self:GetFinal_PBH(v.shipname, v.final_pbh, v.final_pbh_target_name) --final_pbh in {p=,b=,h=}
+										if not self:Orientations_are_Equal(ship.Orientation, fo, 0.02) then 
+
+											--orientations are not equal, so add rotation order
+											local rotate_time = -1 --for default rotate time
+											local rotate_delay = 1
+											self:Add_Rotation(v.shipname, v.final_pbh, rotate_delay, rotate_time, v.play_dead_PR, v.final_pbh_target_name)
+
+										end
+
+									end
+
 								end
 
 							end
-
 						end
 					end
+
 				end
+
 			end
+
 		end
 
 	end
 
-	mn.LuaSEXPs["add-ai-goal-track-waypoint"].Action = function(ship, waypointpath, priority, track_interval, track_distance)
+	mn.LuaSEXPs["add-ai-goal-track-waypoint"].Action = function(ship, waypointpath, priority, track_interval, track_distance, use_smart_stop)
 
 		--recall this doesn't take into account target ship, so nothing about the orientation, continuous_pbh_check, or play_dead_PR is set here. 
 		--this should only be used for waypoints not related to ships, if more is needed use the actual function
@@ -1193,7 +1415,7 @@ $On Game Init: [
 			--function takes a waypoint_path_name as string but this sexp takes the entire waypoint_path object
 			local waypointpath_name = waypointpath.Name
 
-			Movements:Add_Ship_trk_Wpt(ship.Name, waypointpath_name, priority, track_interval, track_distance) --recall target is not used in this sexp, so it won't be used
+			Movements:Add_Ship_trk_Wpt(ship.Name, waypointpath_name, priority, track_interval, track_distance, nil, nil, nil, nil, use_smart_stop) --recall target is not used in this sexp, so it won't be used
 		end
 
 	end
@@ -1286,9 +1508,9 @@ $On Game Init: [
 	end
 
 
-	function Movements:GetRadius(shipname, donotround) --gets radius of ship
+	function Movements:GetRadius(shipname, donotround, forced_minimum) --gets radius of ship
 
-		local final = 100
+		local final = forced_minimum or 0
 
 		if shipname ~= nil then
 			local ship = mn.Ships[shipname]
@@ -1313,7 +1535,7 @@ $On Game Init: [
 
 	end
 
-	function Movements:Add_Ship_trk_Ship(ship_to_order_name, ship_to_track_name, waypointpath_name, waypoint_i, priority, offset, pbh, userelative, continuous_pbh_check, play_dead_PR) --pbh should be in radians
+	function Movements:Add_Ship_trk_Ship(ship_to_order_name, ship_to_track_name, waypointpath_name, waypoint_i, priority, offset, pbh, userelative, continuous_pbh_check, play_dead_PR, use_smart_stop) --pbh should be in radians
 		--higher level function that runs all the above functions
 		--recall this has access to some other arguments that the individual lower level sexps do not such as userelative, continuous_pbh_check, and play_dead_PR
 
@@ -1331,10 +1553,11 @@ $On Game Init: [
 		local track_distance = -1	---1 for radius default of ship radius
 
 		local offset_xyz
-		local default_offset = ( self:GetRadius(ship_to_order_name) + self:GetRadius(ship_to_track_name) ) * 1.5
+
 		if type(offset) == "table" and type(offset[1]) == "number" and type(offset[2]) == "number" and type(offset[3]) == "number" then
 			offset_xyz = offset
 		else
+			local default_offset = ( self:GetRadius(ship_to_order_name, true, 100) + self:GetRadius(ship_to_track_name, true, 100) ) * 1.5
 			offset_xyz = {default_offset, default_offset, default_offset}
 		end
 
@@ -1351,7 +1574,7 @@ $On Game Init: [
 		--run ship track waypoint, include setting 
 		local track_distance_ship = -1 --so it uses default ship radius
 		--other defaults and validity checks are performed in function below
-		self:Add_Ship_trk_Wpt(ship_to_order_name, waypointpath_name, priority, track_interval, track_distance_ship, idle_pbh, ship_to_track_name, continuous_pbh_check, play_dead_PR)
+		self:Add_Ship_trk_Wpt(ship_to_order_name, waypointpath_name, priority, track_interval, track_distance_ship, idle_pbh, ship_to_track_name, continuous_pbh_check, play_dead_PR, use_smart_stop)
 
 	end
 
@@ -1359,7 +1582,6 @@ $On Game Init: [
 
 		--validity checks
 		if type(shipname_to_remove_order) ~= "string" then return end
-		--if type(ship_to_track_name) ~= "string" then return end
 		if type(waypointpath_name) ~= "string" then return end
 		if type(waypoint_i) ~= "number" then
 			waypoint_i = 1
@@ -1372,15 +1594,15 @@ $On Game Init: [
 
 	end
 
-	mn.LuaSEXPs["add-ai-goal-track-ship"].Action = function(ship_to_order, ship_to_track, waypointpath, priority, off_x, off_y, off_z, pbh_p, pbh_b, pbh_h, userelative, continuous_pbh_check, play_dead_PR)
-		
+	mn.LuaSEXPs["add-ai-goal-track-ship"].Action = function(ship_to_order, ship_to_track, waypointpath, priority, off_x, off_y, off_z, pbh_p, pbh_b, pbh_h, userelative, continuous_pbh_check, play_dead_PR, use_smart_stop)
+
 		if ship_to_order == nil or ship_to_track == nil or waypointpath == nil then return end
 		if not ship_to_order:isValid() or not ship_to_track:isValid() or not waypointpath:isValid() then return end
-		
+
 		local ship_to_order_name = ship_to_order.Name
 		local ship_to_track_name = ship_to_track.Name
 		local waypointpath_name = waypointpath.Name
-		
+
 		if type(pbh_p) ~= "number" then
 			pbh_p = 0
 		end
@@ -1390,20 +1612,20 @@ $On Game Init: [
 		if type(pbh_h) ~= "number" then
 			pbh_h = 0
 		end
-		
+
 		pbh_p = math.rad(pbh_p)
 		pbh_b = math.rad(pbh_b)
 		pbh_h = math.rad(pbh_h)
-		
+
 		local waypoint_i = 1
 
 		local offset = {off_x, off_y, off_z}
 		local pbh = {p=pbh_p, b=pbh_b, h=pbh_h}
-		
-		Movements:Add_Ship_trk_Ship(ship_to_order_name, ship_to_track_name, waypointpath_name, waypoint_i, priority, offset, pbh, userelative, continuous_pbh_check, play_dead_PR)
-		
+
+		Movements:Add_Ship_trk_Ship(ship_to_order_name, ship_to_track_name, waypointpath_name, waypoint_i, priority, offset, pbh, userelative, continuous_pbh_check, play_dead_PR, use_smart_stop)
+
 	end
-	
+
 	mn.LuaSEXPs["remove-ai-goal-track-ship"].Action = function(ship_to_remove_order, waypointpath, waypoint_i)
 	
 		if ship_to_remove_order == nil or waypointpath == nil then return end

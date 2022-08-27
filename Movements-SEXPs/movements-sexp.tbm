@@ -123,7 +123,7 @@ $Operator: add-ai-goal-track-waypoint
 $Category: Change
 $Subcategory: LUA-Movements
 $Minimum Arguments: 3
-$Maximum Arguments: 5
+$Maximum Arguments: 6
 $Return Type: Nothing
 $Description: Adds a custom ai-goal for a ship to track a waypoint path. The ship will move to the final point in the waypoint path and remain in that position. If the waypoint path is moved the ship will follow the waypoint path again. Useful for having ships follow dynamic waypoints. Note, this order can only be removed via the sexps 'remove-ai-goal-track-waypoint' or 'clear-goals'. For best results do not add additional waypoints to the waypoint path once the mission has started. Also, running this sexp on a ship that is actively already using this sexp will overwrite the first usage, even if the waypoints are different. Finally, this sexp will not work in multiplayer.
 $Parameter: 
@@ -141,7 +141,10 @@ $Parameter:
 $Parameter: 
 	+Description: Track distance in meters. How far the final waypoint in the waypoint path must move before the ship will follow the waypoint path again. Default is the diameter of ship. Any value <= 0 will also use the default radius of the ship value.  
 	+Type: Number
-	
+$Parameter: 
+	+Description: Whether or not the ship should stop moving if it is about to hit something large (radius greater than 25 meters). If set to true the ship will pause the current waypoint order and not resume again until the path is clear. Frequency of check is the same as the 'Track interval' time. Only obstacles within a distance of the ship radius * 2 will trigger a stop. Default value is false (no stopping for obstacles). 
+	+Type: Boolean
+
 $Operator: remove-ai-goal-track-waypoint
 $Category: Change
 $Subcategory: LUA-Movements
@@ -197,7 +200,7 @@ $Operator: add-ai-goal-track-ship
 $Category: Change
 $Subcategory: LUA-Movements
 $Minimum Arguments: 3
-$Maximum Arguments: 13
+$Maximum Arguments: 14
 $Return Type: Nothing
 $Description: Adds a custom ai-goal for a ship to track another ship. The ordered ship will move to follow the target ship and then once stopped will rotate to the target ship orientation, or a variant to that orientation. This is a higher level sexp that runs 'add-waypoint-track-ship' with 'add-ai-goal-track-waypoint' and 'set-idle-track-orientation'. This sexp uses a time interval of 1 second for updating positional data and a track distance of the radius of the ship following the track order. Note, use a waypoint path with only 1 waypoint. The order 'clear-goals' will also stop this custom order. Also the ship will continually maintain the specified orientation when at rest. Also, this sexp will not work in multiplayer.
 $Parameter: 
@@ -213,13 +216,13 @@ $Parameter:
 	+Description: Priority of order. Default is 100.
 	+Type: Number
 $Parameter: 
-	+Description: X offset in meters from the center of the target ship that the ordered ship will move to. Default value is 1.5 x the combined radi of the ship to order and the ship to track.
+	+Description: X offset in meters from the center of the target ship that the ordered ship will move to. Default value is 1.5 x the combined radii of the ship to order and the ship to track.
 	+Type: Number
 $Parameter: 
-	+Description: Y offset in meters from the center of the target ship that the ordered ship will move to. Default value is 1.5 x the combined radi of the ship to order and the ship to track.
+	+Description: Y offset in meters from the center of the target ship that the ordered ship will move to. Default value is 1.5 x the combined radii of the ship to order and the ship to track.
 	+Type: Number
 $Parameter: 
-	+Description: Z offset in meters from the center of the target ship that the ordered ship will move to. Default value is 1.5 x the combined radi of the ship to order and the ship to track.
+	+Description: Z offset in meters from the center of the target ship that the ordered ship will move to. Default value is 1.5 x the combined radii of the ship to order and the ship to track.
 	+Type: Number
 $Parameter: 
 	+Description: Pitch of idle orientation in degrees relative to target ship orientation. Default is 0 (same pitch as target). Any value is valid and will be converted to range within 0-359.
@@ -239,6 +242,9 @@ $Parameter:
 $Parameter: 
 	+Description: Priority for the automatic play-dead-persistent order issued when rotating to an idle orientation. If not set or set to a negative value then no play-dead-order-persistent order is issued. If set, the play-dead-persistent order will be removed automatically when the rotation matching is over. 
 	+Type: Number
+$Parameter: 
+	+Description: Whether or not the ship should stop moving if it is about to hit something large (radius greater than 25 meters). If set to true the ship will pause the current waypoint order and not resume again until the path is clear. Frequency of check is every 1.5 seconds. Only obstacles within a distance of the ship radius * 2 will trigger a stop. Default value is false (no stopping for obstacles). 
+	+Type: Boolean
 
 $Operator: remove-ai-goal-track-ship
 $Category: Change
