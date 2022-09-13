@@ -36,7 +36,7 @@ $Subcategory: LUA-Movements
 $Minimum Arguments: 4
 $Maximum Arguments: 7
 $Return Type: Nothing
-$Description: Moves a ship to a given orientation over a specified time duration. This sexp only has to be called once and can be used to make a much more natural looking rotational effect for ships. This sexp also includes the option to issue a play-dead-persistent order with a specified priority, which will be removed when the rotation is over. Note, running this sexp on a ship that actively is already actively using the sexp will overwrite the first usage. The order 'clear-goals' will also stop this rotation. Also, this sexp will not work in multiplayer.
+$Description: Moves a ship to a given orientation over a specified time duration. This sexp only has to be called once and can be used to make a much more natural looking rotational effect for ships. This sexp also includes the option to issue a play-dead-persistent order with a specified priority, which will be removed when the rotation is over. Note, running this sexp on a ship that actively is already actively using the sexp of of the 'move-to-face-object' sexp will overwrite the first usage. The order 'clear-goals' will also stop this rotation. Also, this sexp will not work in multiplayer.
 $Parameter: 
 	+Description: Ship to rotate.
 	+Type: Ship
@@ -59,13 +59,37 @@ $Parameter:
 	+Description: Priority for the automatic play-dead-persistent order. If not set or set to a negative value then no play-dead-order-persistent order is issued. If set, the play-dead-persistent order will be removed automatically when the rotation is over. 
 	+Type: Number
 
+
+$Operator: move-to-face-object
+$Category: Change
+$Subcategory: LUA-Movements
+$Minimum Arguments: 2
+$Maximum Arguments: 5
+$Return Type: Nothing
+$Description: Moves a ship to a face another ship or waypoint over a specified time duration. This sexp only has to be called once and can be used to make a much more natural looking rotational effect for ships. This sexp also includes the option to issue a play-dead-persistent order with a specified priority, which will be removed when the rotation is over. Note, running this sexp on a ship that actively is already actively using the sexp or the 'move-to-orientation' sexp will overwrite the first usage. The order 'clear-goals' will also stop this rotation. Also, this sexp will not work in multiplayer.
+$Parameter: 
+	+Description: Ship to rotate.
+	+Type: Ship
+$Parameter: 
+	+Description: Ship or waypoint to face.
+	+Type: Ship+Waypoint
+$Parameter:
+	+Description: Time delay in seconds to start effect. Default is 0 (effect starts immediately). Any value <= 0 will evaluate to 0.
+	+Type: Number
+$Parameter: 
+	+Description: Time in seconds of rotation effect. The default duration is calculated as the time needed to move to the final orientation using the max rotational velocity of the ship. Any value < 0 will also use the default duration calculation. 
+	+Type: Number
+$Parameter: 
+	+Description: Priority for the automatic play-dead-persistent order. If not set or set to a negative value then no play-dead-order-persistent order is issued. If set, the play-dead-persistent order will be removed automatically when the rotation is over. 
+	+Type: Number
+
 $Operator: early-stop-move-to-orientation
 $Category: Change
 $Subcategory: LUA-Movements
 $Minimum Arguments: 1
 $Maximum Arguments: 1
 $Return Type: Nothing
-$Description: Immediately terminates the custom `move-to-orientation` sexp for a ship. Only use this sexp to prematurely stop `Move-To-Orientation` for a ship. Note, this sexp will not work in multiplayer. 
+$Description: Immediately terminates the custom `move-to-orientation` and 'move-to-face-object' sexps for a ship. Only use this sexp to prematurely stop these rotations for a ship. Note, this sexp will not work in multiplayer. 
 $Parameter: 
 	+Description: Ship to terminate the rotate of.
 	+Type: Ship
@@ -76,10 +100,10 @@ $Subcategory: LUA-Movements
 $Minimum Arguments: 2
 $Maximum Arguments: 9
 $Return Type: Nothing
-$Description: Sets a waypoint to a position relative to a ship continually. This sexp is an easier way to make a dynamic waypoint track a ship location. The waypoint will be moved to the specified coordinates relative to the ship at every time duration. To use absolute coordinate offsets instead set the last argument to false. If the ship is not present or destroyed, or departed then the waypoint will not update location. Note, this sexp will not work in multiplayer. 
+$Description: Sets a waypoint to a position relative to a ship or waypoint continually. This sexp is an easier way to make a dynamic waypoint track a ship location. The waypoint will be moved to the specified coordinates relative to the ship at every time duration. To use absolute coordinate offsets instead set the last argument to false. If the ship is not present or destroyed, or departed then the waypoint will not update location. Note, this sexp will not work in multiplayer. 
 $Parameter: 
-	+Description: Ship to have the waypoint track. The following positions will be relative to this ship position. 
-	+Type: Ship
+	+Description: Ship or waypoint to have the following waypoint track. If tracking a ship, the following positions will be relative to the ship position and orientation. If tracking a waypoint, the following positions will be only relative the waypoint position.   
+	+Type: Ship+Waypoint
 $Parameter: 
 	+Description: Waypoint path containing the waypoint to update position.
 	+Type: Waypointpath 
@@ -102,7 +126,7 @@ $Parameter:
 	+Description: Track distance in meters. How far the waypoint must be from the previous location before the waypoint will update location. Default is 0.
 	+Type: Number
 $Parameter: 
-	+Description: Whether or not to use relative offsets. Default is true, which means all offsets will be relative to the target ship's orientation. To force the use of absolute offsets and not take account the ship's orientation, set to false. 
+	+Description: Whether or not to use relative offsets. Default is true, which means all offsets will be relative to the target ship's orientation. To force the use of absolute offsets and not take account the ship's orientation, set to false. Only valid if target is a ship, not a waypoint. 
 	+Type: Boolean
 
 $Operator: remove-waypoint-track-ship
@@ -111,7 +135,7 @@ $Subcategory: LUA-Movements
 $Minimum Arguments: 1
 $Maximum Arguments: 2
 $Return Type: Nothing
-$Description: Removes a waypoint tracking of a ship. This sexp removes the effect of 'add-Waypoint-Track-Ship'. Note, this sexp will not work in multiplayer.
+$Description: Removes a waypoint tracking of a ship or another waypoint. This sexp removes the effect of 'add-Waypoint-Track-Ship'. Note, this sexp will not work in multiplayer.
 $Parameter: 
 	+Description: Waypoint path containing the waypoint to remove tracking.
 	+Type: Waypointpath  
