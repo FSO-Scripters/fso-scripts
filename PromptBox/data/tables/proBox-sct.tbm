@@ -33,7 +33,7 @@ function PromptBox:Init(mode)
 	AXUI:SetFocus(0)
 	
 	self.PlayerMouse = io.MouseControlStatus
-	self.Actions = {"afterburners-locked", "primaries-locked", "secondaries-locked"}
+	self.Actions = {"afterburners-locked", "primaries-locked", "secondaries-locked", "no-secondary-lock-on"}
 	if not self.Flags then
 		self.Flags = {}
 	end
@@ -578,6 +578,7 @@ $On HUD Draw:
 	end		
 ]
 
+$State: GS_STATE_GAME_PLAY
 $On Mouse Released:
 [
 	if PromptBox.Enabled then
@@ -585,6 +586,7 @@ $On Mouse Released:
 	end
 ]
 
+$State: GS_STATE_GAME_PLAY
 $On Key Released:
 [
 	if hv.Key == "Alt-C" then
