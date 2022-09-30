@@ -372,6 +372,8 @@ function AXMessage:DrawMessageBox()
 	
 	--if string.match(self.Message.Message, "%w") then senderWidth = gr.getStringWidth(self.Sender) end
 	
+		local savedFont = gr.CurrentFont
+
 		if gr.getStringWidth(self.Sender) > 1 and self.Sender ~= "::" then
 			gr.setColor(self.Color.Title[1], self.Color.Title[2], self.Color.Title[3], self.Color.Title[4])
 			gr.CurrentFont = self.Fonts.Title
@@ -383,6 +385,8 @@ function AXMessage:DrawMessageBox()
 			gr.CurrentFont = self.Fonts.Text
 			gr.drawString(self.DisplayString, self.Position.x + self.Offsets.Text.x, self.Position.y + self.Offsets.Text.y + gr.CurrentFont.Height, self.Position.x + self.Image.w - 20, self.Position.y + self.Image.h - 5 + gr.CurrentFont.Height)
 		end
+
+		gr.CurrentFont = savedFont
 		
 	end
 
@@ -390,6 +394,7 @@ end
 
 function AXMessage:DrawBacklog()
 
+	local savedFont = gr.CurrentFont
 	gr.CurrentFont = self.Fonts.Backlog
 	
 	local backlogSize = #self.Backlog.Entry
@@ -441,6 +446,7 @@ function AXMessage:DrawBacklog()
 		end
 		
 	gr.resetClip()
+	gr.CurrentFont = savedFont
 	
 	--gr.setColor(255,255,255,255)
 	--gr.drawString("BACKLOG SIZE: " .. backlogSize, 150,350)
