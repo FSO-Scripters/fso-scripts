@@ -358,10 +358,11 @@ function GetAllPositions()
 
 	for thisShip in mn.getShipList() do
 	
-		t[i] = {}
-		t[i].Ship = thisShip.Name
-		t[i].Position = "X:" .. thisShip.Position.x .. ", Y:" .. thisShip.Position.y .. ", Z:" .. thisShip.Position.z
-		t[i].Orientation = "P:" .. thisShip.Orientation.p .. ", B:" .. thisShip.Orientation.b .. ", H:" .. thisShip.Orientation.h
+		local info = {}
+		info.Ship = thisShip.Name
+		info.Position = "X:" .. thisShip.Position.x .. ", Y:" .. thisShip.Position.y .. ", Z:" .. thisShip.Position.z
+		info.Orientation = "P:" .. thisShip.Orientation.p .. ", B:" .. thisShip.Orientation.b .. ", H:" .. thisShip.Orientation.h
+		t[#t + 1] = info
 	
 	end
 	
