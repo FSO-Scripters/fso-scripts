@@ -2,7 +2,7 @@
 
 $Operator: lua-mark-ship
 $Category: Change
-$Subcategory: Scripted
+$Subcategory: Markbox
 $Minimum Arguments: 2
 ; No maximum arguments means that it accepts a variable number of arguments
 $Return Type: Nothing
@@ -17,7 +17,7 @@ $Parameter:
 
 $Operator: lua-mark-wing
 $Category: Change
-$Subcategory: Scripted
+$Subcategory: Markbox
 $Minimum Arguments: 2
 ; No maximum arguments means that it accepts a variable number of arguments
 $Return Type: Nothing
@@ -30,9 +30,23 @@ $Parameter:
 	+Description: Wing to highlight
 	+Type: string
 
+$Operator: lua-mark-set-flags
+$Category: Change
+$Subcategory: Markbox
+$Minimum Arguments: 2
+$Maximum Arguments: 2
+$Return Type: Nothing
+$Description: Sets global configuration options for marking things
+$Parameter:
+	+Description: Whether to draw diagonal lines on subsystems
+	+Type: boolean
+$Parameter:
+	+Description: Whether to draw subsystem health
+	+Type: boolean
+
 $Operator: lua-mark-subsystem
 $Category: Change
-$Subcategory: Scripted
+$Subcategory: Markbox
 $Minimum Arguments: 3
 ; No maximum arguments means that it accepts a variable number of arguments
 $Return Type: Nothing
@@ -50,7 +64,7 @@ $Parameter:
 	
 $Operator: lua-mark-weapon
 $Category: Change
-$Subcategory: Scripted
+$Subcategory: Markbox
 $Minimum Arguments: 1
 $Maximum Arguments: 2
 $Return Type: Nothing
@@ -64,7 +78,7 @@ $Parameter:
 	
 $Operator: lua-count-weapon
 $Category: Status
-$Subcategory: Mission
+$Subcategory: Markbox Status
 $Minimum Arguments: 1
 $Maximum Arguments: 1
 $Return Type: Number
@@ -75,7 +89,7 @@ $Parameter:
 	
 $Operator: lua-get-weapon-distance
 $Category: Status
-$Subcategory: Mission
+$Subcategory: Markbox Status
 $Minimum Arguments: 1
 $Maximum Arguments: 1
 $Return Type: Number
@@ -86,7 +100,7 @@ $Parameter:
 
 $Operator: lua-mark-clear-all
 $Category: Change
-$Subcategory: Scripted
+$Subcategory: Markbox
 $Minimum Arguments: 0
 $Maximum Arguments: 0
 $Return Type: Nothing
@@ -94,7 +108,7 @@ $Description: Clears *everything* from the mark box list (subsystems, ships, win
 
 $Operator: lua-mark-clear-ship
 $Category: Change
-$Subcategory: Scripted
+$Subcategory: Markbox
 $Minimum Arguments: 1
 ; No maximum arguments means that it accepts a variable number of arguments
 $Return Type: Nothing
@@ -106,7 +120,7 @@ $Parameter:
 	
 $Operator: lua-mark-clear-wing
 $Category: Change
-$Subcategory: Scripted
+$Subcategory: Markbox
 $Minimum Arguments: 1
 ; No maximum arguments means that it accepts a variable number of arguments
 $Return Type: Nothing
@@ -118,7 +132,7 @@ $Parameter:
 	
 $Operator: lua-mark-clear-subsys
 $Category: Change
-$Subcategory: Scripted
+$Subcategory: Markbox
 $Minimum Arguments: 2
 ; No maximum arguments means that it accepts a variable number of arguments
 $Return Type: Nothing
