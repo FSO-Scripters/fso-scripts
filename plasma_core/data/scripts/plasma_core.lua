@@ -1,9 +1,9 @@
-local function print(output, _3flabel)
+local function print(output, opt_label)
   local label
-  if (nil == _3flabel) then
+  if (nil == opt_label) then
     label = ""
   else
-    label = _3flabel
+    label = opt_label
   end
   local t = type(output)
   local has_label = (0 < #label)
@@ -52,8 +52,6 @@ local function print(output, _3flabel)
   end
 end
 local function safe_subtable(t, name)
-  _G.assert((nil ~= name), "Missing argument name on plasma_core.fnl:53")
-  _G.assert((nil ~= t), "Missing argument t on plasma_core.fnl:53")
   if (t[name] == nil) then
     t[name] = {}
   else
@@ -61,19 +59,16 @@ local function safe_subtable(t, name)
   return t[name]
 end
 local function safe_global_table(name)
-  _G.assert((nil ~= name), "Missing argument name on plasma_core.fnl:59")
   return safe_subtable(_G, name)
 end
-local function recursive_table_print(name, item, _3fd)
-  _G.assert((nil ~= item), "Missing argument item on plasma_core.fnl:63")
-  _G.assert((nil ~= name), "Missing argument name on plasma_core.fnl:63")
+local function recursive_table_print(name, item, opt_d)
   if ((name ~= "_TRAVERSED") and (name ~= "metadata")) then
     local t = type(item)
     local depth
-    if (_3fd == nil) then
+    if (opt_d == nil) then
       depth = 0
     else
-      depth = _3fd
+      depth = opt_d
     end
     ba.print("\n-")
     for i = 1, depth do
@@ -109,11 +104,7 @@ local function recursive_table_print(name, item, _3fd)
     return nil
   end
 end
-local function add_order(name, host, enter, frame, _3fstill_valid, _3fcan_target)
-  _G.assert((nil ~= frame), "Missing argument frame on plasma_core.fnl:94")
-  _G.assert((nil ~= enter), "Missing argument enter on plasma_core.fnl:94")
-  _G.assert((nil ~= host), "Missing argument host on plasma_core.fnl:94")
-  _G.assert((nil ~= name), "Missing argument name on plasma_core.fnl:94")
+local function add_order(name, host, enter, frame, opt_still_valid, opt_can_target)
   local order = _G.mn.LuaAISEXPs[name]
   order.ActionEnter = function(...)
     return enter(host, ...)
@@ -121,15 +112,15 @@ local function add_order(name, host, enter, frame, _3fstill_valid, _3fcan_target
   order.ActionFrame = function(...)
     return frame(host, ...)
   end
-  if (_3fstill_valid ~= nil) then
+  if (opt_still_valid ~= nil) then
     order.Achievability = function(...)
-      return _3fstill_valid(host, ...)
+      return opt_still_valid(host, ...)
     end
   else
   end
-  if (_3fcan_target ~= nil) then
+  if (opt_can_target ~= nil) then
     order.TargetRestrict = function(...)
-      return _3fcan_target(host, ...)
+      return opt_can_target(host, ...)
     end
     return order.TargetRestrict
   else
@@ -137,31 +128,26 @@ local function add_order(name, host, enter, frame, _3fstill_valid, _3fcan_target
   end
 end
 local function add_sexp(name, host, action)
-  _G.assert((nil ~= action), "Missing argument action on plasma_core.fnl:106")
-  _G.assert((nil ~= host), "Missing argument host on plasma_core.fnl:106")
-  _G.assert((nil ~= name), "Missing argument name on plasma_core.fnl:106")
   local sexp = _G.mn.LuaSEXPs[name]
   sexp.Action = function(...)
     return action(host, ...)
   end
   return 
 end
-local function get_module(self, file_name, _3freload, _3freset)
-  _G.assert((nil ~= file_name), "Missing argument file_name on plasma_core.fnl:112")
-  _G.assert((nil ~= self), "Missing argument self on plasma_core.fnl:112")
+local function get_module(self, file_name, opt_reload, opt_reset)
   local modules = self:safe_subtable("modules")
   local first_load = (nil == modules[file_name])
   local reload
-  if (_3freload == nil) then
+  if (opt_reload == nil) then
     reload = false
   else
-    reload = _3freload
+    reload = opt_reload
   end
   local reset
-  if (_3freset == nil) then
+  if (opt_reset == nil) then
     reset = false
   else
-    reset = _3freset
+    reset = opt_reset
   end
   self.print(file_name)
   self.print(_G.package[file_name])
@@ -191,7 +177,6 @@ local function get_module(self, file_name, _3freload, _3freset)
   return mod0
 end
 local function reload_modules(self)
-  _G.assert((nil ~= self), "Missing argument self on plasma_core.fnl:147")
   local modules = self:safe_subtable("modules")
   for file_name, module in pairs(modules) do
     if (type(module) == "table") then
@@ -203,7 +188,6 @@ local function reload_modules(self)
   return nil
 end
 local function reload(self)
-  _G.assert((nil ~= self), "Missing argument self on plasma_core.fnl:155")
   _G.package.loaded.plasma_core = nil
   do
     local new_self = require("plasma_core")
@@ -212,9 +196,6 @@ local function reload(self)
   return self:reload_modules()
 end
 local function is_value_in(self, value, list)
-  _G.assert((nil ~= list), "Missing argument list on plasma_core.fnl:162")
-  _G.assert((nil ~= value), "Missing argument value on plasma_core.fnl:162")
-  _G.assert((nil ~= self), "Missing argument self on plasma_core.fnl:162")
   local found = false
   if (0 ~= #list) then
     for _, v in pairs(list) do
@@ -228,21 +209,18 @@ local function is_value_in(self, value, list)
   end
   return found
 end
-local function merge_tables_recursive(self, source, target, _3freplace, _3fignore)
-  _G.assert((nil ~= target), "Missing argument target on plasma_core.fnl:171")
-  _G.assert((nil ~= source), "Missing argument source on plasma_core.fnl:171")
-  _G.assert((nil ~= self), "Missing argument self on plasma_core.fnl:171")
+local function merge_tables_recursive(self, source, target, opt_replace, opt_ignore)
   local ignore
-  if (_3fignore == nil) then
+  if (opt_ignore == nil) then
     ignore = {}
   else
-    ignore = _3fignore
+    ignore = opt_ignore
   end
   local replace
-  if (_3freplace == nil) then
+  if (opt_replace == nil) then
     replace = false
   else
-    replace = _3freplace
+    replace = opt_replace
   end
   for k, v in pairs(source) do
     if not self:is_value_in(k, ignore) then
@@ -260,8 +238,6 @@ local function merge_tables_recursive(self, source, target, _3freplace, _3fignor
   return nil
 end
 local function load_modular_configs(self, prefix)
-  _G.assert((nil ~= prefix), "Missing argument prefix on plasma_core.fnl:198")
-  _G.assert((nil ~= self), "Missing argument self on plasma_core.fnl:198")
   local fennel = require("fennel")
   local config = {}
   local files
@@ -321,4 +297,4 @@ end
 local core = {safe_subtable = safe_subtable, safe_global_table = safe_global_table, recursive_table_print = recursive_table_print, reload = reload, reload_modules = reload_modules, add_order = add_order, add_sexp = add_sexp, load_modular_configs = load_modular_configs, merge_tables_recursive = merge_tables_recursive, is_value_in = is_value_in, get_module = get_module, print = print}
 local corelib = core.safe_global_table("plasma_core")
 core:merge_tables_recursive(core, corelib, true, {"modules"})
-return corelib
+return corelib 
