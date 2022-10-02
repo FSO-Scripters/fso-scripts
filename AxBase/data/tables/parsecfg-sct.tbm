@@ -172,12 +172,26 @@ function axemParse:Write(t, filename, path)
 
 end
 
-function axemParse:Validate(reference, input, expectedtype, optional)
+function axemParse:Validate(reference, input, expectedtypes, optional)
+
+	if type(expectedtypes) == "string" then
+		expectedtypes = { expectedtypes }
+	end
 
 	if not input and optional then
 		return true
-	elseif type(input) ~= expectedtype then
-		ba.warning("Invalid entry for " .. reference .. ", expected a " .. expectedtype)
+	else
+		for i, v in ipairs(expectedtypes) do
+			if type(input) == v then
+				return true
+			end
+		end
+
+		local s = expectedtypes[1]
+		for i = 2, #expectedtypes do
+			s = s .. ", " .. expectedtypes[i]
+		end
+		ba.warning("Invalid entry for " .. reference .. ", expected one of [" .. s .. "]")
 	end
 
 end
