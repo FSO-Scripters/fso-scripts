@@ -12,12 +12,35 @@ function Scroll:Init()
 	self.InterfaceSound = 20
 	self.GameSound = ad.getSoundentry(10)
 
+	self.UseConfig = false
+	self.BaseWidth = nil
+	self.BaseHeight = nil
+	self.StandardWidth = nil
+	self.StandardHeight = nil
+	self.StandardFont = nil
+
 end
 
 function Scroll:Clear()
 
 	self.Enabled = false
 	self.Lines = {}
+
+end
+
+function Scroll:Configure(gauge_name, standard_width, standard_height)
+
+	local gauge = hu.getHUDGaugeHandle(gauge_name)
+	if not gauge then
+		ba.warning("ScrollWrite: HUD gauge '" .. tostring(gauge_name) .. "' not found!")
+		return
+	end
+
+	self.BaseWidth, self.BaseHeight = gauge:getBaseResolution()
+	self.StandardWidth = standard_width or 1024
+	self.StandardHeight = standard_height or 768
+	self.StandardFont = gauge:getFont()
+	self.UseConfig = true
 
 end
 
@@ -56,16 +79,32 @@ function Scroll:Write(text, x, y, speed, visibletime, fadeout, sound, font, cent
 		t.Text = text
 	end
 
+	if self.UseConfig then
+		t.X = x or (self.StandardWidth / 2)
+		t.X = t.X * self.BaseWidth / self.StandardWidth
+		t.Y = y or (self.StandardHeight / 2)
+		t.Y = t.Y * self.BaseHeight / self.StandardHeight
+	else
 	t.X = x or 50
 	t.X = gr.getScreenWidth() * (t.X/100)
 	t.Y = y or 50
 	t.Y = gr.getScreenHeight() * (t.Y/100)
+	end
+
 	t.Speed = speed or 0.03
 	t.SoundDuration = #t.Text * t.Speed
 	t.Timestamp = mn.getMissionTime()
 	t.Time = visibletime or 5
 	t.FadeOut = fadeout or 0
-	t.Font = font or 1
+
+	if font and font:lower() ~= "default" then
+		t.Font = gr.Fonts[font]
+	elseif self.UseConfig then
+		t.Font = self.StandardFont
+	else
+		t.Font = gr.Fonts[1]
+	end
+
 	if sound == false then
 		t.Sound = false
 	else
@@ -91,12 +130,17 @@ end
 function Scroll:Draw()
 
 	local mTime = mn.getMissionTime()
+	local savedFont
 
-	if #self.Lines > 0 then
 		local numLines = #self.Lines
+	if numLines > 0 then
+		if self.UseConfig then
+			gr.setScreenScale(self.BaseWidth, self.BaseHeight)
+		end
+
 		for i = 1, numLines do
-			if self.Lines[i] then
 				local line = self.Lines[i]
+			if line then
 				if mTime < (line.Timestamp + line.Time + line.FadeOut) then
 					if line.Sound then
 						if line.Loop then
@@ -106,20 +150,24 @@ function Scroll:Draw()
 						end
 						line.Sound = nil
 					end
+
 					local toDraw = (mTime - line.Timestamp) / line.Speed
 					if toDraw > 0 then
 						local displayString = line.Text:sub(1, toDraw)
 						local lastChar = line.Text:sub(-1)
 						local x, y = line.X, line.Y
 
-						gr.CurrentFont = gr.Fonts[line.Font]
+						if not savedFont then
+							savedFont = gr.CurrentFont
+						end
+						gr.CurrentFont = line.Font
 
 						if line.Handle and mTime > (line.Timestamp + line.SoundDuration) then
 							line.Handle:stop()
 							line.Handle = nil
 						end
 						if mTime > (line.Timestamp + line.Time) then
-							local t = mn.getMissionTime() - (line.Timestamp + line.Time)
+							local t = mTime - (line.Timestamp + line.Time)
 							line.Alpha = self:Ease(t,255,-255,line.FadeOut)
 						end
 
@@ -132,19 +180,31 @@ function Scroll:Draw()
 						gr.setColor(line.Color[1], line.Color[2], line.Color[3], line.Alpha)
 
 						if line.Center then
-							x = line.X - (gr.getStringWidth(line.Text)/2)
+							x = x - (gr.getStringWidth(line.Text)/2)
 						end
 
+						if self.UseConfig then
+							gr.drawStringResized(GR_RESIZE_FULL,displayString,x,y)
+						else
 						gr.drawString(displayString,x,y)
 					end
+				end
 				end
 			else
 				table.remove(self.Lines,i)
 				numLines = numLines - 1
 
-				if numLines == 0 then self.Enabled = false end
-
+				if numLines == 0 then
+					self.Enabled = false
+				end
 			end
+		end
+
+		if self.UseConfig then
+			gr.resetScreenScale()
+		end
+		if savedFont then
+			gr.CurrentFont = savedFont
 		end
 	end
 
@@ -173,6 +233,9 @@ function Scroll:SetGameSound(entry)
 	end
 end
 
+mn.LuaSEXPs["lua-scroll-write-configure"].Action = function(gauge_name, standard_width, standard_height)
+  Scroll:Configure(gauge_name, standard_width, standard_height)
+end
 mn.LuaSEXPs["lua-scroll-write"].Action = function(text, x, y, speed, visibletime, fadeout, sound, font, center, r, g, b, loop)
   Scroll:Write(text, x, y, speed/1000, visibletime/1000, fadeout/1000, sound, font, center, r, g, b, loop)
 end
@@ -191,12 +254,12 @@ end
 
 ]
 
-$State: GS_STATE_GAME_PLAY
-$On Gameplay Start: 
+$On Mission Start: 
 [
 	Scroll:Init()
 ]
 
+$State: GS_STATE_GAME_PLAY
 $On Frame:
 [
 	if Scroll.Enabled then

@@ -1,8 +1,25 @@
 #Lua SEXPs
 
+$Operator: lua-scroll-write-configure
+$Category: Change
+$Subcategory: ScrollWrite
+$Minimum Arguments: 1
+$Maximum Arguments: 3
+$Return Type: Nothing
+$Description: Sets font and screen information based on the specified HUD gauge.  If this is called, it will set a new default font to be used in lua-scroll-write and lua-scroll-write-file, and it will change the coordinates to be specified in pixels, not percentages.
+$Parameter:
+	+Description: HUD gauge
+	+Type: string
+$Parameter:
+	+Description: Width of the screen used to position the scroll text (optional$semicolon defaults to 1024)
+	+Type: number
+$Parameter:
+	+Description: Height of the screen used to position the scroll text (optional$semicolon defaults to 768)
+	+Type: number
+
 $Operator: lua-scroll-write
 $Category: Change
-$Subcategory: Scripted
+$Subcategory: ScrollWrite
 $Minimum Arguments: 1
 $Maximum Arguments: 13
 $Return Type: Nothing
@@ -11,10 +28,10 @@ $Parameter:
 	+Description: Text to write, or name of a message containing text
 	+Type: string
 $Parameter:
-	+Description: X coordinate to begin drawing at (based on percent of the screen width, 0-100). Default is 50
+	+Description: X coordinate to begin drawing at (based on percent of the screen width, 0-100, or pixels if lua-scroll-write-configure is called). Default is 50%
 	+Type: number
 $Parameter:
-	+Description: Y coordinate to begin drawing at (based on percent of the screen height, 0-100). Default is 50
+	+Description: Y coordinate to begin drawing at (based on percent of the screen height, 0-100, or pixels if lua-scroll-write-configure is called). Default is 50%
 	+Type: number
 $Parameter:
 	+Description: Text speed, the number of milliseconds between each character. Default is 30.
@@ -29,7 +46,7 @@ $Parameter:
 	+Description: Should the text drawing sound be played? Defaults to true.
 	+Type: boolean
 $Parameter:
-	+Description: Font to use for the text. Default is Font '1'.
+	+Description: Font to use for the text. Default (if unspecified or 'default') is Font '1', or the HUD gauge font if lua-scroll-write-configure is called.
 	+Type: string
 $Parameter:
 	+Description: Should text be centered? Defaults to true.
@@ -49,7 +66,7 @@ $Parameter:
 
 $Operator: lua-scroll-write-file
 $Category: Change
-$Subcategory: Scripted
+$Subcategory: ScrollWrite
 $Minimum Arguments: 1
 $Maximum Arguments: 13
 $Return Type: Nothing
@@ -58,10 +75,10 @@ $Parameter:
 	+Description: File to write (must be present in the ficion directory!)
 	+Type: string
 $Parameter:
-	+Description: X coordinate to begin drawing at (based on percent of the screen width, 0-100). Default is 50
+	+Description: X coordinate to begin drawing at (based on percent of the screen width, 0-100, or pixels if lua-scroll-write-configure is called). Default is 50%
 	+Type: number
 $Parameter:
-	+Description: Y coordinate to begin drawing at (based on percent of the screen height, 0-100). Default is 50
+	+Description: Y coordinate to begin drawing at (based on percent of the screen height, 0-100, or pixels if lua-scroll-write-configure is called). Default is 50%
 	+Type: number
 $Parameter:
 	+Description: Text speed, the number of milliseconds between each character. Default is 30.
@@ -76,7 +93,7 @@ $Parameter:
 	+Description: Should the text drawing sound be played? Defaults to true.
 	+Type: boolean
 $Parameter:
-	+Description: Font to use for the text. Default is Font '1'.
+	+Description: Font to use for the text. Default (if unspecified or 'default') is Font '1', or the HUD gauge font if lua-scroll-write-configure is called.
 	+Type: string
 $Parameter:
 	+Description: Should text be centered? Defaults to true.
@@ -96,7 +113,7 @@ $Parameter:
 
 $Operator: lua-scroll-write-clear
 $Category: Change
-$Subcategory: Scripted
+$Subcategory: ScrollWrite
 $Minimum Arguments: 0
 $Maximum Arguments: 0
 $Return Type: Nothing
@@ -104,7 +121,7 @@ $Description: Clears all lines!
 
 $Operator: lua-scroll-write-set-iface-snd
 $Category: Change
-$Subcategory: Scripted
+$Subcategory: ScrollWrite
 $Minimum Arguments: 1
 $Maximum Arguments: 1
 $Return Type: Nothing
@@ -115,7 +132,7 @@ $Parameter:
 
 $Operator: lua-scroll-write-set-game-snd
 $Category: Change
-$Subcategory: Scripted
+$Subcategory: ScrollWrite
 $Minimum Arguments: 1
 $Maximum Arguments: 1
 $Return Type: Nothing
