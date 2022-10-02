@@ -1,0 +1,119 @@
+#Lua SEXPs
+
+$Operator: lua-save-init
+$Category: Change
+$Subcategory: Save/Load
+$Minimum Arguments: 0
+$Maximum Arguments: 1
+$Return Type: Nothing
+$Description: Initializes a file for saving ships and variables.  This must be called at the beginning of a save operation.
+$Parameter:
+	+Description: Save file name (optional$semicolon defaults to the mission name)
+	+Type: string
+
+$Operator: lua-save-ship
+$Category: Change
+$Subcategory: Save/Load
+$Minimum Arguments: 1
+$Return Type: Nothing
+$Description: Saves one or more ships
+$Repeat
+$Parameter:
+	+Description: A ship
+	+Type: shipname
+
+$Operator: lua-save-variable
+$Category: Change
+$Subcategory: Save/Load
+$Minimum Arguments: 1
+$Return Type: Nothing
+$Description: Saves one or more variables
+$Repeat
+$Parameter:
+	+Description: Variable to save
+	+Type: variable
+
+$Operator: lua-save-done
+$Category: Change
+$Subcategory: Save/Load
+$Minimum Arguments: 0
+$Maximum Arguments: 0
+$Return Type: Nothing
+$Description: Finishes the save process and writes the file.  This must be called at the end of a save operation.
+
+$Operator: lua-load-init
+$Category: Change
+$Subcategory: Save/Load
+$Minimum Arguments: 0
+$Maximum Arguments: 1
+$Return Type: Nothing
+$Description: Opens a file for loading ships and variables.  This must be called at the beginning of a load operation.
+$Parameter:
+	+Description: Save file name (optional$semicolon defaults to the mission name)
+	+Type: string
+
+$Operator: lua-load-ship
+$Category: Change
+$Subcategory: Save/Load
+$Minimum Arguments: 2
+$Return Type: Nothing
+$Description: Loads one or more ships
+$Parameter:
+	+Description: Load type.  1 = hitpoints and weapon loadout$semicolon 2 = add weapon/afterburner/shield energy$semicolon 3 = add position and orientation.
+	+Type: number
+$Repeat
+$Parameter:
+	+Description: A ship
+	+Type: shipname
+
+$Operator: lua-load-variable
+$Category: Change
+$Subcategory: Save/Load
+$Minimum Arguments: 1
+$Return Type: Nothing
+$Description: Loads one or more variables
+$Repeat
+$Parameter:
+	+Description: Variable to load
+	+Type: variable
+
+$Operator: lua-copy-ship
+$Category: Change
+$Subcategory: Save/Load
+$Minimum Arguments: 3
+$Return Type: Nothing
+$Description: Copies data from one ship to another
+$Parameter:
+	+Description: Load type.  1 = hitpoints and weapon loadout$semicolon 2 = add weapon/afterburner/shield energy$semicolon 3 = add position and orientation.
+	+Type: number
+$Parameter:
+	+Description: Source ship
+	+Type: shipname
+$Repeat
+$Parameter:
+	+Description: Destination ship
+	+Type: shipname
+
+$Operator: lua-save-file-exists
+$Category: Status
+$Subcategory: Save/Load Status
+$Minimum Arguments: 0
+$Maximum Arguments: 1
+$Return Type: Boolean
+$Description: Checks whether the save file exists.
+$Parameter:
+	+Description: Save file name (optional$semicolon defaults to the mission name)
+	+Type: string
+
+$Operator: lua-delete-save-file
+$Category: Change
+$Subcategory: Save/Load
+$Minimum Arguments: 0
+$Maximum Arguments: 1
+$Return Type: Nothing
+$Description: Deletes a save file.
+$Parameter:
+	+Description: Save file name (optional$semicolon defaults to the mission name)
+	+Type: string
+
+#End

@@ -1,0 +1,716 @@
+; ship save/load script by Admiral MS, rewritten by Goober5000
+; script uses "," "&" ":" and "§" for data separation. weapon and subsystem data should not contain any of these or the script fails
+; see readme for instructions how to use this script
+
+#Conditional Hooks
+
+$Application: FS2_Open
+$On Game Init:
+[
+	ShipSave = {}
+
+	--definitions for savefile
+	ShipSave.path_shipsave = "data/scripts/"
+
+	-- ================================================== --
+	-- sexp functions (public API)
+	-- ================================================== --
+
+	function ShipSave:save_init(filename)
+		if filename then
+			self.active_filename = filename
+		end
+		self:clear()
+	end
+	mn.LuaSEXPs["lua-save-init"].Action = function(filename)
+		ShipSave:save_init(filename)
+	end
+
+	function ShipSave:save_ship(shipname)
+		if shipname then
+			self.shipsaveload_data.ships[shipname] = self:write_ship_string(shipname)
+		end
+	end
+	mn.LuaSEXPs["lua-save-ship"].Action = function(...)
+		for i,v in ipairs(arg) do
+			ShipSave:save_ship(v[1])
+		end
+	end
+
+	function ShipSave:save_variable(varname)
+		if varname then
+			self.shipsaveload_data.variables[varname] = self:write_variable_string(varname)
+		end
+	end
+	mn.LuaSEXPs["lua-save-variable"].Action = function(...)
+		for i,v in ipairs(arg) do
+			ShipSave:save_variable(v[1].Name)
+		end
+	end
+
+	function ShipSave:save_done()
+		self:saveshipfile()
+	end
+	mn.LuaSEXPs["lua-save-done"].Action = function()
+		ShipSave:save_done()
+	end
+
+	function ShipSave:load_init(filename)
+		if filename then
+			self.active_filename = filename
+		end
+		self:loadshipfile()
+	end
+	mn.LuaSEXPs["lua-load-init"].Action = function(filename)
+		ShipSave:load_init(filename)
+	end
+
+	function ShipSave:load_ship(shipname, loadtype)
+		if shipname then
+			self:read_ship_from_string(shipname, self.shipsaveload_data.ships[shipname], loadtype)
+		end
+	end
+	mn.LuaSEXPs["lua-load-ship"].Action = function(loadtype, ...)
+		for i,v in ipairs(arg) do
+			ShipSave:load_ship(v[1], loadtype)
+		end
+	end
+
+	function ShipSave:load_variable(varname)
+		if varname then
+			self:read_variable_from_string(varname, self.shipsaveload_data.variables[varname])
+		end
+	end
+	mn.LuaSEXPs["lua-load-variable"].Action = function(...)
+		for i,v in ipairs(arg) do
+			ShipSave:load_variable(v[1].Name)
+		end
+	end
+
+	function ShipSave:copy_ship(shipname1, shipname2, loadtype)
+		if shipname1 and shipname2 then
+			local str = self:write_ship_string(shipname1)
+			self:read_ship_from_string(shipname2, str, loadtype)
+
+			local ship = mn.Ships[shipname1]
+			if ship:isValid() then
+				local target = mn.Ships[shipname2]
+				if target:isValid() then
+					target.Physics = ship.Physics
+				end
+			end
+		end
+	end
+	mn.LuaSEXPs["lua-copy-ship"].Action = function(loadtype, shipname1, ...)
+		for i,v in ipairs(arg) do
+			ShipSave:copy_ship(shipname1, v[1], loadtype)
+		end
+	end
+
+	--checks if there is a savefile, is called in fred
+	function ShipSave:saveexist(filename)
+		if filename then
+			self.active_filename = filename
+		end
+		return cf.fileExists(self.active_filename,self.path_shipsave,true)
+	end
+	mn.LuaSEXPs["lua-save-file-exists"].Action = function(filename)
+		return ShipSave:saveexist(filename)
+	end
+
+	--deletes savefile, is called in fred
+	function ShipSave:deleteshipsavefile(filename)
+		if filename then
+			self.active_filename = filename
+		end
+		if (cf.fileExists(self.active_filename,self.path_shipsave,true)) then
+			cf.deleteFile(self.active_filename,self.path_shipsave)
+		end
+	end
+	mn.LuaSEXPs["lua-delete-save-file"].Action = function(filename)
+		ShipSave:deleteshipsavefile(filename)
+	end
+
+	-- ================================================== --
+	-- internal functions, not called by sexp
+	-- ================================================== --
+
+	function ShipSave:clear()
+		self.shipsaveload_data = {}
+		self.shipsaveload_data.ships = {}
+		self.shipsaveload_data.variables = {}
+	end
+
+	--stores data into the savefile
+	function ShipSave:saveshipfile()
+		local file = cf.openFile(self.active_filename,"w",self.path_shipsave)
+		if not file or not file:isValid() then
+			ba.print("SaveLoad: could not open file '" .. self.active_filename .. "' for writing!\n")
+			return
+		end
+		file:write("§")
+
+		-- write variables
+		local wrote_first = false
+		for k,v in pairs(self.shipsaveload_data.variables) do
+			if wrote_first then
+				file:write("&")
+			else
+				wrote_first = true
+			end
+			file:write(v)
+		end
+		file:write("\n")
+
+		-- write ship names
+		wrote_first = false
+		for k,v in pairs(self.shipsaveload_data.ships) do
+			if wrote_first then
+				file:write(",")
+			else
+				wrote_first = true
+			end
+			file:write(k)
+		end
+		file:write("\n")
+
+		-- write ship info
+		for k,v in pairs(self.shipsaveload_data.ships) do
+			file:write(v .. "\n")
+		end
+
+		file:close()
+	end
+
+	--loads savefile and splits the lists
+	function ShipSave:loadshipfile()
+		if not cf.fileExists(self.active_filename,self.path_shipsave,true) then
+			ba.print("SaveLoad: file " .. self.active_filename .. " does not exist!\n")
+			return
+		end
+		local file = cf.openFile(self.active_filename,"r",self.path_shipsave)
+		if not file or not file:isValid() then
+			ba.print("SaveLoad: could not open file '" .. self.active_filename .. "' for reading!\n")
+			return
+		end
+		self:clear()
+
+		-- get the variables
+		local varline = file:read("*l")
+		if string.find(varline, "§") == 1 then
+			local tempb = self:split(varline, "§")
+			local varstrings = self:split(tempb[2], "&")
+			for i=1,#varstrings do
+				local vardata = self:split(varstrings[i], ",")
+				if #vardata ~= 3 then
+					ba.print("SaveLoad: could not split " .. varstrings[i] .. " into three tokens\n")
+				else
+					self.shipsaveload_data.variables[vardata[1]] = varstrings[i]
+				end
+			end
+		else
+			ba.print("SaveLoad: could not read variables; improperly formatted file!\n")
+		end
+
+		-- get the ships
+		local shipline = file:read("*l")
+		if shipline and shipline ~= "" then
+			local ships = self:split(shipline, ",")
+			for i=1,#ships do
+				local shipline = file:read("*l")
+				if shipline and shipline ~= "" then
+					self.shipsaveload_data.ships[ships[i]] = shipline
+				else
+					ba.print("SaveLoad: could not read ships; improperly formatted file!\n")
+					break
+				end
+			end
+		end
+
+		file:close()
+	end
+
+	function ShipSave:write_variable_string(varname)
+		if not varname then
+			return nil
+		end
+		local var = mn.SEXPVariables[varname]
+		if not var or not var:isValid() then
+			return nil
+		end
+		local str
+		if var.Type == SEXPVAR_TYPE_NUMBER then
+			str = varname .. ",n," .. tostring(var.Value)
+		else
+			str = varname .. ",s," .. var.Value
+		end
+		return str
+	end
+
+	-- tries to set a variable
+	function ShipSave:read_variable_from_string(varname, str)
+		if not varname or not str then
+			return
+		end
+		local var = mn.SEXPVariables[varname]
+		if not var then
+			ba.print("SaveLoad: target variable '"..varname.."' not found\n")
+			return
+		end
+		local arr = self:split(str, ",")
+		if var.Type == SEXPVAR_TYPE_NUMBER then
+			if arr[2] ~= "n" then
+				ba.print("SaveLoad: variable type mismatch; source is string but target is numeric\n")
+				return
+			end
+			var.Value = tonumber(arr[3])
+		else
+			if arr[2] ~= "s" then
+				ba.print("SaveLoad: variable type mismatch; source is numeric but target is string\n")
+				return
+			end
+			var.Value = arr[3]
+		end
+	end
+
+	function ShipSave:write_ship_string(shipname)
+		if not shipname then
+			return nil
+		end
+		return self:shipdatacollect(shipname)
+	end
+
+	function ShipSave:read_ship_from_string(shipname, str, loadtype)
+		if not shipname or not str or not loadtype then
+			return
+		end
+		self:shipdataset(shipname, str, loadtype)
+	end
+
+	--splits strings
+	function ShipSave:split(str, sep, maxNb)
+		-- Eliminate bad cases...
+		if string.find(str, sep) == nil then
+			return { str }
+		end
+		if maxNb == nil or maxNb < 1 then
+			maxNb = 0    -- No limit
+		end
+		local result = {}
+		local pat = "(.-)" .. sep .. "()"
+		local nb = 0
+		local lastPos
+		for part, pos in string.gmatch(str, pat) do
+			nb = nb + 1
+			result[nb] = part
+			lastPos = pos
+			if nb == maxNb then break end
+		end
+		-- Handle the last field
+		if nb ~= maxNb then
+			result[nb + 1] = string.sub(str, lastPos)
+		end
+		return result
+	end
+
+	function ShipSave:booltonum(val)
+		if val then
+			return 1
+		else
+			return 0
+		end
+	end
+
+	function ShipSave:numtobool(val)
+		return val and (val ~= 0)
+	end
+
+	function ShipSave:shipdatacollect(shipname)		--shipdata collector function including string creation
+		local ship = mn.Ships[shipname]		--ship handle
+		local shipdata = {}
+
+		if (ship:isValid() and (ship:hasShipExploded() == 0)) then		--ship existent and not exploding	
+			local basicdata = {}
+			basicdata[1] = 1
+			basicdata[2] = ship.Class.Name		--ship class
+			basicdata[3] = ship.Team.Name			--team
+			basicdata[4] = ship.HitpointsMax		--user defined max hp
+			basicdata[5] = ship.HitpointsLeft		--hp left
+			if (ship.CountermeasureClass:isValid()) then
+				basicdata[6] = ship.CountermeasuresLeft
+			else
+				basicdata[6] = -1
+			end
+			if (ship.AfterburnerFuelMax > 0) then
+				basicdata[7] = ship.AfterburnerFuelLeft
+			else
+				basicdata[7] = -1
+			end
+			if (ship.WeaponEnergyMax > 0) then
+				basicdata[8] = ship.WeaponEnergyLeft
+			else
+				basicdata[8] = -1
+			end
+			local shields = ship.Shields
+			if (shields:isValid()) then		--shield data in case there is a shield, otherwise -1
+				basicdata[9] = shields.CombinedMax
+				basicdata[10] = shields[1]
+				basicdata[11] = shields[2]
+				basicdata[12] = shields[3]
+				basicdata[13] = shields[4]
+			else
+				basicdata[9] = -1
+				basicdata[10] = -1
+				basicdata[11] = -1
+				basicdata[12] = -1
+				basicdata[13] = -1
+			end
+			shipdata[1] = basicdata
+
+			local ns = #ship		--# subsystems
+			local arr_subsys = {}
+			if (ns > 0) then
+				arr_subsys[1] = ns
+				for i=1,ns do
+					arr_subsys[2*i] = ship[i].HitpointsLeft				--hp subsystem
+					arr_subsys[2*i+1] = self:weaponsdatacollect(ship[i],2)	--for turrets, only primaries und secondaries
+				end
+			else
+				arr_subsys[1] = -1		--no subsystems
+			end
+			shipdata[2] = arr_subsys
+
+			shipdata[3] = self:weaponsdatacollect(ship,1)		--normal weapons, primaries, secondaries, tertiaries
+
+			local coords = {}
+			for i=1,3 do
+				coords[i] = ship.Position[i]
+			end
+			for i=1,9 do
+				coords[i+3] = ship.Orientation[i]
+			end
+			for i=1,3 do
+				coords[i+12] = ship.Physics.Velocity[i]
+			end
+			for i=1,3 do
+				coords[i+15] = ship.Physics.RotationalVelocity[i]
+			end
+			shipdata[4] = coords
+		else
+			shipdata[1] = {}
+			if (mn.evaluateSEXP("(is-destroyed-delay !0! !"..shipname.."!)")) then
+				shipdata[1][1] = -2		--ship destroyed
+			elseif (mn.evaluateSEXP("(has-departed-delay !0! !"..shipname.."!)")) then
+				shipdata[1][1] = -1		--ship departed
+			else
+				shipdata[1][1] = -3		--ship handle invalid, ship-vanish used or something like it
+			end
+		end
+		return self:createshipstring(shipdata)
+	end
+
+	function ShipSave:shipdataset(shipname, shipstring, loadtype)
+		local ship = mn.Ships[shipname]		--ship handle
+		if not ship:isValid() then
+			-- nothing to do
+			return
+		end
+
+		local shipdata = self:shipstringsplitter(shipstring)		-- create shipdata array and fill it
+		local basicdata = shipdata[1]
+		local shipstatus = basicdata[1]
+
+		-- ship was ingame or wasn't arriving while saving
+		if shipstatus == 1 then
+			-- maybe change the ship class
+			local newclassname = basicdata[2]
+			if ship.Class.Name ~= newclassname then
+				mn.evaluateSEXP("(change-ship-class !"..newclassname.."! !"..shipname.."!)")
+			end
+
+			-- maybe change the ship team
+			local newteamname = basicdata[3]
+			if (ship.Team.Name ~= newteamname) then
+				mn.evaluateSEXP("(change-iff !"..newteamname.."! !"..shipname.."!)")
+			end
+
+			ship.HitpointsMax = basicdata[4]
+			ship.HitpointsLeft = basicdata[5]
+			if (basicdata[6] > -1) then
+				ship.CountermeasuresLeft = basicdata[6]
+			end
+
+			-- type = 2
+			-- loads additionally to type = 1: weapon energy, afterburner energy, shield energy
+			if loadtype > 1 then
+				if (ship.AfterburnerFuelMax > 0) then
+					ship.AfterburnerFuelLeft = basicdata[7]
+				end
+				if (ship.WeaponEnergyMax > 0) then
+					ship.WeaponEnergyLeft = basicdata[8]
+				end
+
+				local shields = ship.Shields
+				if (shields:isValid() and (basicdata[9] > 0)) then		--ship has shields and save contains shields
+					shields.CombinedMax = basicdata[9]
+					shields[1] = basicdata[10]
+					shields[2] = basicdata[11]
+					shields[3] = basicdata[12]
+					shields[4] = basicdata[13]
+				end
+			end
+
+			local arr_subsys = shipdata[2]
+			local n_subsystems = arr_subsys[1]
+			if (n_subsystems > 0) then		--ship has subsystems?
+				for i=1,n_subsystems do
+					if ship[i].HitpointsMax > 0 then
+						local hitpoints = arr_subsys[2*i]
+						if hitpoints > 0 then
+							ship[i].HitpointsLeft = hitpoints
+						else
+							mn.evaluateSEXP("(destroy-subsys-instantly !"..shipname.."! !"..ship[i]:getModelName().."!)")
+						end
+					end
+					self:weaponsinsert(arr_subsys[2*i+1], ship[i], 2)	--turrets loader, only primaries and secondaries
+				end
+			end
+
+			self:weaponsinsert(shipdata[3], ship, 1)		--ships weapons, primaries, secondaries and tertiaries
+
+			-- type = 3
+			-- loads additionally to type = 2: position and orientation
+			if loadtype > 2 then
+				local coords = shipdata[4]
+				ship.Position = ba.createVector(coords[1],coords[2],coords[3])
+				ship.Orientation = ba.createOrientation(coords[4],coords[5],coords[6],coords[7],coords[8],coords[9],coords[10],coords[11],coords[12])
+			end
+
+		-- recreate departed status
+		elseif shipstatus == -1 then
+			mn.evaluateSEXP("(set-departure-info !"..shipname.."! !Hyperspace! !<no anchor>! !0! !0! (false))")
+			ship:warpOut()
+
+		-- recreate destroyed status
+		elseif shipstatus == -2 then
+			mn.evaluateSEXP("(destroy-instantly !"..shipname.."!)")
+
+		-- recreate vanished status
+		else
+			mn.evaluateSEXP("(ship-vanish !"..shipname.."!)")
+
+		end
+	end
+
+	function ShipSave:weaponsdatacollect(object,which_wep)		--weapondata to array
+		local array = {}
+		local bank = object.PrimaryBanks		--handle primaries
+		array[1] = self:weaponbankdatacollect(bank)
+		bank = object.SecondaryBanks		--handle secondaries
+		array[2] = self:weaponbankdatacollect(bank)
+		if (which_wep == 1) then		-- 1=main weapons, 2=turrets
+			bank = object.TertiaryBanks
+			array[3] = self:weaponbankdatacollect(bank)
+		else
+			array[3] ={}
+			array[3][1] = -2
+		end
+		return array
+	end
+
+	function ShipSave:weaponbankdatacollect(bank)		--weaponbankdata to array
+		local array = {}
+		if (bank:isValid()) then
+			local n = #bank		--number of weapons in bank
+			if (n > 0) then
+				array[1] = n
+				array[2] = self:booltonum(bank.Linked)		--linked
+				array[3] = self:booltonum(bank.DualFire)		--dual fire
+				for j=1,n do
+					local wbank=bank[j] 	--weaponbank handle
+					local weapon = {}
+					weapon[1] = wbank.WeaponClass.Name		--weapon class name
+					weapon[2] = self:booltonum(wbank.Armed)		--weapon active
+					weapon[3] = wbank.AmmoMax
+					if (weapon[3] > 0) then
+						weapon[4] = wbank.AmmoLeft
+					else
+						weapon[4] = -1
+					end
+					array[3+j] = weapon
+				end
+			else
+				array[1]=-1		--no weapons in bank
+			end
+		else
+			array[1]=-2		--invalid bank, should not happen
+		end
+		return array
+	end
+
+	function ShipSave:weaponsinsert(array,object,which_wep)		--transfers weapondata from array to object
+		local bank
+		if (array[1][1] > 0) then
+			bank=object.PrimaryBanks		--handle primaries
+			self:weaponbankinsert(bank,array[1],1)
+		end
+		if (array[2][1] > 0) then
+			bank=object.SecondaryBanks		--handle secondaries
+			self:weaponbankinsert(bank,array[2],2)
+		end
+		if ((which_wep == 1) and (array[3][1] > 0)) then		--1=main weapons, 2=turrets
+			bank=object.TertiaryBanks
+			self:weaponbankinsert(bank,array[3],0)
+		end
+	end
+
+	function ShipSave:weaponbankinsert(bank,array,which_wep)		--array to weaponbankdata
+		if (bank:isValid()) then
+			bank.Linked = self:numtobool(array[2])		--linked
+			bank.DualFire = self:numtobool(array[3])		--dual fire
+			local n = array[1]
+			for j=1,n do
+				local wbank=bank[j] 	--weaponbank handle
+				local weapon = array[3+j]
+				if (wbank.WeaponClass.Name ~= weapon[1]) then		--prevent it from doing unnecessary stuff
+					wbank.WeaponClass = tb.WeaponClasses[weapon[1]]		--weapon class
+				end
+				local b_armed = self:numtobool(weapon[2])
+				if b_armed then
+					wbank.Armed = b_armed						--weapon active
+				end
+				-- NOTE: see the documentation on the AmmoMax virtvar in the FSO code.  Setting what you get is not idempotent.
+				wbank.AmmoMax = weapon[3] * wbank.WeaponClass.CargoSize
+				if (weapon[3] > 0) then
+					wbank.AmmoLeft = weapon[4]
+				end
+			end
+		end
+	end
+
+	function ShipSave:createshipstring(shipdata)		--shipstring creation for savefile
+		local savestring = (shipdata[1][1]..",")
+		local addstring
+		if (shipdata[1][1] == 1) then
+			savestring = (savestring..table.concat(shipdata[1],",",2,13)..",")		--basic data
+			savestring = (savestring..":")
+
+			local arr_subsys = shipdata[2]
+			local n_subsystems = arr_subsys[1]
+			savestring = (savestring..n_subsystems.."&")		--number of subsystems
+			if (n_subsystems > 0) then
+				for i=1,n_subsystems do		--subsystems and turret data
+					savestring = (savestring..arr_subsys[2*i].."§")
+					addstring = self:createweaponstring(arr_subsys[2*i+1])
+					savestring = (savestring..addstring.."&")
+				end
+			end
+
+			savestring = (savestring..":")
+			addstring = self:createweaponstring(shipdata[3])		--weapons
+			savestring = (savestring..addstring..":")
+			savestring = (savestring..table.concat(shipdata[4],",",1,18))		--position and orientation
+		else
+			savestring = (savestring..":::")
+		end
+		return savestring
+	end
+
+	function ShipSave:createweaponstring(array)		--weaponstring creation for savefile
+		local savestring = ""		--returns an empty string in any case
+		for j=1,3 do
+			local weaponbank = array[j]
+			local n = weaponbank[1]
+			if (n > 0) then
+				savestring = (savestring..n..","..weaponbank[2]..","..weaponbank[3]..",")		--number, linked, dualfire
+				for k=1,n do
+					local weapon = weaponbank[3+k]
+					savestring = (savestring..weapon[1]..","..weapon[2]..","..weapon[3]..",")		--weaponclass, ammomax, ammoleft
+					savestring = (savestring..weapon[4])
+					if (j ~= 3) then		--splitter wont like me without this
+						savestring = (savestring..",")
+					end
+				end
+			else
+				savestring = (savestring..n)
+				if (j ~= 3) then		--splitter wont like me without this
+					savestring = (savestring..",")
+				end
+			end
+		end
+		return savestring
+	end
+
+	function ShipSave:shipstringsplitter(shipstring)		--splits shipstring into shipdata array
+		local _tonumber = tonumber
+		local shipdata = {}
+
+		local temp = self:split(shipstring,":")
+		shipdata[1] = {}
+		shipdata[1] = self:split(temp[1],",")
+		shipdata[1][1] = _tonumber(shipdata[1][1])		--need something like (if string = a number then change string to number) in the split function
+		if (shipdata[1][1] == 1) then
+			for m=4,13 do
+				shipdata[1][m] = _tonumber(shipdata[1][m])
+			end
+
+			shipdata[2] = {}
+			local subtemp = self:split(temp[2],"&")
+			local n_subsystems = _tonumber(subtemp[1])
+			shipdata[2][1] = n_subsystems
+			if (n_subsystems > 0) then
+				for i=1,n_subsystems do
+					local subtempint = self:split(subtemp[i+1],"§")
+					shipdata[2][2*i] = _tonumber(subtempint[1])
+					shipdata[2][2*i+1] = self:weaponstringsplitter(subtempint[2])
+				end
+			end
+
+			shipdata[3] = self:weaponstringsplitter(temp[3])
+
+			shipdata[4] = self:split(temp[4],",")
+			for m=1,12 do
+				shipdata[4][m] = _tonumber(shipdata[4][m])
+			end
+		end
+		return shipdata
+	end
+
+	function ShipSave:weaponstringsplitter(subtempint)		--splits weapondata into array
+		local _tonumber = tonumber
+		local array = {}
+		local pos = 1
+
+		local temp = self:split(subtempint,",")
+		for j=1,3 do
+			local weaponbank = {}
+			local n = _tonumber(temp[pos])
+			weaponbank[1] = n								--number
+			if (n > 0) then
+				weaponbank[2] = _tonumber(temp[pos+1])		--linked
+				weaponbank[3] = _tonumber(temp[pos+2])		--dualfire
+				pos = pos + 3
+				for k=1,n do
+					local weapon = {}
+					weapon[1] = temp[pos]					--weapon class name
+					weapon[2] = _tonumber(temp[pos+1])		--weapon active
+					weapon[3] = _tonumber(temp[pos+2])		--max ammo
+					weapon[4] = _tonumber(temp[pos+3])		--ammo remaining
+					weaponbank[k+3] = weapon
+					pos = pos + 4
+				end
+			else
+				pos = pos + 1
+			end
+			array[j] = weaponbank
+		end
+		return array
+	end
+]
+
+$On Mission Start:
+[
+	ShipSave:save_init(mn.getMissionFilename())
+]
+
+#End
