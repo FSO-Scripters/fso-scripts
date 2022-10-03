@@ -11,14 +11,23 @@ function MarkBox:Init()
 	self.List = {}
 	self.WeaponList = {}
 
-	self.DefaultFont = gr.Fonts[1]
-	self.MarkFont = gr.Fonts[3]
+	local gauge = hu.getHUDGaugeHandle("Target Monitor")
+	self.FONT = gauge:getFont()
+	self.BASE_WIDTH, self.BASE_HEIGHT = gauge:getBaseResolution()
+	self.RESCALE_X = self.BASE_WIDTH / gr.getScreenWidth()
+	self.RESCALE_Y = self.BASE_HEIGHT / gr.getScreenHeight()
+
 	self.DrawSubsysDiagonals = true
 	self.DrawSubsysHealth = true
 
 	self.NextDistCheck = 0
 	self.DistCheckInterval = 1
 
+end
+
+-- Scale screen coordinates back to base coordinates so we can rescale them again
+function MarkBox:RescaleCoords(x, y)
+	return x * self.RESCALE_X, y * self.RESCALE_Y
 end
 
 function MarkBox:AddSubsys(ship, text, ...)
@@ -333,7 +342,6 @@ function MarkBox:DrawSubsystemBracket(subsys, data)
 	local player = hv.Player
 	
 	--gr.setColor(255,255,255,255)
-	--gr.CurrentFont = self.DefaultFont
 	--gr.drawString("Target Data:",100,100)
 	--gr.drawString("Ship: " .. player.Target.Name)
 	--gr.drawString("Actual: " .. player.TargetSubsystem:getModelName())
@@ -385,8 +393,6 @@ function MarkBox:DrawSubsystemBracket(subsys, data)
 			gr.drawLine(nx2-1, ny2-1, nx2-lineLength, ny2)
 			gr.drawLine(nx2-1, ny2-1, nx2, ny2-lineLength)
 	
-			gr.CurrentFont = self.MarkFont
-	
 			if focus and self.DrawSubsysDiagonals then
 				gr.drawLine(x1, y1, nx1, ny1)
 				gr.drawLine(x1, y2, nx1, ny2)
@@ -396,7 +402,13 @@ function MarkBox:DrawSubsystemBracket(subsys, data)
 			end
 			
 			if data.Text then
-				gr.drawString(data.Text,nx2+5,ny2-20)
+				local savedFont = gr.CurrentFont
+				gr.CurrentFont = self.FONT
+				local xt, yt = self:RescaleCoords(nx2+5, ny2-20)
+				gr.setScreenScale(self.BASE_WIDTH, self.BASE_HEIGHT)
+				gr.drawStringResized(GR_RESIZE_FULL, data.Text, xt, yt)
+				gr.resetScreenScale()
+				gr.CurrentFont = savedFont
 			end
 
 			if self.DrawSubsysHealth and subsys.HitpointsMax > 0 then
@@ -432,12 +444,16 @@ function MarkBox:DrawShipBracket(ship, data)
 		gr.setLineWidth(1)
 	else
 		if data.Text then
-			gr.CurrentFont = self.MarkFont
 			local x1,y1,x2,y2 = gr.drawTargetingBrackets(ship, false)
 			if x1 and y1 then
-				gr.drawString(data.Text,x1-5,y1-16)
+				local savedFont = gr.CurrentFont
+				gr.CurrentFont = self.FONT
+				local xt, yt = self:RescaleCoords(x1-5, y1-16)
+				gr.setScreenScale(self.BASE_WIDTH, self.BASE_HEIGHT)
+				gr.drawStringResized(GR_RESIZE_FULL, data.Text, xt, yt)
+				gr.resetScreenScale()
+				gr.CurrentFont = savedFont
 			end
-			gr.CurrentFont = self.DefaultFont
 		end
 	end
 
@@ -531,17 +547,15 @@ mn.LuaSEXPs["lua-mark-weapon"].Action = function(weapon, ship) MarkBox:AddWeapon
 mn.LuaSEXPs["lua-count-weapon"].Action = function(weapon) return MarkBox:GetCountWeapon(weapon) end
 mn.LuaSEXPs["lua-get-weapon-distance"].Action = function(weapon) return MarkBox:GetMarkedWeaponDistance(weapon) end
 
+mn.LuaSEXPs["lua-mark-set-flags"].Action = function(subsys_diagonals, subsys_health)
+	MarkBox.DrawSubsysDiagonals = subsys_diagonals
+	MarkBox.DrawSubsysHealth = subsys_health
+end
 ]
 
-$State: GS_STATE_GAME_PLAY
-$On Gameplay Start:
+$On Mission Start:
 [
 	MarkBox:Init()
-]
-
-$On State End:
-[
-	MarkBox.Enabled = false
 ]
 
 $On Weapon Created:
@@ -558,6 +572,7 @@ $On Weapon Delete:
 	end
 ]
 
+$State: GS_STATE_GAME_PLAY
 $On HUD Draw:
 [
 	if MarkBox.Enabled and hu.HUDDrawn and not hu.HUDDisabledExceptMessages and (gr.hasViewmode(VM_INTERNAL) or gr.hasViewmode(VM_CHASE)) then

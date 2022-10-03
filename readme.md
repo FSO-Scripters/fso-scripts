@@ -19,7 +19,7 @@ This is a collection of user-made scripts for the [FreeSpace Open engine](https:
 |Joystick-Mouse|adds an in-game button to toggle the mouse to act like a joystick.|22.0||wookieejedi
 |LafielsSEXPs|Some of Lafiels convenience SEXP, including turret information retrieval.|22.0||Lafiel|
 |Mainhall Notifications|Adds a system for custom popup messages displayed at the mainhall menu|22.0|AxBase, SCPUI|Naomimyselfandi|
-|MarkBox|Can draw target-like boxes around arbitary ships / wings|21.0|AxBase|Axem|
+|MarkBox|Can draw target-like boxes around arbitary ships / wings|22.2|AxBase|Axem|
 |Mission-Role-Gauge|Custom HUD gauge that FREDers can use to display information.|22.0||wookieejedi
 |Movements-SEXPs|Custom SEXPs to easily enable dynamic capital ship movements.|22.0||wookieejedi
 |PromptBox|A tool to prompt the player for decisions|21.0|AxBase|Axem|
