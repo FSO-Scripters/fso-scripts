@@ -251,14 +251,13 @@ local function merge_tables_recursive(self, source, target, opt_replace, opt_ign
   end
   return nil
 end
-local function load_modular_configs(self, prefix)
-  local fennel = require("fennel")
+local function load_modular_configs(self, prefix, ext, loader)
   local config = {}
   local files
   do
     local tbl_15_auto = {}
     local i_16_auto = #tbl_15_auto
-    for _, file_name in ipairs(cf.listFiles("data/config", "*.cfg")) do
+    for _, file_name in ipairs(cf.listFiles("data/config", ("*" .. ext))) do
       local val_17_auto
       if (string.sub(file_name, 1, #prefix) == prefix) then
         val_17_auto = file_name
@@ -280,16 +279,12 @@ local function load_modular_configs(self, prefix)
     for _, file_name in ipairs(files) do
       local val_17_auto
       do
-        local file = cf.openFile(file_name, "r", "data/config")
-        local text = file:read("*a")
-        local table = fennel.eval(text)
-        print((" loading modular config from " .. file_name))
-        file:close()
-        if (table.priority == nil) then
-          table.priority = 1
+        local m_table = loader((file_name .. "." .. ext))
+        if (m_table.priority == nil) then
+          m_table.priority = 1
         else
         end
-        val_17_auto = table
+        val_17_auto = m_table
       end
       if (nil ~= val_17_auto) then
         i_16_auto = (i_16_auto + 1)
@@ -308,7 +303,50 @@ local function load_modular_configs(self, prefix)
   end
   return config
 end
-local core = {safe_subtable = safe_subtable, safe_global_table = safe_global_table, recursive_table_print = recursive_table_print, reload = reload, reload_modules = reload_modules, add_order = add_order, add_sexp = add_sexp, load_modular_configs = load_modular_configs, merge_tables_recursive = merge_tables_recursive, is_value_in = is_value_in, get_module = get_module, print = print}
+local function config_loader_fennel(file_name)
+  local fennel = require("fennel")
+  local full_file_name = file_name
+  local file = cf.openFile(full_file_name, "r", "data/config")
+  local text = file:read("*a")
+  local this_table
+  if (text == nil) then
+    print("nil file")
+    this_table = {}
+  elseif (type(text) ~= "string") then
+    print(("bad text type " .. type(text)))
+    this_table = {}
+  elseif (#text == 0) then
+    print(("Empty file " .. file_name))
+    this_table = {}
+  else
+    print((" loading modular config from " .. file_name))
+    this_table = fennel.eval(text)
+  end
+  file:close()
+  return this_table
+end
+local function config_loader_lua(file_name)
+  local full_file_name = file_name
+  local file = cf.openFile(full_file_name, "r", "data/config")
+  local text = file:read("*a")
+  local this_table
+  if (text == nil) then
+    print("nil file")
+    this_table = {}
+  elseif (type(text) ~= "string") then
+    print(("bad text type " .. type(text)))
+    this_table = {}
+  elseif (#text == 0) then
+    print(("Empty file " .. file_name))
+    this_table = {}
+  else
+    print((" loading modular config from " .. file_name))
+    this_table = loadstring(("return " .. text))()
+  end
+  file:close()
+  return this_table
+end
+local core = {safe_subtable = safe_subtable, safe_global_table = safe_global_table, recursive_table_print = recursive_table_print, reload = reload, reload_modules = reload_modules, add_order = add_order, add_sexp = add_sexp, load_modular_configs = load_modular_configs, merge_tables_recursive = merge_tables_recursive, is_value_in = is_value_in, get_module = get_module, config_loader_fennel = config_loader_fennel, config_loader_lua = config_loader_lua, print = print}
 local corelib = core.safe_global_table("plasma_core")
 core:merge_tables_recursive(core, corelib, true, {"modules"})
-return corelib 
+return corelib

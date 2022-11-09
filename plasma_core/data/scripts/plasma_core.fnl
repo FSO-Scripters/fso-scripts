@@ -193,34 +193,67 @@
           (tset target k v))))))
 
 ;;;On modular configs
-;;  due to the oddities of FSO's cfile filesystem access, currently
-;;  this must load .cfg files, but it treats them as fennel.
-;;  cfg files are loaded if they fit a prefix. Care should be taken to
-;;    avoid collisions between modlues.
-;;  Each .cfg should return a table. A :priority keyed value in the table
-;;   controls which config is final in case of overlaps. The cfile api
-;;   functions don't expose the ordering typically provided by mod load order
-;;   so order is undefined if priority is not provided.
-(lambda load_modular_configs [self prefix]
+;;  This method is pased a function so it ca be set up to use any file format
+;;  you please. Functions are provided for fennel tables and lua tables. The
+;;  only requirement for a loading function is that it take a file name and
+;;  returns a table, anything else is fair game.
+;;               example:
+;;                (let [fade_config (core:load_modular_configs :dj-f- :cfg core.config_loader_fennel)
+;;                      segment_config (core:load_modular_configs :dj-s- :cfg core.config_loader_lua)]
+(lambda load_modular_configs [self prefix ext loader]
   "Builds and returns a table by evaluating files of a given prefix"
-  (let [fennel (require :fennel)
-        config {}
-        files (icollect [_ file_name (ipairs (cf.listFiles :data/config :*.cfg))]
+  "takes a prefix to search for, a file extension to load, and a function" 
+  "that will load the files"
+  (let [config {}
+        files (icollect [_ file_name (ipairs (cf.listFiles :data/config (.. :* ext)))]
                 (if (= (string.sub file_name 1 (length prefix)) prefix)
                 file_name))
-        holding (icollect [_ file_name (ipairs files)] 
-                  (let [file (cf.openFile file_name :r :data/config)
-                        text (file:read :*a)
-                     ; text))]
-                        table (fennel.eval text)]
-                    (print (.. " loading modular config from " file_name))
-                    (file:close)
-                    (when (= table.priority nil) (set table.priority 1))
-                    table))]
+        holding (icollect [_ file_name (ipairs files)]
+                  (let [m_table (loader (.. file_name :. ext))]
+                    (when (= m_table.priority nil) (set m_table.priority 1))
+                    m_table))]
     (table.sort holding (fn [l r] (< l.priority r.priority)))
     (each [_ mod (ipairs holding)] 
       (self:merge_tables_recursive mod config true [:priority]))
     config))
+
+;;Note that this only works if the fennel compiler is available.
+(lambda config_loader_fennel [file_name]
+  (let [fennel (require :fennel)
+        full_file_name file_name
+        file (cf.openFile full_file_name :r :data/config)
+        text (file:read :*a)]
+    (let [this_table
+        (if
+          (= text nil)
+          (do (print "nil file") {})
+          (not= (type text) :string)
+          (do (print (.. "bad text type " (type text))) {})
+          (= (length text) 0)
+          (do (print (.. "Empty file " file_name)) {})
+          (do
+            (print (.. " loading modular config from " file_name))
+            (fennel.eval text)))]
+    (file:close)
+    this_table)))
+
+(lambda config_loader_lua [file_name]
+  (let [full_file_name file_name
+        file (cf.openFile full_file_name :r :data/config)
+        text (file:read :*a)]
+    (let [this_table
+        (if
+          (= text nil)
+          (do (print "nil file") {})
+          (not= (type text) :string)
+          (do (print (.. "bad text type " (type text))) {})
+          (= (length text) 0)
+          (do (print (.. "Empty file " file_name)) {})
+          (do
+            (print (.. " loading modular config from " file_name))
+            ((loadstring (.. "return " text)))))]
+    (file:close)
+    this_table)))
 
 ;;Attach this module to the library, and return the module
 (local core {
@@ -235,6 +268,8 @@
             : merge_tables_recursive
             : is_value_in
             : get_module
+            : config_loader_fennel
+            : config_loader_lua
             : print})
 
 (local corelib (core.safe_global_table :plasma_core))

@@ -78,14 +78,14 @@ A plasma core module should only be loaded with get_module(), and any code that 
 
 Modular configs are an attempt to mimic FSO's modular tables. The intent is that a parent mod, like for instance the MVPs, can include a script and configure it for the assets they provide, and then downstream mods can modify or agument just like they would normal tables. This system is a bit of a work in progress
 
-Due to the oddities of FSO's cfile filesystem access, currently this must load .cfg files, but it treats them as fennel. cfg files are loaded if they fit a prefix. Care should be taken to avoid collisions between modlues.
+In current form the loader must be provided a function that takes a filename and returns a table, so it is flexible in what file formats it can handle. Loading functions for lua tables and fennel tables are included in the library, though the fennel loader requires the fennel compiler be present. There's no reason a json loader couldn't be built, but I haven't yet. 
 
-Each .cfg should return a table. A value with the key priority in the table controls which config is final in case of overlaps, with higher numbers being the final say.. The cfile api functions don't expose the ordering typically provided by mod load order, so order is undefined if priority is not provided.
+The function is passed a prefix and file extension to search for as well, and reads from data/config. Anything FSO will index in that folder can be read.
 
-Future plans call for the code to support cfgs of different formats transparently, but there's some bumps in that road I haven't ironed out yet.
+A value with the key 'priority' in the table controls which config is final in case of overlaps, with higher numbers being the final say. The cfile api functions don't expose the ordering typically provided by mod load order, so order is undefined if priority is not provided.
 
 # Function listing
-In accordance with fennel style, anything marked with a ? is an optional parameter that can be nil. Anything else will cause an error if nil.
+In accordance with fennel style, anything marked with a ? is an optional parameter that can be nil. Anything else will cause an error if nil. In the lua versions of the library the assertions tied to this have been removed as keeping the line numbers in sync is impractical, and the paramter names have had the ? replaced with "opt"
 
 # General utility functions
 
@@ -208,6 +208,21 @@ Reloads the core functions, then reloads all modules.
 
 > *table* self
 
-> *string* prefix
+> *string* prefix 
 
-Builds and returns a table by evaluating files of a given prefix.
+> *string* ext
+
+> *function* loader  
+
+Builds and returns a table by evaluating files of a given prefix and extension using the loading function.
+
+
+## config_loader_lua
+> *string* file_name 
+
+Loads lua format configuration tables
+
+## config_loader_fennel
+> *string* file_name 
+
+Loads fennel format configuration tables
