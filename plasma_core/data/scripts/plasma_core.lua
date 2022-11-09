@@ -112,13 +112,13 @@ local function add_order(name, host, enter, frame, opt_still_valid, opt_can_targ
   order.ActionFrame = function(...)
     return frame(host, ...)
   end
-  if (opt_still_valid ~= nil) then
+  if opt_still_valid then
     order.Achievability = function(...)
       return opt_still_valid(host, ...)
     end
   else
   end
-  if (opt_can_target ~= nil) then
+  if opt_can_target then
     order.TargetRestrict = function(...)
       return opt_can_target(host, ...)
     end
@@ -151,7 +151,15 @@ local function get_module(self, file_name, opt_reload, opt_reset)
   end
   self.print(file_name)
   self.print(_G.package[file_name])
-  if ((_G.package.loaded[file_name] ~= nil) and (reload or (type(_G.package.loaded[file_name]) == "userdata"))) then
+  local function _18_()
+    local t_19_ = _G.package.loaded
+    if (nil ~= t_19_) then
+      t_19_ = (t_19_)[file_name]
+    else
+    end
+    return t_19_
+  end
+  if (_18_() and (reload or (type(_G.package.loaded[file_name]) == "userdata"))) then
     _G.package.loaded[file_name] = nil
   else
   end
@@ -159,18 +167,21 @@ local function get_module(self, file_name, opt_reload, opt_reset)
   if first_load then
     modules[file_name] = mod
   else
-    self:merge_tables_recursive(mod, modules[file_name], true, {"config", "state"})
+    if mod then
+      self:merge_tables_recursive(mod, modules[file_name], true, {"config", "state"})
+    else
+    end
   end
   local mod0 = modules[file_name]
-  if (nil ~= mod0.configure) then
+  if mod0.configure then
     mod0:configure(self)
   else
   end
-  if ((first_load or reset) and (nil ~= mod0.initialize)) then
+  if ((first_load or reset) and mod0.initialize) then
     mod0:initialize(self)
   else
   end
-  if (first_load and (nil ~= mod0.hook)) then
+  if (first_load and mod0.hook) then
     mod0:hook(self)
   else
   end
@@ -180,7 +191,6 @@ local function reload_modules(self)
   local modules = self:safe_subtable("modules")
   for file_name, module in pairs(modules) do
     if (type(module) == "table") then
-      print((" Plasma Core is reloading module: " .. file_name))
       self:get_module(file_name, true)
     else
     end
@@ -191,23 +201,27 @@ local function reload(self)
   _G.package.loaded.plasma_core = nil
   do
     local new_self = require("plasma_core")
-    self:merge_tables_recursive(new_self, self, true, {"modules"})
+    self:merge_tables_recursive(new_self, self, {"modules"}, true)
   end
   return self:reload_modules()
 end
 local function is_value_in(self, value, list)
-  local found = false
-  if (0 ~= #list) then
-    for _, v in pairs(list) do
-      if found then break end
-      if (v == value) then
-        found = true
-      else
+  if (type(list) == "table") then
+    local found = false
+    if (0 ~= #list) then
+      for _, v in pairs(list) do
+        if found then break end
+        if (v == value) then
+          found = true
+        else
+        end
       end
+    else
     end
+    return found
   else
+    return false
   end
-  return found
 end
 local function merge_tables_recursive(self, source, target, opt_replace, opt_ignore)
   local ignore
@@ -285,10 +299,10 @@ local function load_modular_configs(self, prefix)
     end
     holding = tbl_15_auto
   end
-  local function _34_(l, r)
+  local function _39_(l, r)
     return (l.priority < r.priority)
   end
-  table.sort(holding, _34_)
+  table.sort(holding, _39_)
   for _, mod in ipairs(holding) do
     self:merge_tables_recursive(mod, config, true, {"priority"})
   end

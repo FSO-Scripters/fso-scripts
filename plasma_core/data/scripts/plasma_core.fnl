@@ -89,6 +89,7 @@
         (ba.print (.. (tostring item)))
         (ba.print (.. "//" (tostring t)))))))
 
+
 ;;"Host" in this case is the "self" for functions, the module they belong to
 ;;this is because I don't think I can have this do : without making it a macro
 (lambda add_order [name host enter frame ?still_valid ?can_target]
@@ -96,9 +97,9 @@
   (let [order (. _G.mn.LuaAISEXPs name)]
     (fn order.ActionEnter [...] (enter host ...))
     (fn order.ActionFrame [...] (frame host ...))
-    (when (not= ?still_valid nil)
+    (when ?still_valid
       (fn order.Achievability [...] (?still_valid host ...)))
-    (when (not= ?can_target nil)
+    (when ?can_target
       (fn order.TargetRestrict [...] (?can_target host ...)))))
 
 ;;"Host" in this case is the "self" for functions, the module they belong to
@@ -120,7 +121,7 @@
         reset (if (= ?reset nil) false ?reset)]
     (self.print file_name)
     (self.print (. _G.package file_name))
-    (when (and (not= (. _G.package.loaded file_name) nil) 
+    (when (and (?. _G.package.loaded file_name) 
             (or ;Loaded previously, reload now
               reload
               ;;Errored on previous load, sentinal value needs clearing
@@ -132,15 +133,16 @@
         ;;If this is the first load, we can safely just put it in our modules table
         (tset modules file_name mod)
         ;;Else replace all the functions in an existing entry to the modules table
-        (self:merge_tables_recursive mod (. modules file_name) true [:config :state]))
+        (when mod ;mod is bool rather than table if load fails
+         (self:merge_tables_recursive mod (. modules file_name) true [:config :state])))
     (let [mod (. modules file_name)]
-      (when (not= nil mod.configure)
+      (when mod.configure
         (mod:configure self))
       (when
-        (and (or first_load reset) (not= nil mod.initialize))
+        (and (or first_load reset) mod.initialize)
         (mod:initialize self))
       (when
-        (and first_load (not= nil mod.hook))
+        (and first_load mod.hook)
         (mod:hook self))
       mod))))
 
@@ -149,24 +151,28 @@
   (let [modules (self:safe_subtable :modules)]
     (each [file_name module (pairs modules)]
       (when (= (type module) :table)
-        (print (.. " Plasma Core is reloading module: " file_name))
+        ;(print (.. " Plasma Core is reloading module: " file_name))
         (self:get_module file_name true)))))
 
 (lambda reload [self]
   "Reloads the core functions, then reloads all other modules."
   (set _G.package.loaded.plasma_core nil)
   (let [new_self (require :plasma_core)]
-    (self:merge_tables_recursive new_self self true [:modules]))
+    (self:merge_tables_recursive new_self self [:modules] true))
   (self:reload_modules))
 
 (lambda is_value_in [self value list]
   "Somewhat redundant with find, to be removed"
-  (var found false)
-  (when
-    (not= 0 (length list))
-    (each [_ v (pairs list) :until found]
-      (when (= v value) (set found true))))
-  found)
+  (if 
+    (= (type list) :table)
+    (do 
+      (var found false)
+      (when
+        (not= 0 (length list))
+        (each [_ v (pairs list) :until found]
+          (when (= v value) (set found true))))
+      found)
+  false))
 
 (lambda merge_tables_recursive [self source target ?replace ?ignore]
   "Combines two tables."
@@ -231,7 +237,7 @@
             : get_module
             : print})
 
-(var corelib (core.safe_global_table :plasma_core))
+(local corelib (core.safe_global_table :plasma_core))
 
 (core:merge_tables_recursive core corelib true [:modules])
 corelib
