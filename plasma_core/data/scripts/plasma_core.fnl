@@ -1,16 +1,15 @@
-;;;Plasma Core FSO script management library
-;;  This system has the following objectivs
+(comment "Plasma Core FSO script management library
+;;  This system has the following objectives
 ;; * Streamline common aspects of FSO scripting
-;; * Gently encourage a consistent structure for modules, so I'll stop
+;; * Gently encourage a consistent structure for modules so I'll stop
 ;;     reinventing the wheel every time I make a new one
 ;; * Support interactive development with the live reloading of modules
 ;;     following that structure
 ;;
 ;; This code deliberately breaks with Fennel style and uses snake_case
-;;   exclusively. Amoung other reasons, this is intended to make the
-;;   compiled code somewhat more approachable.
-
-;;; Usage
+;;   exclusively. Amoung other reasons this is intended to make the
+;;   compiled code somewhat more approachable.")
+(comment "Usage
 ;; A module designed from plasma core should be a file that returns a table of
 ;;   all it's functions
 ;; A few member names are special. All function members should have a self
@@ -34,11 +33,11 @@
 ;;                (fn repl.hook [self core]
 ;;                  (engine.addHook "On Key Pressed"
 ;;                    (fn [] (self:key_hook))))
-
-;;; General utility functions
+")
+(comment General utility functions)
 
 (fn print [output ?label]
-  "A safe wrapper around the engine print function, prints each on it's own line"
+  (comment "A safe wrapper around the engine print function, prints each on it's own line")
   (let [label (if (= nil ?label) "" ?label)
         t (type output)
         has_label (< 0 (length label))
@@ -50,18 +49,27 @@
     :Nil (ba.print (.. "*: " label (if has_label " " "")  "is nil" "\n"))
     :_ (ba.print (.. "*: " label (if has_label" " "") "type " t ":" (_G.totring output) "\n")))))
 
+(lambda warn_once [id text memory]
+  (comment "Show a warning the first time something errors")
+  (comment "Must be passed a memory table and index into that table. Calling code is responsible for storing that state")
+  (let [last (?. memory id)]
+    (if last
+      (values)
+      (ba.warning text))
+    (tset memory id true)))
+
 (lambda safe_subtable [t name]
-  "Get a table from inside a table, even if it doesn't exist"
+  (comment "Get a table from inside a table, even if it doesn't exist")
   (when (= (. t name) nil)
     (tset t name {}))
   (. t name))
 
 (lambda safe_global_table [name]
-  "Get a global table, even if it doesn't exist"
+  (comment "Get a global table, even if it doesn't exist")
   (safe_subtable _G name))
 
 (lambda recursive_table_print [name item ?d]
-  "Prints a whole table recursively, in a loosely lua table format"
+  (comment "Prints a whole table recursively, in a loosely lua table format")
   (when
     (and (~= name :_TRAVERSED) (~= name :metadata))
     (let [t (type item)
@@ -93,7 +101,7 @@
 ;;"Host" in this case is the "self" for functions, the module they belong to
 ;;this is because I don't think I can have this do : without making it a macro
 (lambda add_order [name host enter frame ?still_valid ?can_target]
-  "Attaches functions to a LuaAI SEXP's action hooks."
+  (comment "Attaches functions to a LuaAI SEXP's action hooks.")
   (let [order (. _G.mn.LuaAISEXPs name)]
     (fn order.ActionEnter [...] (enter host ...))
     (fn order.ActionFrame [...] (frame host ...))
@@ -105,20 +113,21 @@
 ;;"Host" in this case is the "self" for functions, the module they belong to
 ;;this is because I don't think I can have this do : without making it a macro
 (lambda add_sexp [name host action]
-  "Attaches functions to a Lua SEXP's action hook."
+  (comment "Attaches functions to a Lua SEXP's action hook.")
   (let [sexp (. _G.mn.LuaSEXPs name)]
     (fn sexp.Action [...] (action host ...))
     (values)))
 
 (lambda get_module [self file_name ?reload ?reset]
-  "Gets or loads a module by filename."
-  "If reload is true, it will reload the module's functions and configuration"
-  "If reset is true, the module's state will also be reinitalized"
-  "Will only attach a module's hooks on first load, as there is currently no way to replace existing hooks. Module should design hooks around this limitation."
+  (comment "Gets or loads a module by filename.")
+  (comment "If reload is true, it will reload the module's functions and configuration")
+  (comment "If reset is true, the module's state will also be reinitalized")
+  (comment "Will only attach a module's hooks on first load, as there is currently no way to replace existing hooks. Module should design hooks around this limitation.")
   (let [modules (self:safe_subtable :modules)
         first_load (= nil (. modules file_name))
-        reload (if (= ?reload nil) false ?reload)
-        reset (if (= ?reset nil) false ?reset)]
+        reload (if ?reload ?reload false)
+        reset (if ?reset ?reset false)]
+    (self.print {: file_name : first_load : reload : reset})
     (self.print file_name)
     (self.print (. _G.package file_name))
     (when (and (?. _G.package.loaded file_name) 
@@ -147,7 +156,7 @@
       mod))))
 
 (lambda reload_modules [self]
-  "Internal module reload function, reloads but does not reset everything"
+  (comment "Internal module reload function, reloads but does not reset everything")
   (let [modules (self:safe_subtable :modules)]
     (each [file_name module (pairs modules)]
       (when (= (type module) :table)
@@ -155,15 +164,15 @@
         (self:get_module file_name true)))))
 
 (lambda reload [self]
-  "Reloads the core functions, then reloads all other modules."
+  (comment "Reloads the core functions, then reloads all other modules.")
   (set _G.package.loaded.plasma_core nil)
   (let [new_self (require :plasma_core)]
-    (self:merge_tables_recursive new_self self [:modules] true))
+    (self:merge_tables_recursive new_self self true [:modules]))
   (self:reload_modules))
 
 (lambda is_value_in [self value list]
-  "Somewhat redundant with find, to be removed"
-  (if 
+  (comment "Somewhat redundant with find, to be removed")
+  (if
     (= (type list) :table)
     (do 
       (var found false)
@@ -175,10 +184,10 @@
   false))
 
 (lambda merge_tables_recursive [self source target ?replace ?ignore]
-  "Combines two tables."
-  "Leaves overlapping non-table members alone unless"
-  "replace is set. Always merges members that are tables"
-  "ignore takes an array of keys to leave alone."
+  (comment "Combines two tables.")
+  (comment "Leaves overlapping non-table members alone unless")
+  (comment "replace is set. Always merges members that are tables")
+  (comment "ignore takes an array of keys to leave alone.")
   (let [ignore (if (= ?ignore nil) [] ?ignore)
         replace (if (= ?replace nil) false ?replace)]
     (each [k v (pairs source)]
@@ -192,7 +201,7 @@
           replace
           (tset target k v))))))
 
-;;;On modular configs
+(comment On modular configs)
 ;;  This method is pased a function so it ca be set up to use any file format
 ;;  you please. Functions are provided for fennel tables and lua tables. The
 ;;  only requirement for a loading function is that it take a file name and
@@ -201,9 +210,9 @@
 ;;                (let [fade_config (core:load_modular_configs :dj-f- :cfg core.config_loader_fennel)
 ;;                      segment_config (core:load_modular_configs :dj-s- :cfg core.config_loader_lua)]
 (lambda load_modular_configs [self prefix ext loader]
-  "Builds and returns a table by evaluating files of a given prefix"
-  "takes a prefix to search for, a file extension to load, and a function" 
-  "that will load the files"
+  (comment "Builds and returns a table by evaluating files of a given prefix")
+  (comment "takes a prefix to search for, a file extension to load, and a function")
+  (comment "that will load the files")
   (let [config {}
         files (icollect [_ file_name (ipairs (cf.listFiles :data/config (.. :* ext)))]
                 (if (= (string.sub file_name 1 (length prefix)) prefix)
@@ -270,7 +279,8 @@
             : get_module
             : config_loader_fennel
             : config_loader_lua
-            : print})
+            : print
+            : warn_once})
 
 (local corelib (core.safe_global_table :plasma_core))
 

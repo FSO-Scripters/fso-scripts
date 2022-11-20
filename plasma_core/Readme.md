@@ -89,6 +89,15 @@ In accordance with fennel style, anything marked with a ? is an optional paramet
 
 # General utility functions
 
+## warn_once
+> *any* id
+
+> *string* text
+
+> *table* memory
+
+Allows a module to show a warning the first time something happens, using the id to index into the memory table to check and store if it has repeated. The memory table is left to the modules to manage so they can modify it when is appropriate to them.
+
 ## print
 >*string* message
 
