@@ -47,7 +47,7 @@
     :userdata (ba.print (.. "*: " label (if has_label " " "")  "is userdata\n"))
     :string (ba.print (.. "*: " label (if has_label " " "")  output "\n"))
     :Nil (ba.print (.. "*: " label (if has_label " " "")  "is nil" "\n"))
-    :_ (ba.print (.. "*: " label (if has_label" " "") "type " t ":" (_G.totring output) "\n")))))
+    :_ (ba.print (.. "*: " label (if has_label" " "") "type " t ":" (tostring output) "\n")))))
 
 (lambda warn_once [id text memory]
   (comment "Show a warning the first time something errors")
@@ -201,14 +201,14 @@
           replace
           (tset target k v))))))
 
-(comment On modular configs)
+(comment "On modular configs
 ;;  This method is pased a function so it ca be set up to use any file format
 ;;  you please. Functions are provided for fennel tables and lua tables. The
 ;;  only requirement for a loading function is that it take a file name and
 ;;  returns a table, anything else is fair game.
 ;;               example:
 ;;                (let [fade_config (core:load_modular_configs :dj-f- :cfg core.config_loader_fennel)
-;;                      segment_config (core:load_modular_configs :dj-s- :cfg core.config_loader_lua)]
+;;                      segment_config(core:load_modular_configs :dj-s- :cfg core.config_loader_lua)]")
 (lambda load_modular_configs [self prefix ext loader]
   (comment "Builds and returns a table by evaluating files of a given prefix")
   (comment "takes a prefix to search for, a file extension to load, and a function")

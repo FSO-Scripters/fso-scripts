@@ -84,7 +84,7 @@ local function print(output, opt_label)
         return ""
       end
     end
-    return ba.print(("*: " .. label .. _6_() .. "type " .. t .. ":" .. _G.totring(output) .. "\n"))
+    return ba.print(("*: " .. label .. _6_() .. "type " .. t .. ":" .. tostring(output) .. "\n"))
   else
     return nil
   end
@@ -332,7 +332,7 @@ end
 ;;  returns a table, anything else is fair game.
 ;;               example:
 ;;                (let [fade_config (core:load_modular_configs :dj-f- :cfg core.config_loader_fennel)
-;;                      segment_config(core:load_modular_configs :dj-s- :cfg core.config_loader_lua)]" ]]--
+;;                      segment_config (core:load_modular_configs :dj-s- :cfg core.config_loader_lua)]" ]]--
 local function load_modular_configs(self, prefix, ext, loader)
   --[[ "Builds and returns a table by evaluating files of a given prefix" ]]--
   --[[ "takes a prefix to search for, a file extension to load, and a function" ]]--
