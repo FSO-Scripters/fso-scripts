@@ -463,6 +463,8 @@ end
 
 function PromptBox:Draw()
 
+	gr.CurrentOpacityType = GR_ALPHABLEND_NONE
+
 	gr.drawImage(self.Image.file, self.Position.x, self.Position.y)
 
 	--self:UpdateText()
