@@ -430,7 +430,7 @@ function PromptBox:LockPlayer()
 				end
 			end
 			
-			mn.runSEXP("(ignore-key !-1! !C!)")
+			mn.runSEXP("(ignore-key !-1! !C! !Left Ctrl! !Spacebar!)")
 	
 	end
 
@@ -455,7 +455,7 @@ function PromptBox:UnlockPlayer()
 		
 		self.Flags = {}
 		
-		mn.runSEXP("(ignore-key !0! !C!)")
+		mn.runSEXP("(ignore-key !0! !C! !Left Ctrl! !Spacebar!)")
 	
 	end
 
