@@ -422,7 +422,8 @@ function PromptBox:LockPlayer()
 			end
 			
 			self.Flags = {}
-						
+			
+			-- set some flags on the player ship to prevent things like aspect lock
 			for __,v in pairs(self.Actions) do
 				if not mn.evaluateSEXP("(are-ship-flags-set !" .. playerName .. "! !" .. v .. "!)") then
 					mn.runSEXP("(alter-ship-flag !" .. v .. "! ( true ) ( false ) !" .. playerName .. "!)")
@@ -430,7 +431,8 @@ function PromptBox:LockPlayer()
 				end
 			end
 			
-			mn.runSEXP("(ignore-key !-1! !C!)")
+			-- indefinitely prevent any activation of the Communications or weapons firing controls
+			mn.runSEXP("(ignore-key !-1! !C! !Left Ctrl! !Spacebar!)")
 	
 	end
 
@@ -448,14 +450,16 @@ function PromptBox:UnlockPlayer()
 		if self.PlayerMouse then
 			io.MouseControlStatus = true
 		end
-					
+		
+		-- remove the flags added in LockPlayer
 		for __,v in pairs(self.Flags) do
 			mn.runSEXP("(alter-ship-flag !" .. v .. "! ( false ) ( false ) !" .. playerName .. "!)")
 		end
 		
 		self.Flags = {}
 		
-		mn.runSEXP("(ignore-key !0! !C!)")
+		-- allow the deactivated controls again
+		mn.runSEXP("(ignore-key !0! !C! !Left Ctrl! !Spacebar!)")
 	
 	end
 
