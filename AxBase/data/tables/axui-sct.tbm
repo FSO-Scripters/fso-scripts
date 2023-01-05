@@ -1056,7 +1056,7 @@ function AXUI:Draw()
 		--gr.drawRectangle(self.Region.x1,self.Region.y1,self.Region.x2,self.Region.y2)	--DEBUG For checking hotspots
 		
 			--Is this good for clicking?
-			if io.isMouseButtonDown(MOUSE_LEFT_BUTTON) and self.Clickable == true then
+			if self.Clickable == true and io.isMouseButtonDown(MOUSE_LEFT_BUTTON) then
 
 				if self.Color_C ~= nil then
 					color = self.Color_C

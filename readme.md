@@ -23,6 +23,7 @@ This is a collection of user-made scripts for the [FreeSpace Open engine](https:
 |MarkBox|Can draw target-like boxes around arbitary ships / wings|22.2|AxBase|Axem|
 |Mission-Role-Gauge|Custom HUD gauge that FREDers can use to display information.|22.0||wookieejedi
 |Movements-SEXPs|Custom SEXPs to easily enable dynamic capital ship movements.|22.0||wookieejedi
+|Plasma Core|A framework to support script module development, including live reloads and semi-interactive workflow.|22.3|(Optional) Fennel|EatThePath|
 |PromptBox|A tool to prompt the player for decisions|21.0|AxBase|Axem|
 |RadarIcon|Adds configurable icons for ships and weapons onto the HUD, making it easier to keep an overview over the battlefield|20.0|AxBase|Lafiel|
 |RadarIcon_Generic|Optional prebuilt configuration using generic icons for RadarIcon, instead of the default per-ship-class icons.|20.0|AxBase, RadarIcon|Lafiel, JadedDragoon|
