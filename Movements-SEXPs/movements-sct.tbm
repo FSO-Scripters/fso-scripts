@@ -14,7 +14,7 @@ $Application: FS2_Open
 
 $On Game Init: [
 
-	--Version 2.2, released on September 13, 2022 by wookieejedi
+	--Version 2.3, released on November 20, 2022 by wookieejedi
 	--Requires FSO build of August 27, 2022 or newer
 	--Description: custom sexps and functions that allow for much easier ship movements and rotations
 	--Usage: custom sexps are included and listed in FRED under the LUA-Movements tab
@@ -50,6 +50,7 @@ $On Game Init: [
 	end
 
 	function Movements:Initiate()
+
 		--remember that a ship not in mission will be nil in lua sexp if input parameter is type ship 
 		self.Time_Previous_Check = 0
 		self.G_Time_Check_Interval = 0.1
@@ -59,10 +60,15 @@ $On Game Init: [
 		self.Active_Ships_trk_Wpts_Sum = 0
 		self.Active_Wpts_trk_Objects = {}
 		self.Active_Wpts_trk_Objects_Sum = 0
-		self.is_enabled = true
-		
+
 		if ba.MultiplayerMode then
-			self.is_enabled = false
+			if multi:isServer() then
+				self.is_enabled = true
+			else
+				self.is_enabled = false
+			end
+		else
+			self.is_enabled = true
 		end
 
 	end
@@ -287,11 +293,11 @@ $On Game Init: [
 		--if it corresponds to a ship
 		if type(objecttarget_name) == "string" then
 			--if that object is in mission
-			local target_object = self:GetShip_or_Wypt_Obj_from_name(objecttarget_name)
+			local target_object = self:Get_Ship_or_Wpt_Obj_from_name(objecttarget_name)
 			if target_object ~= nil and target_object:isValid() then
 				--if target valid check which type of final pbh is needed
 				if face_torward_target then
-					--face to target so do that math
+					--face to target, so do that math
 					local position_diff = target_object.Position - ship.Position
 					local norm_diff = position_diff:getNormalized()
 					local pbh = norm_diff:getOrientation()
@@ -319,67 +325,15 @@ $On Game Init: [
 	end
 
 	function Movements:WaypointName(waypointpath_name, waypoint_i)
-	
+
 		return waypointpath_name .. ":" .. waypoint_i
-	
-	end
-
-	function Movements:GetShip_or_Wypt_Obj_from_name(objectname)
-
-		if type(objectname) ~= "string" or objectname == "" then 
-			ba.print("Movements Error: nil or empty object name provided to function for getting ship_or_waypoint object from name...\n")
-			return nil 
-		end
-
-		local function check_get_Waypoint(objectname)
-
-			local object
-
-			--if not ship then perhaps waypoint
-			--first need to seperate path name and path point i
-
-			local wp_path_name
-			local wp_point_i
-	
-			local index = objectname:find(":", 0, true)
-			if index ~= nil then
-				wp_path_name = objectname:sub(1, index - 1)
-				wp_point_i = objectname:sub(index+1, #objectname)
-			end
-
-			if wp_path_name ~= nil and wp_point_i ~= nil then
-				wp_point_i = tonumber(wp_point_i)
-				local wp_path = mn.WaypointLists[wp_path_name]
-				if wp_path ~= nil and wp_path:isValid() and wp_path[wp_point_i] ~= nil and wp_path[wp_point_i]:isValid() then
-					object = wp_path[wp_point_i]
-				end
-			end
-
-			if object == nil then
-				ba.print("Movements Error: nil or empty found for function for getting ship_or_waypoint...\n")
-			end
-
-			return object
-
-		end
-
-		--check if object is ship or waypoint
-		local object = mn.Ships[objectname]
-		if object == nil then
-			object = check_get_Waypoint(objectname)
-		end
-		if not object:isValid() then
-			object = check_get_Waypoint(objectname)
-		end
-
-		return object
 
 	end
 
 	function Movements:Set_Pos_Relative_to_Object(object_to_set_name, relative_target_name, offset_tbl, is_relative) --offset_tbl in form {0, 0, 0}
 
-		local object_to_set = self:GetShip_or_Wypt_Obj_from_name(object_to_set_name)
-		local relative_target = self:GetShip_or_Wypt_Obj_from_name(relative_target_name)
+		local object_to_set = self:Get_Ship_or_Wpt_Obj_from_name(object_to_set_name)
+		local relative_target = self:Get_Ship_or_Wpt_Obj_from_name(relative_target_name)
 
 		if object_to_set == nil or relative_target == nil then 
 			return 
@@ -403,19 +357,78 @@ $On Game Init: [
 
 	end
 
-	function Movements:GetOSW_Name(oswt_object)
+	function Movements:Get_Ship_or_Wpt_Obj_from_name(objectname)
+
+		if type(objectname) ~= "string" or objectname == "" then 
+			ba.print("Movements Error: nil or empty object name provided to function for getting ship_or_waypoint object from name...\n")
+			return nil 
+		end
+
+		local function check_get_Waypoint(objectname)
+
+			local object_wp
+
+			--if not ship then perhaps waypoint
+			--first need to seperate path name and path point i
+
+			local wp_path_name
+			local wp_point_i
+
+			local index = objectname:find(":", 0, true)
+			if index ~= nil then
+				wp_path_name = objectname:sub(1, index - 1)
+				local wp_point_i_str = objectname:sub(index+1, #objectname)
+				if wp_point_i_str ~= nil then 
+					wp_point_i = tonumber(wp_point_i_str)
+				end
+			end
+
+			--might have been supplied with waypoint path name
+			--so use object name then check if waypoint path actually valid
+			if wp_path_name == nil then
+				wp_path_name = objectname
+				wp_point_i = 1
+			end
+
+			--set and check waypoint path and point
+			local wp_path = mn.WaypointLists[wp_path_name]
+
+			if wp_path ~= nil and wp_path:isValid() and wp_point_i ~= nil and wp_path[wp_point_i] ~= nil and wp_path[wp_point_i]:isValid() then
+				object_wp = wp_path[wp_point_i]
+			end
+
+			if object_wp == nil then
+				ba.print("Movements Error: nil or empty found for function for getting check_get_Waypoint...\n")
+			end
+
+			return object_wp
+
+		end
+
+		--check if object is ship or waypoint
+		local object = mn.Ships[objectname]
+		if object == nil then
+			object = check_get_Waypoint(objectname)
+		end
+		if not object:isValid() then
+			object = check_get_Waypoint(objectname)
+		end
+
+		return object
+
+	end
+
+	function Movements:Get_name_from_Ship_or_Wpt_Obj(obj)
 
 		local object_name
 
-		local obj = oswt_object:get()
-
 		if obj ~= nil and obj:isValid() then
 
-			local obj_type = oswt_object:getType()
+			local obj_breed = obj:getBreedName()
 
-			if obj_type == "ship" then
+			if obj_breed == "Ship" then
 				object_name = obj.Name
-			elseif obj_type == "waypoint" then
+			elseif obj_breed == "Waypoint" then
 				local waypoint_list = obj:getList()
 				if waypoint_list ~= nil and waypoint_list:isValid() then
 					--tostring on waypoints does not work, so use a workaround for now
@@ -437,10 +450,174 @@ $On Game Init: [
 
 	end
 
+	function Movements:GetMatchingOrder_i(ship, removing_order_priority, removing_order_string, target_of_removing_order_string) --currently supported are "ai-play-dead-persistent" and "ai-waypoints-once"
+
+		local matching_order_i
+
+		if self.is_enabled and ship ~= nil and ship:isValid() then
+			--go through orders and find matching
+			local orders = ship.Orders
+			local num_ords = #orders
+
+			--find matching
+			if num_ords > 0 then
+				for i=1,num_ords do
+					local ord = orders[i]
+					--check priority match first
+					if ord.Priority == removing_order_priority then
+						local ord_typ = ord:getType()
+						local ord_matched = false
+						--match type
+						if removing_order_string == "ai-waypoints-once" and ord_typ == ORDER_WAYPOINTS_ONCE then
+							--waypoint needs to ensure that waypoint path name matches
+							local ord_target = ord.Target
+							if ord_target ~= nil and ord_target:isValid() and ord_target:getBreedName() == "Waypoint" then
+								local ord_target_wp_list = ord_target:getList()
+								if ord_target_wp_list ~= nil and ord_target_wp_list:isValid() and ord_target_wp_list.Name == target_of_removing_order_string then
+									ord_matched = true
+								end
+							end
+						elseif removing_order_string == "ai-play-dead-persistent" and ord_typ == ORDER_PLAY_DEAD_PERSISTENT then
+							ord_matched = true
+						end
+						if ord_matched then
+							matching_order_i = i
+							break
+						end
+					end
+				end
+			end
+
+		end
+
+		return matching_order_i
+
+	end
+
+	function Movements:RemoveGoalCorrectly(ship, removing_order_priority, removing_order_string, target_of_removing_order_string) --currently supported are "ai-play-dead-persistent" and "ai-waypoints-once"
+
+		local matching_order_i = self:GetMatchingOrder_i(ship, removing_order_priority, removing_order_string, target_of_removing_order_string)
+
+		--remove
+		if matching_order_i ~= nil then
+			ship.Orders[matching_order_i]:remove()
+			--ba.print("Movements: Removing order <"..removing_order_string.."> for ship "..ship.Name.." with priority "..tostring(removing_order_priority).."...\n")
+		end
+
+	end
+
+	function Movements:GenericSubsystem_HitsPercent(ship, subsystem_basename)
+
+		if ship ~= nil and ship:isValid() then
+			--uses submodel name
+			--also, does not respect "no-aggregate" flag!
+			local numsubsystems = #ship
+			subsystem_basename = string.lower(subsystem_basename)
+			local hp_generic_total = 0
+			local hp_generic_left = 0
+
+			for i=1,numsubsystems do
+
+				--get ss and model name
+				local subsystem = ship[i]
+				local actual_sub_name_lc = string.lower(tostring(subsystem:getModelName()))
+				--make both subsystem_basename and actual_name lower case
+				--if name matches then add hitpoints left to total
+				if string.find(actual_sub_name_lc, subsystem_basename) ~= nil then
+					hp_generic_total = hp_generic_total + subsystem.HitpointsMax
+					hp_generic_left = hp_generic_left + subsystem.HitpointsLeft
+				end
+
+			end
+
+			if hp_generic_total > 0 then
+				if hp_generic_left <= 0 then
+					return 0 
+				else
+					return (hp_generic_left/hp_generic_total)*100
+				end
+			else
+				--if ss total is 0, then it can never ber destroyed, so must be at full hp
+				return 100
+			end
+		else
+			return 0
+		end
+
+	end
+
+	function Movements:RandomPoint_In_ShipSphere(ship)
+
+		local ship_radius = ship.Radius
+		local ship_pos = ship.Position
+
+		--from Brian Tung https://math.stackexchange.com/questions/1585975/how-to-generate-random-points-on-a-sphere
+
+		local u1, u2 = ba.rand32f(), ba.rand32f() --If called with no arguments, returns a random float from [0.0, 1.0]
+		local pi = math.pi
+
+		local latitude = math.asin( (2 * u1) - 1 )
+		local longitude = 2 * pi * u2
+
+		local x = math.cos(latitude) * math.cos(longitude) * ship_radius
+		local y = math.cos(latitude) * math.sin(longitude) * ship_radius 
+		local z = math.sin(latitude) * ship_radius
+
+		return ba.createVector(x + ship_pos.x, y + ship_pos.y, z + ship_pos.z)
+		--ba.print(" Movements_Test: radius of sphere point to target center is "..ship_pos:getDistance(sphere_point)..", and radius is "..ship_radius.."\n")
+
+	end
+
+	function Movements:RandomPoint_On_ShipHull(ship, buffer_distance, return_local_coordinates)
+
+		--finds a point on a ship's hull 
+
+		--get ship
+		if ship == nil then return nil end
+		if not ship:isValid() then return nil end
+
+		if type(buffer_distance) ~= "number" then
+			buffer_distance = 0
+		end
+
+		local ship_pos = ship.Position
+
+
+		--1) Get a random point on the surface of the target ship's bounding sphere 
+		local sphere_point = Movements:RandomPoint_In_ShipSphere(ship)
+
+		--2) Run checkRayCollision from that point on the bounding sphere to the ship's center to get global position of hull intersection
+
+			if return_local_coordinates == nil then
+				return_local_coordinates = false
+			end
+
+			local hull_point, collision_data = ship:checkRayCollision(sphere_point, ship_pos, return_local_coordinates)
+			--vector, collision_info checkRayCollision(vector StartPoint, vector EndPoint, [boolean Local = false])
+			--Checks the collisions between the polygons of the current object and a ray. Start and end vectors are in world coordinates
+			--Returns: World collision point (local if boolean is set to true) and the specific collsision info, nil if no collisions
+
+		--3) Use that distance and line to select a new point on the intersect line, which should be touching the outside of the hull
+
+			--it is expected to hit the ship/itself
+			if hull_point ~= nil and collision_data ~= nil and collision_data:isValid() then
+
+				--face to target, so do that math
+				local position_diff = ship_pos - sphere_point 
+				local norm_diff = position_diff:getNormalized()
+				local pbh = norm_diff:getOrientation()
+
+				return hull_point + pbh:unrotateVector(ba.createVector(0, 0, buffer_distance))
+			else
+				return nil 
+			end
+
+
+	end
 
 	mn.LuaSEXPs["set-bank-constant"].Action = function(bank_constant, ...)
 
-		if ba.MultiplayerMode then return end
+		if not Movements.is_enabled then return end
 		if #arg <= 0 then return end
 		if type(bank_constant) ~= "number" then return end
 
@@ -459,7 +636,7 @@ $On Game Init: [
 
 	mn.LuaSEXPs["set-deceleration-time"].Action = function(deceleration_time, ...)
 
-		if ba.MultiplayerMode then return end
+		if not Movements.is_enabled then return end
 		if #arg <= 0 then return end
 		if type(deceleration_time) ~= "number" then return end
 
@@ -476,17 +653,47 @@ $On Game Init: [
 
 	end
 
+	mn.LuaSEXPs["get-waypoint-speed-cap"].Action = function(ship) --returns 0 if ship invalid
+
+		local cap = 0
+		if ship ~= nil and ship:isValid() then
+			cap = ship.WaypointSpeedCap
+		end
+
+		return cap
+
+	end
+
+	mn.LuaSEXPs["set-pos-to-rand-pos-on-hull"].Action = function(object_to_set_oswpt, target_ship, buffer_distance) --returns 0 if ship invalid
+
+		--validity checks
+		if object_to_set_oswpt == nil then return end
+		local object_to_set = object_to_set_oswpt:get()
+		if object_to_set == nil then return end
+		if not object_to_set:isValid() then return end
+
+		--get random position on hull, returns nil if target invalid
+		local random_pos = Movements:RandomPoint_On_ShipHull(target_ship, buffer_distance)
+
+		--set object to that position
+		if random_pos ~= nil and Movements.is_enabled then
+			object_to_set.Position = random_pos
+		end
+
+	end
+
 
 	function Movements:Add_Rotation(shipname, final_pbh, time_delay, time_for_rotation, play_dead_PR, targetobject_name, override_pbh_to_face_target) --requires pbh table in radians with {p=,b=,h=}
 
 		--validity checks
+		if not self.is_enabled then return end
 		if shipname == nil then return end
 		local ship = mn.Ships[shipname]
 		if ship == nil then return end
 		if not ship:isValid() then return end
 
 		--only continue if engines are not blown out
-		if mn.evaluateSEXP("( <= ( hits-left-subsystem-generic !"..shipname.."! !Engines! ) 0 )") then
+		if self:GenericSubsystem_HitsPercent(ship, "engine") <= 0 then
 			return
 		end
 
@@ -573,6 +780,7 @@ $On Game Init: [
 
 	function Movements:Remove_Rotation(shipname_key)
 
+		if not self.is_enabled then return end
 		if shipname_key == nil then return end
 		local entry = self.Active_Rotations[shipname_key]
 
@@ -581,7 +789,7 @@ $On Game Init: [
 
 			--remove play dead order if it was using one
 			if entry.play_dead_PR >= 0 then 
-				mn.runSEXP("( remove-goal !"..entry.shipname.."! ( ai-play-dead-persistent !"..entry.play_dead_PR.."! ) )")
+				self:RemoveGoalCorrectly(mn.Ships[entry.shipname], entry.play_dead_PR, "ai-play-dead-persistent")
 			end
 
 			--ba.print("Movements: rotation for ship "..shipname_key.." is removed ...\n")
@@ -673,7 +881,7 @@ $On Game Init: [
 
 								--run play dead if needed (ie not negative value)
 								if v.play_dead_PR >= 0 then
-									mn.runSEXP("( add-goal !"..v.shipname.."! ( ai-play-dead-persistent !"..v.play_dead_PR.."! ) )")
+									ship:giveOrder(ORDER_PLAY_DEAD_PERSISTENT, nil, nil, v.play_dead_PR/100)
 								end
 
 								--finally, set that the ship is rotating
@@ -745,7 +953,7 @@ $On Game Init: [
 
 		if ship_to_rotate ~= nil and ship_to_rotate:isValid() and obj_to_face_oswpt ~= nil then
 
-			local obj_to_face_name = Movements:GetOSW_Name(obj_to_face_oswpt)
+			local obj_to_face_name = Movements:Get_name_from_Ship_or_Wpt_Obj(obj_to_face_oswpt:get())
 
 			if obj_to_face_name ~= nil then
 				--add entry
@@ -769,6 +977,7 @@ $On Game Init: [
 	function Movements:Add_Wpt_trk_Object(waypointpath_name, objecttarget_name, waypoint_i, offset_xyz, track_interval, track_distance, userelative)
 
 		--validity checks
+		if not self.is_enabled then return end
 		if waypointpath_name == nil or objecttarget_name == nil then return end
 
 		if type(offset_xyz) == "table" then
@@ -801,7 +1010,7 @@ $On Game Init: [
 		if type(objecttarget_name) ~= "string" then return end
 
 		--check if object is ship or waypoint
-		local object = self:GetShip_or_Wypt_Obj_from_name(objecttarget_name)
+		local object = self:Get_Ship_or_Wpt_Obj_from_name(objecttarget_name)
 		if object == nil then return end
 		if not object:isValid() then return end
 
@@ -855,7 +1064,7 @@ $On Game Init: [
 				if mtime > v.time_last_check + v.track_interval then
 					v.time_last_check = mtime
 					--validity checks
-					local object = self:GetShip_or_Wypt_Obj_from_name(v.objecttarget_name)
+					local object = self:Get_Ship_or_Wpt_Obj_from_name(v.objecttarget_name)
 					if object ~= nil and object:isValid() then
 						local wppath = mn.WaypointLists[v.waypointpath_name]
 						if wppath ~= nil and wppath:isValid() then
@@ -877,6 +1086,7 @@ $On Game Init: [
 
 	function Movements:Remove_Wpt_trk_Object(waypointname_key)
 
+		if not self.is_enabled then return end
 		if waypointname_key == nil then return end
 		local entry = self.Active_Wpts_trk_Objects[waypointname_key]
 
@@ -909,7 +1119,7 @@ $On Game Init: [
 
 		local xyz_tbl = {offset_x, offset_y, offset_z}
 
-		local obj_to_track_name = Movements:GetOSW_Name(target_object_owspt)
+		local obj_to_track_name = Movements:Get_name_from_Ship_or_Wpt_Obj(target_object_owspt:get())
 
 		if obj_to_track_name ~= nil then
 			Movements:Add_Wpt_trk_Object(waypointpath.Name, obj_to_track_name, waypoint_i, xyz_tbl, track_interval, track_distance, userelative)
@@ -966,7 +1176,7 @@ $On Game Init: [
 
 	end
 
-	function Movements:ObstacleInPath(ship, stop_ray_distance_min, ignore_ships_with_this_radius, time_check_interval, myship_radius) --assumes args are valid
+	function Movements:ObstacleInPath(ship, stop_ray_distance_min, ignore_ships_with_this_radius, time_check_interval, myship_radius, use_extra_safety_check) --assumes args are valid
 
 		--failsafe validity checks, if either of these are -1 then we are not supposed to use smart stop
 		if stop_ray_distance_min < 0 or ignore_ships_with_this_radius < 0 then
@@ -976,6 +1186,10 @@ $On Game Init: [
 		local sphysics = ship.Physics
 		if sphysics == nil then 
 			return false, -1
+		end
+
+		if use_extra_safety_check == nil then
+			use_extra_safety_check = true
 		end
 
 		--quick out if we are not even facing the waypoint?
@@ -997,15 +1211,15 @@ $On Game Init: [
 		local danger_zone_distance = math.max(stop_ray_distance_min * 1.2, distance_covered_by_next_check * 1.25) --bit more magic numbers
 
 		--has line of sight only uses vectors, so make sure we ignore ourselves when doing obstacle checks
-		--to fix this, lets cast the ray from the nose of the ship
+		--lets cast the ray from the center of the ship to ensure we see everything
 		local ship_pos = ship.Position
-		--the actual ray cast should extend quite a bit more from the front of the ship
+		--the end of the ray cast should extend quite a bit along the forward vector of the ship
 		local ray_end_pos = ship_pos + ship.Orientation:unrotateVector(ba.createVector(0, 0, danger_zone_distance*3))
 
 		--boolean, number getLineOfSightFirstIntersect(vector from, vector to, [table excludedObjects (expects list of objects, empty by default), boolean testForShields = false, boolean testForHull = true, number threshold = 10.0])
 		--Checks whether the to-position is in line of sight from the from-position and returns the distance to the first interruption of the line of sight, disregarding specific excluded objects and objects with a radius of less then threshold.
 		--Returns: true and zero if there is line of sight, false and the distance otherwise.
-		local has_line_of_sight, closest_obstacle_distance, intersecting_obj = mn.getLineOfSightFirstIntersect(ship_pos, ray_end_pos, {ship}, false, true, ignore_ships_with_this_radius, true)
+		local has_line_of_sight, closest_obstacle_distance, intersecting_obj = mn.getLineOfSightFirstIntersect(ship_pos, ray_end_pos, {ship}, false, true, ignore_ships_with_this_radius)
 
 		local obstacle_in_way = false
 		--no for 'line of sight' means there is an obstacle somewhere, so we should check where
@@ -1015,11 +1229,13 @@ $On Game Init: [
 		if not has_line_of_sight and intersecting_obj ~= nil and intersecting_obj:isValid() then
 
 			--if there is an obstacle
-			--account for ship and target self and any obstacle radius too
-			local extra_safety_radius = myship_radius + self:GetRadius(tostring(intersecting_obj), true, 0)
+			--account for ship and target self and any obstacle radius, if specified
+			if use_extra_safety_check then
+				local extra_safety_radius = myship_radius + self:GetRadius(tostring(intersecting_obj), true, 0)
 
-			--update distance with safety radius and do check
-			closest_obstacle_distance = closest_obstacle_distance - extra_safety_radius
+				--update distance with safety radius and do check
+				closest_obstacle_distance = closest_obstacle_distance - extra_safety_radius
+			end
 
 			if closest_obstacle_distance < 0 then 
 				closest_obstacle_distance = 0 
@@ -1036,9 +1252,10 @@ $On Game Init: [
 
 	end
 
-	function Movements:Add_Ship_trk_Wpt(shipname, waypoint_path_name, priority, track_interval, track_distance, input_final_pbh, final_pbh_target_name, continuous_pbh_check, play_dead_PR, uses_smart_stop, smart_stop_ray_distance_min, smart_stop_ignore_radius) --input_final_pbh should be {p=0,b=0,h=0} in radians
+	function Movements:Add_Ship_trk_Wpt(shipname, waypoint_path_name, priority, track_interval, track_distance, input_final_pbh, final_pbh_target_name, continuous_pbh_check, play_dead_PR, uses_smart_stop, smart_stop_ray_distance_min, smart_stop_ignore_radius, use_extra_safety_check) --input_final_pbh should be {p=0,b=0,h=0} in radians
 
 		--validity checks
+		if not self.is_enabled then return end
 		if shipname == nil then return end
 		if not mn.Ships[shipname]:isValid() then return end
 		if waypoint_path_name == nil then return end
@@ -1131,13 +1348,13 @@ $On Game Init: [
 			uses_smart_stop = false
 		end
 
-		if uses_smart_stop then --recall, 'uses smart stop' is the only 'smart stop' option exposed in sexps
+		if uses_smart_stop then
 			--if obstacle is within this distance it will trigger a stop
 			if type(smart_stop_ray_distance_min) ~= "number" then
 				smart_stop_ray_distance_min = -1 -- -1 triggers default
 			end
 			if smart_stop_ray_distance_min < 0 then
-				smart_stop_ray_distance_min = ship_radius * 2
+				smart_stop_ray_distance_min = ship_radius * 2 --default value of ship diameter
 			--else --keep as is
 			end
 
@@ -1148,9 +1365,15 @@ $On Game Init: [
 			if smart_stop_ignore_radius < 0 then 
 				smart_stop_ignore_radius = 25 --default value of 25
 			end
+
+			--use extra safety buffer, default is yes
+			if use_extra_safety_check == nil then
+				use_extra_safety_check = true
+			end
 		else
 			smart_stop_ray_distance_min = -1
 			smart_stop_ignore_radius = -1
+			use_extra_safety_check = false
 		end
 
 		--add entry using shipname as key and update total number variable
@@ -1172,7 +1395,8 @@ $On Game Init: [
 			uses_smart_stop = uses_smart_stop,
 			smart_stop_ray_distance_min = smart_stop_ray_distance_min, --only used if using smart stop
 			smart_stop_triggered = false, --only used if using smart stop
-			smart_stop_ignore_radius = smart_stop_ignore_radius --only used if using smart stop
+			smart_stop_ignore_radius = smart_stop_ignore_radius, --only used if using smart stop,
+			use_extra_safety_check = use_extra_safety_check
 		}
 
 		--remove any other tracking of waypoints for this ship
@@ -1185,7 +1409,7 @@ $On Game Init: [
 		if dis_to_wp1 > track_distance then
 			--if ship has space to actually run waypoints
 			local run_order = true
-			local obstacle_in_path, _ = self:ObstacleInPath(ship, entry.smart_stop_ray_distance_min, entry.smart_stop_ignore_radius, entry.track_interval, entry.ship_radius)
+			local obstacle_in_path, _ = self:ObstacleInPath(ship, entry.smart_stop_ray_distance_min, entry.smart_stop_ignore_radius, entry.track_interval, entry.ship_radius, entry.use_extra_safety_check)
 			if uses_smart_stop and obstacle_in_path then
 				run_order = false
 				entry.smart_stop_triggered = true
@@ -1193,7 +1417,7 @@ $On Game Init: [
 			end
 			--give initial waypoint order if no obstacles
 			if run_order then
-				mn.runSEXP("( add-goal !"..shipname.."! ( ai-waypoints-once !"..waypoint_path_name.."! !"..priority.."! ))")
+				ship:giveOrder(ORDER_WAYPOINTS_ONCE, first_wp, nil, priority/100)
 			end
 		else -- if distance is too small then the ship is considered to have done its waypoint path instantly (On Waypoints Done)
 			entry.is_running_waypoints_once = false
@@ -1207,18 +1431,20 @@ $On Game Init: [
 
 	function Movements:Remove_Ship_trk_Wpt(shipname_key)
 
+		if not self.is_enabled then return end
 		if shipname_key == nil then return end
 		local entry = self.Active_Ships_trk_Wpts[shipname_key]
 
 		if entry ~= nil then
 
+			local ship = mn.Ships[entry.shipname]
 			--remove any play dead order just in case they did not get removed when rotation done
 			if entry.play_dead_PR >= 0 then 
-				mn.runSEXP("( remove-goal !" .. entry.shipname .."! ( ai-play-dead-persistent !".. entry.play_dead_PR .."! ) )")
+				self:RemoveGoalCorrectly(ship, entry.play_dead_PR, "ai-play-dead-persistent")
 			end
 
 			--remove any waypoints once order
-			mn.runSEXP("( remove-goal !" .. entry.shipname .."! ( ai-waypoints-once !".. entry.waypoint_path_name .."! !".. entry.priority .."! ) )")
+			self:RemoveGoalCorrectly(ship, entry.priority, "ai-waypoints-once", entry.waypoint_path_name)
 
 			--remove from list and update variables
 			self.Active_Ships_trk_Wpts[shipname_key] = nil
@@ -1233,6 +1459,7 @@ $On Game Init: [
 		--change waypoint status and save location of last waypoint
 
 		--validity checks
+		if not self.is_enabled then return end
 		if shipname == nil or done_wp_path_name == nil then return end 
 		local entry = self.Active_Ships_trk_Wpts[shipname]
 		if entry == nil then return end
@@ -1327,12 +1554,12 @@ $On Game Init: [
 										--ship not moving -> go and start moving again
 
 									local ship_currently_moving = not v.smart_stop_triggered
-									local obstacle_in_path, intersecting_obj = self:ObstacleInPath(ship, v.smart_stop_ray_distance_min, v.smart_stop_ignore_radius, v.track_interval, v.ship_radius)
+									local obstacle_in_path, intersecting_obj = self:ObstacleInPath(ship, v.smart_stop_ray_distance_min, v.smart_stop_ignore_radius, v.track_interval, v.ship_radius, v.use_extra_safety_check)
 
 									if obstacle_in_path then  --found obstacle
 										if ship_currently_moving then
 											--stop ship
-											mn.runSEXP("( remove-goal !"..v.shipname.."! ( ai-waypoints-once !"..v.waypoint_path_name.."! !"..v.priority.."! ))")
+											self:RemoveGoalCorrectly(ship, v.priority, "ai-waypoints-once", v.waypoint_path_name)
 											v.smart_stop_triggered = true
 										else --ship not moving
 											--what if the ship stopped b/c it got too close to it's final target? (ie final target is the obstacle)
@@ -1362,7 +1589,10 @@ $On Game Init: [
 									else --no obstacles
 										if not ship_currently_moving then
 											--start moving again
-											mn.runSEXP("( add-goal !"..v.shipname.."! ( ai-waypoints-once !"..v.waypoint_path_name.."! !"..v.priority.."! ))")
+											local wp_list = mn.WaypointLists[v.waypoint_path_name]
+											if wp_list ~= nil and wp_list:isValid() then
+												ship:giveOrder(ORDER_WAYPOINTS_ONCE, wp_list[1], nil, v.priority/100)
+											end
 											v.smart_stop_triggered = false
 										--else --ship is moving, and no obstacles so keep on doing what we are already doing
 										end
@@ -1414,7 +1644,7 @@ $On Game Init: [
 									--recall the parent conditionals check if the waypoints order is already running
 
 									--might have case where waypoint is far enough away to trigger new path order, but obstacle is the target ship
-									local obstacle_in_path, intersecting_obj = self:ObstacleInPath(ship, v.smart_stop_ray_distance_min, v.smart_stop_ignore_radius, v.track_interval, v.ship_radius)
+									local obstacle_in_path, intersecting_obj = self:ObstacleInPath(ship, v.smart_stop_ray_distance_min, v.smart_stop_ignore_radius, v.track_interval, v.ship_radius, v.use_extra_safety_check)
 			
 									if v.uses_smart_stop and obstacle_in_path then
 
@@ -1427,7 +1657,10 @@ $On Game Init: [
 										self:Remove_Rotation(v.shipname)
 
 										--start waypoints once
-										mn.runSEXP("( add-goal !"..v.shipname.."! ( ai-waypoints-once !"..v.waypoint_path_name.."! !"..v.priority.."! ))")
+										local wp_list = mn.WaypointLists[v.waypoint_path_name]
+										if wp_list ~= nil and wp_list:isValid() then
+											ship:giveOrder(ORDER_WAYPOINTS_ONCE, wp_list[1], nil, v.priority/100)
+										end
 										v.is_running_waypoints_once = true
 									end
 
@@ -1473,7 +1706,7 @@ $On Game Init: [
 
 	end
 
-	mn.LuaSEXPs["add-ai-goal-track-waypoint"].Action = function(ship, waypointpath, priority, track_interval, track_distance, use_smart_stop)
+	mn.LuaSEXPs["add-ai-goal-track-waypoint"].Action = function(ship, waypointpath, priority, track_interval, track_distance, use_smart_stop, smart_stop_ray_distance_min, smart_stop_ignore_radius, use_extra_safety_check)
 
 		--recall this doesn't take into account target ship, so nothing about the orientation, continuous_pbh_check, or play_dead_PR is set here. 
 		--this should only be used for waypoints not related to ships, if more is needed use the actual function
@@ -1490,7 +1723,12 @@ $On Game Init: [
 			--function takes a waypoint_path_name as string but this sexp takes the entire waypoint_path object
 			local waypointpath_name = waypointpath.Name
 
-			Movements:Add_Ship_trk_Wpt(ship.Name, waypointpath_name, priority, track_interval, track_distance, nil, nil, nil, nil, use_smart_stop) --recall target is not used in this sexp, so it won't be used
+			--these defaults are set in following function
+			--smart_stop_ray_distance_min, smart_stop_ignore_radius, use_extra_safety_check
+
+			Movements:Add_Ship_trk_Wpt(ship.Name, waypointpath_name, priority, track_interval, track_distance, nil, nil, nil, nil, use_smart_stop, smart_stop_ray_distance_min, smart_stop_ignore_radius, use_extra_safety_check)
+			--^^recall target is not used in this sexp, so it won't be used
+
 		end
 
 	end
@@ -1509,6 +1747,7 @@ $On Game Init: [
 
 		--use this to update or set the idle orientation of a ship tracking a waypoint
 		--remember needs to be in radians
+		if not self.is_enabled then return end
 		if shipname == nil then return end
 		local entry = self.Active_Ships_trk_Wpts[shipname]
 		if entry == nil then return end
@@ -1536,6 +1775,7 @@ $On Game Init: [
 	function Movements:Unset_Idle_Tracking_PBH(shipname_key)
 
 		--use this to remove the idle tracking function for a ship that is tracking a waypoint path
+		if not self.is_enabled then return end
 		if shipname_key == nil then return end
 		if type(shipname_key) ~= "string" then return end
 		local entry = self.Active_Ships_trk_Wpts[shipname_key]
@@ -1590,22 +1830,17 @@ $On Game Init: [
 		if shipname ~= nil then
 			local ship = mn.Ships[shipname]
 			if ship ~= nil and ship:isValid() then
-				local class = ship.Class
-				if class ~= nil then
-					local model = class.Model
-					if model ~= nil then
-						local radius = model.Radius
-						if radius ~= nil then
-							if donotround then
-								final = radius
-							else
-								final = self:Round(radius)
-							end
-						end	
+				local radius = ship.Radius
+				if radius ~= nil then
+					if donotround then
+						final = radius
+					else
+						final = self:Round(radius)
 					end
-				end
+				end	
 			end
 		end
+
 		return math.max(final, forced_minimum)
 
 	end
@@ -1615,6 +1850,7 @@ $On Game Init: [
 		--recall this has access to some other arguments that the individual lower level sexps do not such as userelative, continuous_pbh_check, and play_dead_PR
 
 		--set defaults 
+		if not self.is_enabled then return end
 		if type(ship_to_order_name) ~= "string" then return end
 		if type(ship_to_track_name) ~= "string" then return end
 		if type(waypointpath_name) ~= "string" then return end
@@ -1656,13 +1892,16 @@ $On Game Init: [
 	function Movements:Remove_Ship_trk_Ship(shipname_to_remove_order, waypointpath_name, waypoint_i)
 
 		--validity checks
+		if not self.is_enabled then return end
 		if type(shipname_to_remove_order) ~= "string" then return end
 		if type(waypointpath_name) ~= "string" then return end
 		if type(waypoint_i) ~= "number" then
 			waypoint_i = 1
 		end
-		--first stop waypoint tracking ship, using sexp so can use waypointpath name and i
-		mn.runSEXP("( remove-waypoint-track-ship !"..waypointpath_name.."! !"..waypoint_i.."! )")
+
+		--first stop waypoint tracking ship
+		local waypoint_name = self:WaypointName(waypointpath_name, waypoint_i)
+		self:Remove_Wpt_trk_Object(waypoint_name)
 
 		--then remove ship_order tracking of that waypoint 
 		self:Remove_Ship_trk_Wpt(shipname_to_remove_order)
