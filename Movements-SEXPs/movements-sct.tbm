@@ -14,7 +14,7 @@ $Application: FS2_Open
 
 $On Game Init: [
 
-	--Version 2.3, released on November 20, 2022 by wookieejedi
+	--Version 2.4, released on Janurary 17, 2023 by wookieejedi
 	--Requires FSO build of August 27, 2022 or newer
 	--Description: custom sexps and functions that allow for much easier ship movements and rotations
 	--Usage: custom sexps are included and listed in FRED under the LUA-Movements tab
@@ -572,10 +572,14 @@ $On Game Init: [
 
 		--finds a point on a ship's hull 
 
-		--get ship
+		--get ship and check validity
 		if ship == nil then return nil end
 		if not ship:isValid() then return nil end
 
+		--default arguments
+		if return_local_coordinates == nil then
+			return_local_coordinates = false
+		end
 		if type(buffer_distance) ~= "number" then
 			buffer_distance = 0
 		end
@@ -588,16 +592,14 @@ $On Game Init: [
 
 		--2) Run checkRayCollision from that point on the bounding sphere to the ship's center to get global position of hull intersection
 
-			if return_local_coordinates == nil then
-				return_local_coordinates = false
-			end
-
 			local hull_point, collision_data = ship:checkRayCollision(sphere_point, ship_pos, return_local_coordinates)
 			--vector, collision_info checkRayCollision(vector StartPoint, vector EndPoint, [boolean Local = false])
 			--Checks the collisions between the polygons of the current object and a ray. Start and end vectors are in world coordinates
 			--Returns: World collision point (local if boolean is set to true) and the specific collsision info, nil if no collisions
 
 		--3) Use that distance and line to select a new point on the intersect line, which should be touching the outside of the hull
+
+			--note does not work if ship has no geometry at it's origin point, like a donut ship
 
 			--it is expected to hit the ship/itself
 			if hull_point ~= nil and collision_data ~= nil and collision_data:isValid() then
@@ -614,6 +616,50 @@ $On Game Init: [
 
 
 	end
+
+	function Movements:RandomPoint_In_ShipBBox(ship, return_local_coordinates)
+
+		--finds a point within a ship's bounding box 
+
+		--get ship and check validity
+		if ship == nil then return nil end
+		if not ship:isValid() then return nil end
+
+		local base_model = ship.Class.Model
+
+		if base_model == nil then return end
+		if not base_model:isValid() then return end
+
+		--default arguments
+		if return_local_coordinates == nil then
+			return_local_coordinates = false
+		end
+
+		--run calculations
+		local box_min = base_model.BoundingBoxMin
+		local box_max = base_model.BoundingBoxMax
+
+		if box_min == nil or box_max == nil then return end
+
+		local rand_pos = {0, 0, 0}
+		for i=1,3 do
+			rand_pos[i] = ba.rand32f(box_min[i], box_max[i])
+		end
+
+		local rand_vec = ba.createVector(rand_pos[1], rand_pos[2], rand_pos[3])
+
+		--rotate to be with self ship rotation
+		local rand_pos_to_ship = ship.Position + ship.Orientation:unrotateVector(rand_vec)
+
+		--return values
+		if return_local_coordinates then
+			return rand_vec
+		else
+			return rand_pos_to_ship
+		end
+
+	end
+
 
 	mn.LuaSEXPs["set-bank-constant"].Action = function(bank_constant, ...)
 
@@ -664,7 +710,9 @@ $On Game Init: [
 
 	end
 
-	mn.LuaSEXPs["set-pos-to-rand-pos-on-hull"].Action = function(object_to_set_oswpt, target_ship, buffer_distance) --returns 0 if ship invalid
+	mn.LuaSEXPs["set-pos-to-rand-pos-on-hull"].Action = function(object_to_set_oswpt, target_ship, buffer_distance) 
+
+		--does not set if something invalid
 
 		--validity checks
 		if object_to_set_oswpt == nil then return end
@@ -674,6 +722,26 @@ $On Game Init: [
 
 		--get random position on hull, returns nil if target invalid
 		local random_pos = Movements:RandomPoint_On_ShipHull(target_ship, buffer_distance)
+
+		--set object to that position
+		if random_pos ~= nil and Movements.is_enabled then
+			object_to_set.Position = random_pos
+		end
+
+	end
+
+	mn.LuaSEXPs["set-pos-to-rand-pos-in-b-box"].Action = function(object_to_set_oswpt, target_ship)
+
+		--does not set if something invalid
+
+		--validity checks
+		if object_to_set_oswpt == nil then return end
+		local object_to_set = object_to_set_oswpt:get()
+		if object_to_set == nil then return end
+		if not object_to_set:isValid() then return end
+
+		--get random position on hull, returns nil if target invalid
+		local random_pos = Movements:RandomPoint_In_ShipBBox(target_ship)
 
 		--set object to that position
 		if random_pos ~= nil and Movements.is_enabled then

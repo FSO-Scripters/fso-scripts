@@ -55,6 +55,19 @@ $Parameter:
 	+Description: Buffer distance added to the point position. Negative values will move the point away from the hull while positive values will move the point into the hull. Default is 0.
 	+Type: Number
 
+$Operator: set-pos-to-rand-pos-in-b-box
+$Category: Change
+$Subcategory: LUA-Movements
+$Minimum Arguments: 2
+$Return Type: Nothing
+$Description: Chooses a random position within the bounding box of a given ship and sets the position of the given object to that point. Note, the randomly selected position by be inside the ship geometry.
+$Parameter: 	
+	+Description: Ship or waypoint to set the position of.  
+	+Type: Ship+Waypoint
+$Parameter: 
+	+Description: Ship that will be used to choose a random point within it's bounding box.
+	+Type: Ship
+
 
 $Operator: move-to-orientation
 $Category: Change
