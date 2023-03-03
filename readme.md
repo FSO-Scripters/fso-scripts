@@ -1,5 +1,6 @@
 # Overview
 This is a collection of user-made scripts for the [FreeSpace Open engine](https://github.com/scp-fs2open/fs2open.github.com)
+
 ## List of Scripts
 |Name|Description|min. FSO|Dependencies|Scripter|
 |---|---|---|---|---|
@@ -33,6 +34,7 @@ This is a collection of user-made scripts for the [FreeSpace Open engine](https:
 |Send Message Alt SEXPS|More powerful versions of the built-in send-message SEXPs|22.0||Naomimyselfandi|
 |SpawnSystem|A system for infinite auto-spawning of ships|21.0|AxBase|Axem|
 |Speedlines|Draws Anime-esque Speedlines onto the screen|21.0|AxBase|Axem|
+|TrackingDevice|Allows a missile to be treated as a tracking device that can mark any ship that it impacts|23.0||Goober5000|
 |TurretHotkey|Allows targeting turrets with hotkeys|21.0|AxBase|Axem|
 |VN|A script allowing for integrating a fully-flegded Visual Novel into FSO|21.0|AxBase, AxMessage, AxMiscFunctions|Axem, Lafiel|
 |WaypointAssist|Visually guides the player through a waypoint path|21.0|AxBase|Axem|

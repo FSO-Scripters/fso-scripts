@@ -1,0 +1,50 @@
+#Lua SEXPs
+
+$Operator: lua-TrackingDevice-pair
+$Category: Change
+$Subcategory: Scripted
+$Minimum Arguments: 2
+$Maximum Arguments: 2
+$Return Type: Nothing
+$Description: Adds a table entry so that the specified weapon impact will spawn the specified ship that latches on to its target.
+$Parameter:
+	+Description: Weapon class
+	+Type: weaponclass
+$Parameter:
+	+Description: Ship class
+	+Type: shipclass
+
+$Operator: lua-TrackingDevice-unpair
+$Category: Change
+$Subcategory: Scripted
+$Minimum Arguments: 1
+$Maximum Arguments: 1
+$Return Type: Nothing
+$Description: Removes a table entry added by lua-TrackingDevice-pair.
+$Parameter:
+	+Description: Weapon class
+	+Type: weaponclass
+
+$Operator: lua-TrackingDevice-isTracked
+$Category: Status
+$Subcategory: Scripted
+$Minimum Arguments: 1
+$Maximum Arguments: 1
+$Return Type: Boolean
+$Description: Returns whether the specified ship is currently being tracked by a tracking device.  A ship will cease being tracked if it or its tracking device is destroyed.
+$Parameter:
+	+Description: Ship
+	+Type: shipname
+
+$Operator: lua-TrackingDevice-everTracked
+$Category: Status
+$Subcategory: Scripted
+$Minimum Arguments: 1
+$Maximum Arguments: 1
+$Return Type: Boolean
+$Description: Returns whether the specified ship was ever tracked in this mission, even if it is not currently being tracked.
+$Parameter:
+	+Description: Ship
+	+Type: shipname
+
+#End
