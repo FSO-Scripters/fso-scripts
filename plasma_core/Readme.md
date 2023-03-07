@@ -1,6 +1,6 @@
 
 # Plasma Core FSO Script Management Library
-## Version 0.9.0
+## Version 0.11.0
 
 Plasma Core is intended as a foundational system to keep libraries, modules, and scripted gameplay systems of all stripes tidy and enable live-reloading of their code without restarting the game or wiping state. Plasma Core should work with standard Lua modules just as well as Fennel modules, so long as they are structured for it.
 
@@ -19,8 +19,17 @@ Provided are both .lua and .fennel files for plasma core. If you use the fennel 
 The REPL files included are both an example of how a simple module can be structured, and a way to make use of the live development reload capabilties of the module. This workflow works best with features added during the FSO 22.3 development cycle
 
 ## Usage
-A module designed form plasma core should be a file that returns a table of all it's functions.
-A few member names are special. All function members should have a self paramter and a paramter for the core library, which will be passed in by the library's loading function.
+A module designed from plasma core should be a file that returns a table of functions. Fennel convention is to declare all functions as locals and then build a table of all the ones to be exported, but it is equally valid to create the table ahead and create the functions as members of it intially.
+
+Note: You only need to export functions that are going to be called from outside the module, such as the framework functions listed below, or ones that will be used as sexp, hook or override functions. This is required to have them reload properly if changed.
+
+Outside of those case it is perfectly valid to keep functions local to the module and not export them, so long as the above rules are followed.
+
+If a local function needs to access the module table for some reason and you don't want to pass it in, use get_module_namespace to obtain a safe reference.
+
+### Special member names:
+All of these members are optional, but if they exist they will be treated in
+    specific ways.
 
 >*table* state: 
 
@@ -36,29 +45,40 @@ Sets up the initial state. Ideally it should also clean up any existing state on
 
 > *function* configure: 
 
-Reads all configuration files and populates the config table. Should use the load_modular_configs member of this module configure can also set up any SEXP actions, as it is safe to re-assign those.
+Reads all configuration files and populates the config table. This should use the load_modular_configs function if possible.
+Also set SEXP actions in `configure()`, using plasma core's `add_sexp`, as they can safely be reassigned on reloads.
 
 > *function* hook: 
 
-Create any hooks not specified in the -sct.tbm. Since we can't remove or replace hooks, this is only run on the initial load. Hooks should thus likely call a member function that does the actual work, so that can be reloaded instead. 
+Creates hooks using plasma core's `add_hook`. `add_hook` creates fully reloadable hooks if used properly, and has support for all the features of -sct.tbm files.
+Hook is only ever run the first time a module is loaded, since the engine does not provide a way to remove or replace hooks. Consider using the codekeys module if you need to add a new hook at runtime.
+An example of a hook function
+```lisp
+(fn hook [self core]
+  (core.add_hook(self, "clear_all", "On Mission About To End")
+  (core.add_hook(self, "message_send", "On Message Received"))
+```
 
-Example:
+or in lua:
 
 ```lua
-function repl:hook(core)
-  return engine.addHook(On Key Pressed, (function () self:key_hook() end))
+local function hook(self, core)
+  core.add_hook(self, "clear_all", "On Mission About To End")
+  core.add_hook(self, "message_send", "On Message Received")
 end
-```
-```clojure
-(fn repl.hook [self core]
-    (engine.addHook On Key Pressed
-        (fn [] (self:key_hook))))
 ```
 
 If you put any non-function members in the module anywhere but the state or config tables they may not be loaded or reloaded properly.
 
 ## Loading
-The standard plasma core module's sct.tbm file consists only of this:
+A standard plasma core module has no `-sct.tbm` file. On game startup the framework scans `data/scripts/plasma_modules` and attempts to load any fennel or lua files it finds there as modules. It can also load files in subfolders of that location.
+
+Then it sets up any hooks within the module's hook() function. However, it is perfectly fine and reasonable to set the hooks up in the sct table instead, provided they follow the structure described in the usage section.
+
+Any code that references a module should use a local populated with `get_module()`, to ensure standard behavior. Internal handling and storage of modules could concievably change in the future, but get_module should always work as it does, so direct access to the plasma_core modules table is strongly discouraged.
+
+Due both to the intricacies of live reloads and some oddities of the hooks system it is highly recommended you use the automatic loading and `hook()`+`add_hook()` method to set up your module. However if you are set on having a `-sct.tbm` table, this is what the basic boilerplate of it would look like.
+
 ```lua
 #Conditional Hooks
 $Application: FS2_Open
@@ -70,9 +90,7 @@ core:get_module('modulename')
 ]
 #end
 ```
-Then it sets up any hooks within the module's hook() function. However, it is perfectly fine and reasonable to set the hooks up in the sct table instead, provided they follow the structure described in the usage section.
 
-A plasma core module should only be loaded with get_module(), and any code that references a module should use a local populated with get_module(), to ensure standard behavior. Internal handling and storage of modules could concievably change in the future, but get_module should always work as it does, so direct access to the plasma_core modules table is strongly discouraged.
 
 # Modular configs
 
@@ -151,6 +169,21 @@ Combines two tables.
 Leaves overlapping non-table members alone unless replace is set. Always merges members that are tables.
 Ignore takes an array of keys to skip.
 
+## verify_table_keys
+> *table* t 
+
+> *table* required 
+
+> *table* optional 
+
+> *string* ?label
+
+Optional label parameter is used for debug output
+
+Checks a table to ensure only a valid set of keys is present and/or enforce a set of required keys.
+
+Useful to guard against typos in config tables.
+
 # FSO interface helpers
 
 ## add_order
@@ -201,11 +234,15 @@ If reset is true, the module's state will also be reinitalized
 
 get_module only attaches a module's hooks on first load, as there is currently no way to replace existing hooks. Modules should design hooks around this limitation. Actions for orders and sexps are re-attached each load as that is a safe replacement.
 
-## reload_modules
+## get_module_namespace
 
-> *table* self
+> *table self
 
-Internal module reload function, reloads everything but does not reset. Not intended to be externally called.
+> *string* file_name
+
+Gets access to a module table, even if the module has not yet been loaded.
+
+Intended for letting local functions reference the module state without adding syntactic bloat or issues on reload.
 
 ## reload
 
