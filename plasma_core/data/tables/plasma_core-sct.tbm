@@ -6,7 +6,6 @@ $On Game Init:
 [
 require 'add_fennel'
 local core = require 'plasma_core'
-core:get_module('repl')
 ]
 
 
