@@ -3,6 +3,8 @@ Fennel is a programming language that runs within Lua. It belongs to the Lisp fa
 
 For detailed information and documentation see https://fennel-lang.org/
 
+This package provides the compiler for fennel version 1.3.0, as provided at https://fennel-lang.org/downloads/fennel-1.3.0.tar.gz
+
 #  Why use Fennel?
 
 I use Fennel because it's a refreshing change from using Lua. There are a few potential good reasons, and some drawbacks.
@@ -17,7 +19,7 @@ Disadvantages
  * Fennel and Fred events both draw from Lisp, but they are not the same language and they are not compatable. Knowledge from one could potentially confuse the other.
  * Debugging can be made more difficult. See below for details.
 
- In the end it comes down to aesthetics for me. I like working with Fennel, it's novel and satisfying, so I will continue to do so. It's up to you if yo uwant to or not. 
+ In the end it comes down to aesthetics for me. I like working with Fennel, it's novel and satisfying, so I will continue to do so. It's up to you if you want to or not. 
 
 ## How to use Fennel in FSO.
 
