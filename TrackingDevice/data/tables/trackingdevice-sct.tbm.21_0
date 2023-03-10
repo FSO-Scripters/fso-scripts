@@ -101,16 +101,16 @@ $On Weapon Collision:
 				-- get the place where the weapon hit
 				local ci = wep:getCollisionInformation()
 				local local_pos = ci:getCollisionPoint(true)
-				local submodel = ci:getCollisionSubmodel()
+;;FSO 22.2.0;;				local submodel = ci:getCollisionSubmodel()
 
 				-- see if we are going to follow a moving submodel
 				local smi
-				if submodel then
-					local mi = trackee.ModelInstance
-					if mi then
-						smi = mi.SubmodelInstances[submodel]
-					end
-				end
+;;FSO 22.2.0;;				if submodel then
+;;FSO 22.2.0;;					local mi = trackee.ModelInstance
+;;FSO 22.2.0;;					if mi then
+;;FSO 22.2.0;;						smi = mi.SubmodelInstances[submodel]
+;;FSO 22.2.0;;					end
+;;FSO 22.2.0;;				end
 
 				-- "stick" the tracking device on the ship
 				local f
@@ -148,15 +148,11 @@ $On Ship Depart:
 		if t then
 			for tracker_name, trackee_name in pairs(t) do
 				if trackee_name == ship_name then
-					local tracker_ship = mn.Ships[tracker_name]
 					if method == "SHIP_VANISHED" then
-						tracker_ship:vanish()
+						mn.evaluateSEXP("( ship-vanish !" .. tracker_name .. "! )")
 					else
-						tracker_ship.DepartureLocation = "Hyperspace"
-						tracker_ship.DepartureAnchor = "<no anchor>"
-						tracker_ship.DepartureDelay = 0
-						tracker_ship:setFlag(true, "no-departure-warp")
-						tracker_ship:warpOut()
+						mn.evaluateSEXP("( set-departure-info !" .. tracker_name .. "! !Hyperspace! !<no anchor>! !0! !0! (false) )")
+						mn.Ships[tracker_name]:warpOut()
 					end
 				end
 			end
@@ -164,23 +160,24 @@ $On Ship Depart:
 	end
 ]
 
-$On Ship Death:
+$On Death:
 [
 	-- if either the tracking device or the ship it tracks has been destroyed, remove the entry
 	local td = TrackingDevice
 	if td.Enabled then
-		local ship_name = hv.Ship.Name
-		local t = td.TrackerToTrackee
-		if t then
-			for tracker_name, trackee_name in pairs(t) do
-				-- remove entry
-				if tracker_name == ship_name or trackee_name == ship_name then
-					t[tracker_name] = nil
-				end
-				-- if the trackee was destroyed, destroy any trackers
-				if trackee_name == ship_name then
-					local tracker_ship = mn.Ships[tracker_name]
-					tracker_ship:kill(tracker_ship)
+		if hv.Self:getBreedName() == "Ship" then
+			local ship_name = hv.Self.Name
+			local t = td.TrackerToTrackee
+			if t then
+				for tracker_name, trackee_name in pairs(t) do
+					-- remove entry
+					if tracker_name == ship_name or trackee_name == ship_name then
+						t[tracker_name] = nil
+					end
+					-- if the trackee was destroyed, destroy any trackers
+					if trackee_name == ship_name then
+						mn.evaluateSEXP("( self-destruct !" .. tracker_name .. "!)")
+					end
 				end
 			end
 		end

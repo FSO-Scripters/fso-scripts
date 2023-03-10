@@ -6,4 +6,4 @@ When the tracking device adheres to a target ship, that target is considered "tr
 
 Potential use cases for this script include tracking ships during reconnaissance or stealth missions, or performing special actions for tracked ships during conventional missions.
 
-This script requires 23.0 due to the "On Ship Death" hook, but it will run on 21.0 (and possibly earlier) if the hook is changed to "On Death".
+This script requires 23.2, but the .21_0 version of the script will run on 21.0 (and possibly earlier builds).
