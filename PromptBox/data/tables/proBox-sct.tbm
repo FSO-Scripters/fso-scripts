@@ -467,23 +467,28 @@ end
 
 function PromptBox:Draw()
 
+	local opacityType = gr.CurrentOpacityType
+	gr.CurrentOpacityType = GR_ALPHABLEND_NONE
+
 	gr.drawImage(self.Image.file, self.Position.x, self.Position.y)
 
 	--self:UpdateText()
-		
+
 	gr.CurrentFont = gr.Fonts[self.Config.Title.Font]
 	AXUI:SetColor("white")
-	
+
 	local x,y = self.Config.Title.Offset[1], self.Config.Title.Offset[2]
-	
+
 	if self.Message then
 		self.TitleText = self.Message:getMessage(true)
 	end
-	
+
 	gr.drawString(self.TitleText, self.Position.x + x, self.Position.y + y)
-	
+
 	self.Menu:DrawList()
-		
+
+	gr.CurrentOpacityType = opacityType
+
 end
 
 function PromptBox:MonitorActions()
