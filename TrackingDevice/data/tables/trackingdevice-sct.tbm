@@ -1,0 +1,190 @@
+; Tracking Device Script
+; Created by Goober5000 based on an idea by Durandal
+;
+
+#Conditional Hooks
+$Application: FS2_Open
+
+$On Game Init:
+[
+	TrackingDevice = {}
+
+	function TrackingDevice:Pair(weapon_class, ship_class)
+		if weapon_class and ship_class then
+			if not weapon_class:isValid() then
+				ba.warning("TrackingDevice: Invalid weapon class!\n")
+				return
+			end
+
+			if not ship_class:isValid() then
+				ba.warning("TrackingDevice: Invalid ship class name!\n")
+				return
+			end
+
+			self.WeaponToShip[weapon_class.Name] = ship_class
+			self.Enabled = true
+		end
+	end
+	mn.LuaSEXPs["lua-TrackingDevice-pair"].Action = function(weapon_class, ship_class)
+		TrackingDevice:Pair(weapon_class, ship_class)
+	end
+
+	function TrackingDevice:UnPair(weapon_class)
+		self.WeaponToShip[weapon_class.Name] = nil
+
+		-- disable when all entries have been removed
+		if next(self.WeaponToShip) == nil then
+			self.Enabled = false
+		end
+	end
+	mn.LuaSEXPs["lua-TrackingDevice-unpair"].Action = function(weapon_class)
+		TrackingDevice:UnPair(weapon_class)
+	end
+
+	function TrackingDevice:IsTracked(ship_name)
+		if self.Enabled then
+			local t = self.TrackerToTrackee
+			if t then
+				for tracker_name, trackee_name in pairs(t) do
+					if trackee_name == ship_name then
+						return true
+					end
+				end
+			end
+		end
+		return false
+	end
+	mn.LuaSEXPs["lua-TrackingDevice-isTracked"].Action = function(ship_name)
+		return TrackingDevice:IsTracked(ship_name)
+	end
+
+	function TrackingDevice:EverTracked(ship_name)
+		if self.Enabled then
+			local t = self.EveryTrackee
+			if t and t[ship_name] then
+				return true
+			end
+		end
+		return false
+	end
+	mn.LuaSEXPs["lua-TrackingDevice-everTracked"].Action = function(ship_name)
+		return TrackingDevice:EverTracked(ship_name)
+	end
+]
+
+$On Mission Start:
+[
+	local td = TrackingDevice
+	td.Enabled = false
+	td.WeaponToShip = {}
+	td.TrackerToTrackee = {}
+	td.EveryTrackee = {}
+	td.TotalTracked = 0
+]
+
+$On Weapon Collision:
+[
+	local td = TrackingDevice
+	if td.Enabled then
+		local wep = hv.Object
+		local trackee = hv.Self
+		if trackee:getBreedName() == "Ship" then
+			local tracker_class = td.WeaponToShip[wep.Class.Name]
+			if tracker_class then
+				-- spawn the tracking device and record it
+				td.TotalTracked = td.TotalTracked + 1
+				local tracker_name = tracker_class.Name .. " " .. td.TotalTracked
+				local tracker = mn.createShip(tracker_name, tracker_class, orient, pos, wep.Team)
+				td.TrackerToTrackee[tracker_name] = trackee.Name
+				td.EveryTrackee[trackee.Name] = true
+
+				-- get the place where the weapon hit
+				local ci = wep:getCollisionInformation()
+				local local_pos = ci:getCollisionPoint(true)
+				local submodel = ci:getCollisionSubmodel()
+
+				-- see if we are going to follow a moving submodel
+				local smi
+				if submodel then
+					local mi = trackee.ModelInstance
+					if mi then
+						smi = mi.SubmodelInstances[submodel]
+					end
+				end
+
+				-- "stick" the tracking device on the ship
+				local f
+				if smi then
+					local local_normal = ci:getCollisionNormal(true)
+					local local_orient = ba.createOrientationFromVectors(local_normal)
+					f = function()
+						tracker.Position, tracker.Orientation = smi:findWorldPointAndOrientation(local_pos, local_orient)
+					end
+				else
+					local world_normal = ci:getCollisionNormal()
+					local world_orient = ba.createOrientationFromVectors(world_normal)
+					local offset_orient = trackee.Orientation:getTranspose() * world_orient
+					f = function()
+						tracker.Position = trackee.Position + trackee.Orientation:unrotateVector(local_pos)
+						tracker.Orientation = trackee.Orientation * offset_orient
+					end
+				end
+
+				-- keep the tracker stuck on
+				trackee:addPostMoveHook(f)
+			end
+		end
+	end
+]
+
+$On Ship Depart:
+[
+	-- if there is a tracking device on the departed ship, make it depart too
+	local td = TrackingDevice
+	if td.Enabled then
+		local ship_name = hv.Ship.Name
+		local method = hv.Method
+		local t = td.TrackerToTrackee
+		if t then
+			for tracker_name, trackee_name in pairs(t) do
+				if trackee_name == ship_name then
+					local tracker_ship = mn.Ships[tracker_name]
+					if method == "SHIP_VANISHED" then
+						tracker_ship:vanish()
+					else
+						tracker_ship.DepartureLocation = "Hyperspace"
+						tracker_ship.DepartureAnchor = "<no anchor>"
+						tracker_ship.DepartureDelay = 0
+						tracker_ship:setFlag(true, "no-departure-warp")
+						tracker_ship:warpOut()
+					end
+				end
+			end
+		end
+	end
+]
+
+$On Ship Death:
+[
+	-- if either the tracking device or the ship it tracks has been destroyed, remove the entry
+	local td = TrackingDevice
+	if td.Enabled then
+		local ship_name = hv.Ship.Name
+		local t = td.TrackerToTrackee
+		if t then
+			for tracker_name, trackee_name in pairs(t) do
+				-- remove entry
+				if tracker_name == ship_name or trackee_name == ship_name then
+					t[tracker_name] = nil
+				end
+				-- if the trackee was destroyed, destroy any trackers
+				if trackee_name == ship_name then
+					local tracker_ship = mn.Ships[tracker_name]
+					tracker_ship:kill(tracker_ship)
+				end
+			end
+		end
+	end
+]
+
+#End
