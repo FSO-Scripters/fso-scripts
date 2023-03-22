@@ -14,4 +14,4 @@ Reloading the configs every keypress could, if there's lots of code, potentially
  * Place either codekeys.fnl or codekeys.lua into your mod's data/scripts/plasma_modules
  * put any configs in data/config.
 
-Both codekeys.fnl and codekeys.lua are provided. .fnl is how the module was developed, but using the .lua may provide easier debugging if issues arise, even if you have fennel available. There are some weird constructions in the lua due to it's nature as compiler output, these have largely been left in place to ensure equivilent logic.
+Both codekeys.fnl and codekeys.lua are provided. .fnl is how the module was developed, but using the .lua may provide easier debugging if issues arise, even if you have fennel available. There are some weird constructions in the lua due to it's nature as compiler output, these have largely been left in place to ensure equivalent logic.
