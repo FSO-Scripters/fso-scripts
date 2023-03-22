@@ -23,13 +23,12 @@ A module designed from plasma core should be a file that returns a table of func
 
 Note: You only need to export functions that are going to be called from outside the module, such as the framework functions listed below, or ones that will be used as sexp, hook or override functions. This is required to have them reload properly if changed.
 
-Outside of those case it is perfectly valid to keep functions local to the module and not export them, so long as the above rules are followed.
+Outside of those cases it is perfectly valid to keep functions local to the module and not export them, so long as the above rules are followed.
 
 If a local function needs to access the module table for some reason and you don't want to pass it in, use get_module_namespace to obtain a safe reference.
 
 ### Special member names:
-All of these members are optional, but if they exist they will be treated in
-    specific ways.
+All of these members are optional, but if they exist they will be treated in specific ways.
 
 >*table* state: 
 
@@ -75,7 +74,7 @@ A standard plasma core module has no `-sct.tbm` file. On game startup the framew
 
 Then it sets up any hooks within the module's hook() function. However, it is perfectly fine and reasonable to set the hooks up in the sct table instead, provided they follow the structure described in the usage section.
 
-Any code that references a module should use a local populated with `get_module()`, to ensure standard behavior. Internal handling and storage of modules could concievably change in the future, but get_module should always work as it does, so direct access to the plasma_core modules table is strongly discouraged.
+Any code that references a module should use a local populated with `get_module()`, to ensure standard behavior. Internal handling and storage of modules could conceivably change in the future, but get_module should always work as it does, so direct access to the plasma_core modules table is strongly discouraged.
 
 Due both to the intricacies of live reloads and some oddities of the hooks system it is highly recommended you use the automatic loading and `hook()`+`add_hook()` method to set up your module. However if you are set on having a `-sct.tbm` table, this is what the basic boilerplate of it would look like.
 
