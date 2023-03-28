@@ -7,4 +7,4 @@
  * added verify_table_keys for config error checking.
  * removed internal-only functions from the readme listing, as they are not relevant to users of the system and have internal documenting comments.
  * better error checking in multiple places
- * removed repl module from package in expectation of providing a proper module for this functionality seperately.
+ * removed repl module from package in expectation of providing a proper module for this functionality separately.
