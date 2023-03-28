@@ -1,42 +1,72 @@
 --[[ "Plasma Core FSO script management library
-;;  This system has the following objectives
-;; * Streamline common aspects of FSO scripting
-;; * Gently encourage a consistent structure for modules so I'll stop
-;;     reinventing the wheel every time I make a new one
-;; * Support interactive development with the live reloading of modules
-;;     following that structure
-;;
-;; This code deliberately breaks with Fennel style and uses snake_case
-;;   exclusively. Amoung other reasons this is intended to make the
-;;   compiled code somewhat more approachable." ]]--
+  This system has the following objectives
+ * Streamline common aspects of FSO scripting
+ * Gently encourage a consistent structure for modules so I'll stop
+     reinventing the wheel every time I make a new one
+ * Support interactive development with the live reloading of modules
+     following that structure
+
+ This code deliberately breaks with Fennel style and uses snake_case
+   exclusively. Amoung other reasons this is intended to make the
+   compiled code somewhat more approachable." ]]
 --[[ "Usage
-;; A module designed from plasma core should be a file that returns a table of
-;;   all it's functions
-;; A few member names are special. All function members should have a self
-;;   paramter and a paramter for the core library, which will be passed in by
-;;   the library's loading function.
-;;
-;;  * table state: contain all gameplay state in here. It is protected from most reloads
-;;  * table config: a table of all the configuration values set in user files. This is updated on reloads, but otherwise shouldn't change
-;;  * fn initalize: sets up the initial state. Ideally it should also clean up
-;;                    any existing state on reloads, when that state includes
-;;                    things like active engine handles
-;;  * fn configure: reads all configuration files and populates the config
-;;                    table. Should use the load_modular_configs member of this
-;;                    module configure can also set up any SEXP actions, as it
-;;                    is safe to re-assign those.
-;;  * fn hook: Create any hooks not specified in the -sct.tbm. Since we can't
-;;               remove or replace hooks, this is only run on the initial load.
-;;               hooks should thus likely call a member function that does the
-;;               actual work, so that can be reloaded too.
-;;               example:
-;;                (fn repl.hook [self core]
-;;                  (engine.addHook " On Key Pressed "
-;;                    (fn [] (self:key_hook))))
-" ]]--
---[[ General utility functions ]]--
+  A module designed from plasma core should be a file that returns a table of
+    functions. Fennel convention is to declare all functions as locals and then
+    build a table of all the ones to be exported, but it is equally valid to
+    create the table ahead and create the functions as members of it intially.
+
+  Note: You only need to export functions that are going to be called from
+    outside the module, such as the framework functions listed below, or ones
+    that will be used as sexp, hook or override functions. This is required to
+    have them reload properly if changed.
+
+  Outside of those case it is perfectly valid to keep functions local to the
+    module and not export them, so long as the above rules are followed.
+
+  If a local function needs to access the module table for some reason and
+    you don't want to pass it in, use get_module_namespace to obtain a safe
+    reference.
+
+  Special member names:
+  All of these members are optional, but if they exist they will be treated in
+    specific ways.
+
+  Subtables:
+  * state: Expected to contain all runtime state of the module. It is preserved
+             durring a reload uunless specifically reset.
+  * config: Expected to hold static configuration data for the module, idealy
+              using load_modular_configs. This is intended to be rebuilt on
+              reloads, so structure your access to it accordingly.
+
+  Functions:
+  These are all called by the loading process if they exist, and are passed the
+    loading module table and the plasma core module table.
+  * initalize: To set up the state table. It should also clean up any existing
+                state, such as playing sounds for instance, if a reload is
+                called with the reset flag.
+  * configure: To read configuration files and populates the config table. This
+                 should use the load_modular_configs function if possible.
+               Also set SEXP actions in configure, using add_sexp, as they can
+                 safely be reassigned on reloads.
+  * hook: To create hooks using add_hook. add_hook creates fully reloadable
+            hooks if used properly, and has support for all the features of
+            -sct.tbm files.
+          Hook is only ever run the first time a module is loaded, since the
+            engine does not provide a way to remove or replace hooks. Consider
+            using the repl if you need to add a new hook at runtime.
+          An example of a hook function
+                (fn hook [self core]
+                  (core.add_hook(self, " clear_all ", " On Mission About To End ")
+                  (core.add_hook(self, " message_send ", " On Message Received "))
+               or in lua
+                local function hook(self, core)
+                  core.add_hook(self, " clear_all ", " On Mission About To End ")
+                  core.add_hook(self, " message_send ", " On Message Received ")
+                end
+" ]]
+--[[ General utility functions ]]
 local function print(output, opt_label)
-  --[[ "A safe wrapper around the engine print function, prints each on it's own line" ]]--
+  --[[ "A safe wrapper around the engine print function, prints each on it's own line" ]]
   local label
   if (nil == opt_label) then
     label = ""
@@ -86,18 +116,17 @@ local function print(output, opt_label)
     end
     return ba.print(("*: " .. label .. _6_() .. "type " .. t .. ":" .. tostring(output) .. "\n"))
   else
-    return nil
+    return
   end
 end
 local function warn_once(id, text, memory)
-  --[[ "Show a warning the first time something errors" ]]--
-  --[[ "Must be passed a memory table and index into that table. Calling code is responsible for storing that state" ]]--
+  --[[ "Show a warning the first time something errors
+    Must be passed a memory table and index into that table. Calling code is responsible for storing that state" ]]
   local last
   do
     local t_8_ = memory
     if (nil ~= t_8_) then
       t_8_ = (t_8_)[id]
-    else
     end
     last = t_8_
   end
@@ -106,22 +135,21 @@ local function warn_once(id, text, memory)
     ba.warning(text)
   end
   memory[id] = true
-  return nil
+  return
 end
 local function safe_subtable(t, name)
-  --[[ "Get a table from inside a table, even if it doesn't exist" ]]--
+  --[[ "Get a table from inside a table, even if it doesn't exist" ]]
   if (t[name] == nil) then
     t[name] = {}
-  else
   end
   return t[name]
 end
 local function safe_global_table(name)
-  --[[ "Get a global table, even if it doesn't exist" ]]--
+  --[[ "Get a global table, even if it doesn't exist" ]]
   return safe_subtable(_G, name)
 end
 local function recursive_table_print(name, item, opt_d)
-  --[[ "Prints a whole table recursively, in a loosely lua table format" ]]--
+  --[[ "Prints a whole table recursively, in a loosely lua table format" ]]
   if ((name ~= "_TRAVERSED") and (name ~= "metadata")) then
     local t = type(item)
     local depth
@@ -131,8 +159,10 @@ local function recursive_table_print(name, item, opt_d)
       depth = opt_d
     end
     ba.print("\n-")
-    for i = 1, depth do
-      ba.print("  ")
+    if type(depth, "number") then
+      for i = 1, depth do
+        ba.print("  ")
+      end
     end
     ba.print((name .. " = "))
     if (t == "table") then
@@ -144,7 +174,6 @@ local function recursive_table_print(name, item, opt_d)
         for key, value in pairs(item) do
           if ((nil ~= key) and (nil ~= value)) then
             recursive_table_print(key, value, (depth + 1))
-          else
           end
         end
         ba.print("\n*")
@@ -153,7 +182,7 @@ local function recursive_table_print(name, item, opt_d)
         end
         ba.print("}")
         item._TRAVERSED = nil
-        return nil
+        return
       end
     elseif (t ~= "userdata") then
       return ba.print(tostring(item))
@@ -161,48 +190,148 @@ local function recursive_table_print(name, item, opt_d)
       return ba.print(("//" .. tostring(t)))
     end
   else
-    return nil
+    return
   end
 end
-local function add_order(name, host, enter, frame, opt_still_valid, opt_can_target)
-  --[[ "Attaches functions to a LuaAI SEXP's action hooks." ]]--
-  local order = _G.mn.LuaAISEXPs[name]
-  order.ActionEnter = function(...)
-    return enter(host, ...)
-  end
-  order.ActionFrame = function(...)
-    return frame(host, ...)
-  end
-  if opt_still_valid then
-    order.Achievability = function(...)
-      return opt_still_valid(host, ...)
+local function maybe_make_attach_function(module, method_name, optional)
+  --[[ "an internal function to build functions for hook and attach" ]]
+  if (module and method_name and module[method_name] and (type(method_name) == "string")) then
+    local f
+    local function _18_(...)
+      return module[method_name](module, ...)
     end
+    f = _18_
+    return f
   else
-  end
-  if opt_can_target then
-    order.TargetRestrict = function(...)
-      return opt_can_target(host, ...)
+    if not optional then
+      --[[ "error checking" ]]
+      if (type(method_name) ~= "string") then
+        return ba.error(("plasma_core.add_hook requires the method paramater to be a name. Ensure you are not passing a function reference. Was passed " .. tostring(method_name) .. " (" .. type(method_name) .. ")"))
+      elseif ((module[method_name] == nil) or (type(module[method_name]) ~= "function")) then
+        return ba.error(("plasma_core.add_hook could not find function named " .. method_name))
+      else
+        return
+      end
+    else
+      return
     end
-    return order.TargetRestrict
-  else
-    return nil
   end
 end
-local function add_sexp(name, host, action)
-  --[[ "Attaches functions to a Lua SEXP's action hook." ]]--
-  local sexp = _G.mn.LuaSEXPs[name]
-  sexp.Action = function(...)
-    return action(host, ...)
+local function add_order(module, order_name, enter_n, frame_n, opt_still_valid_n, opt_can_target_n)
+  --[[ "currently not well tested, a helper to attach all the functions of a luaorder" ]]
+  local order = _G.mn.LuaAISEXPs[order_name]
+  local enter = maybe_make_attach_function(module, enter_n)
+  local frame = maybe_make_attach_function(module, enter_n)
+  local still_valid = maybe_make_attach_function(module, opt_still_valid_n, true)
+  local can_target = maybe_make_attach_function(module, opt_can_target_n, true)
+  do end (order)["ActionEnter"] = enter
+  order["ActionFrame"] = frame
+  if still_valid then
+    order["Achievability"][module] = still_valid
   end
-  return 
+  if can_target then
+    order["TargetRestrict"][module] = can_target
+    return
+  else
+    return
+  end
+end
+local function add_sexp(module, method_name, sexp_name)
+  --[[ "Helper for making reloadable luasexps.
+      Pass the module table and the name of the function to attach to the sexp.
+      Action functions attached in this way will always be called as member methods,
+        being passed their module table." ]]
+  local sexp = _G.mn.LuaSEXPs[sexp_name]
+  local action = maybe_make_attach_function(module, method_name)
+  do end (sexp)["Action"] = action
+  return
+end
+local function add_hook(module, method_name, hook, opt_conditions, opt_override_name)
+  --[[ "Helper for making reloadable hook functions.
+      Pass the module table and the name of the function to attach to the hook. 
+      The function name must be a valid index into the module table.
+      Optionally can be take a table of conditions and the name of an overrude function.
+      Action and overrude functions attached in this way will always be called as member 
+        methods, being passed their module table." ]]
+  local conditions
+  if opt_conditions then
+    conditions = opt_conditions
+  else
+    conditions = {}
+  end
+  local method = maybe_make_attach_function(module, method_name)
+  local override = maybe_make_attach_function(module, opt_override_name, true)
+  if override then
+    return engine.addHook(hook, method, conditions, override)
+  else
+    return engine.addHook(hook, method, conditions)
+  end
+end
+local function get_module_namespace(self, file_name)
+  --[[ "Gets access to a module table, even if the module has not yet been
+      loaded. Useful for allowing local functions to access the module state
+      without adding syntactic bloat" ]]
+  local modules = self:safe_subtable("modules")
+  local temp = self:safe_subtable("preinit_modules")
+  local mod = self.modules[file_name]
+  local ns = self.safe_subtable(temp, file_name)
+  if mod then
+    return mod
+  else
+    return ns
+  end
+end
+local function module_setup(self, module, file_name, first_load, reload, reset)
+  --[[ "internal function to encapsulate some get_module stuff and make for
+      potential future refactoring" ]]
+  local function _27_()
+    local t_28_ = module
+    if (nil ~= t_28_) then
+      t_28_ = (t_28_).configure
+    end
+    return t_28_
+  end
+  if ((first_load or reload or reset) and _27_()) then
+    ba.println(("Module " .. file_name .. " running configure"))
+    module:configure(self)
+  end
+  local function _31_()
+    local t_32_ = module
+    if (nil ~= t_32_) then
+      t_32_ = (t_32_).initialize
+    end
+    return t_32_
+  end
+  if ((first_load or reset) and _31_()) then
+    ba.println(("Module " .. file_name .. " running init"))
+    module:initialize(self)
+  end
+  local function _35_()
+    local t_36_ = module
+    if (nil ~= t_36_) then
+      t_36_ = (t_36_).hook
+    end
+    return t_36_
+  end
+  if (first_load and _35_()) then
+    ba.println(("Module " .. file_name .. " running hook"))
+    module:hook(self)
+  end
+  return ba.println(("done setting up " .. file_name .. ""))
 end
 local function get_module(self, file_name, opt_reload, opt_reset)
-  --[[ "Gets or loads a module by filename." ]]--
-  --[[ "If reload is true, it will reload the module's functions and configuration" ]]--
-  --[[ "If reset is true, the module's state will also be reinitalized" ]]--
-  --[[ "Will only attach a module's hooks on first load, as there is currently no way to replace existing hooks. Module should design hooks around this limitation." ]]--
+  --[[ "Gets or loads a module by filename.
+    Method
+      Params
+      file_name, string.
+      reload, bool, optional. Pass true to reload the module's functions and configuration
+      reset, bool, optional. Pass true to reset the module's state.
+    Neither reloads or resets will rerun hook attachment. Use add_hook to create
+      reloadable hooks, and use the repl to add new ones at runtime if needed." ]]
   local modules = self:safe_subtable("modules")
-  local first_load = (nil == modules[file_name])
+  local preinit_modules = self:safe_subtable("preinit_modules")
+  local old_mod = modules[file_name]
+  local first_load = not old_mod
   local reload
   if opt_reload then
     reload = opt_reload
@@ -215,58 +344,54 @@ local function get_module(self, file_name, opt_reload, opt_reset)
   else
     reset = false
   end
-  self.print({file_name = file_name, first_load = first_load, reload = reload, reset = reset})
-  self.print(file_name)
-  self.print(_G.package[file_name])
-  local function _21_()
-    local t_22_ = _G.package.loaded
-    if (nil ~= t_22_) then
-      t_22_ = (t_22_)[file_name]
-    else
+  local lua_managed
+  do
+    local t_41_ = _G.package.loaded
+    if (nil ~= t_41_) then
+      t_41_ = (t_41_)[file_name]
     end
-    return t_22_
+    lua_managed = t_41_
   end
-  if (_21_() and (reload or (type(_G.package.loaded[file_name]) == "userdata"))) then
+  if (lua_managed and (reload or (type(lua_managed) == "userdata") or (type(lua_managed) == "bool"))) then
     _G.package.loaded[file_name] = nil
-  else
   end
-  local mod = require(file_name)
-  if first_load then
-    modules[file_name] = mod
-  else
-    if mod then
-      self:merge_tables_recursive(mod, modules[file_name], true, {"config", "state"})
+  if (first_load or reload) then
+    local new_mod = require(file_name)
+    local preload = preinit_modules[file_name]
+    if (first_load and preload) then
+      self.print(("Module " .. file_name .. "First load with preload"))
+      do end (modules)[file_name] = preload
+      self:merge_tables_recursive(new_mod, modules[file_name], true)
+    elseif first_load then
+      self.print(("Module " .. file_name .. "First load"))
+      do end (modules)[file_name] = new_mod
     else
+      if new_mod then
+        self.print(("Module " .. file_name .. " already loaded, merging"))
+        self:merge_tables_recursive(new_mod, modules[file_name], true, {"config", "state"})
+      end
     end
   end
-  local mod0 = modules[file_name]
-  if mod0.configure then
-    mod0:configure(self)
+  local loaded_mod = modules[file_name]
+  if (loaded_mod and (type(loaded_mod) == "table")) then
+    self:module_setup(loaded_mod, file_name, first_load, reload, reset)
+    return loaded_mod
   else
+    return ba.print(("problem loading " .. file_name))
   end
-  if ((first_load or reset) and mod0.initialize) then
-    mod0:initialize(self)
-  else
-  end
-  if (first_load and mod0.hook) then
-    mod0:hook(self)
-  else
-  end
-  return mod0
 end
 local function reload_modules(self)
-  --[[ "Internal module reload function, reloads but does not reset everything" ]]--
+  --[[ "Internal module reload function, reloads but does not reset everything" ]]
   local modules = self:safe_subtable("modules")
   for file_name, module in pairs(modules) do
     if (type(module) == "table") then
       self:get_module(file_name, true)
-    else
     end
   end
-  return nil
+  return
 end
 local function reload(self)
-  --[[ "Reloads the core functions, then reloads all other modules." ]]--
+  --[[ "Reloads the core functions, then reloads all other modules." ]]
   _G.package.loaded.plasma_core = nil
   do
     local new_self = require("plasma_core")
@@ -275,7 +400,7 @@ local function reload(self)
   return self:reload_modules()
 end
 local function is_value_in(self, value, list)
-  --[[ "Somewhat redundant with find, to be removed" ]]--
+  --[[ "Somewhat redundant with find, to be removed" ]]
   if (type(list) == "table") then
     local found = false
     if (0 ~= #list) then
@@ -283,21 +408,83 @@ local function is_value_in(self, value, list)
         if found then break end
         if (v == value) then
           found = true
-        else
         end
       end
-    else
     end
     return found
   else
     return false
   end
 end
+local function verify_table_keys(t, required, optional, opt_label)
+  --[[ "
+      Checks a table to ensure only a valid set of keys is present and/or enforce a set of required keys.
+        Useful to guard against typos in config tables.
+        Optional label parameter is used for debug output" ]]
+  local preamble
+  local function _52_()
+    if opt_label then
+      return (" for " .. opt_label .. " ")
+    else
+      return ""
+    end
+  end
+  preamble = ("table verification error" .. _52_())
+  local missing_required = {}
+  local missing_optional = {}
+  local found_unknown = {}
+  local errors = {}
+  for _, key in ipairs(required) do
+    missing_required[key] = true
+  end
+  for _, key in ipairs(optional) do
+    missing_optional[key] = true
+  end
+  for key, _ in pairs(t) do
+    if missing_required[key] then
+      missing_required[key] = false
+    elseif missing_optional[key] then
+      missing_optional[key] = false
+    else
+      table.insert(found_unknown, key)
+    end
+  end
+  for key, missing in pairs(missing_required) do
+    if missing then
+      table.insert(errors, ("missing key \"" .. key .. "\""))
+    end
+  end
+  for _, key in ipairs(found_unknown) do
+    table.insert(errors, ("unknown key \"" .. key .. "\""))
+  end
+  if (0 < #errors) then
+    local message = preamble
+    for _, err in ipairs(errors) do
+      message = (message .. "\n\t" .. err)
+    end
+    if (0 < #required) then
+      message = (message .. "\nrequired keys: ")
+      for _, key in ipairs(required) do
+        message = (message .. key .. " ")
+      end
+    end
+    if (0 < #optional) then
+      message = (message .. "\noptional keys: ")
+      for _, key in ipairs(optional) do
+        message = (message .. key .. " ")
+      end
+    end
+    return ba.error(message)
+  else
+    return
+  end
+end
 local function merge_tables_recursive(self, source, target, opt_replace, opt_ignore)
-  --[[ "Combines two tables." ]]--
-  --[[ "Leaves overlapping non-table members alone unless" ]]--
-  --[[ "replace is set. Always merges members that are tables" ]]--
-  --[[ "ignore takes an array of keys to leave alone." ]]--
+  --[[ "
+      Combines two tables.
+      Leaves overlapping non-table members alone unless
+      replace is set. Always merges members that are tables
+      ignore takes an array of keys to leave alone." ]]
   local ignore
   if (opt_ignore == nil) then
     ignore = {}
@@ -318,12 +505,47 @@ local function merge_tables_recursive(self, source, target, opt_replace, opt_ign
         self:merge_tables_recursive(v, target[k], replace, ignore)
       elseif replace then
         target[k] = v
-      else
       end
-    else
     end
   end
-  return nil
+  return
+end
+local function scan_load_modules(self, opt_b)
+  ba.println("")
+  --[[ "
+      Scans for any lua or fennel files in data/scripts/plasma_modules/
+      and loads them as modules.
+      Supports at least one level of subdirectory within the modules folder." ]]
+  ba.println(string.format("plasma core scan started"))
+  do
+    local file_names = {}
+    local lua_files = cf.listFiles("data/scripts/plasma_modules/", "*/*.lua")
+    local lua_files2 = cf.listFiles("data/scripts/", "plasma_modules/*.lua")
+    local fennel_files = cf.listFiles("data/scripts/plasma_modules/", "*/*.fnl")
+    local fennel_files2 = cf.listFiles("data/scripts/", "plasma_modules/*.fnl")
+    local scan
+    local function _62_(t)
+      for i, f in ipairs(t) do
+        local pf = string.sub(f, 1, 15)
+        local n = string.sub(f, 16, -5)
+        local ns = string.gsub(n, ".*\\", "")
+        if (pf == "plasma_modules\\") then
+          file_names[ns] = true
+        end
+      end
+      return
+    end
+    scan = _62_
+    scan(lua_files)
+    scan(lua_files2)
+    scan(fennel_files)
+    scan(fennel_files2)
+    for k, _ in pairs(file_names) do
+      ba.println(string.format("plasma core scan attempting to load %s\n", k))
+      self:get_module(k, opt_b)
+    end
+  end
+  return ba.println(string.format("plasma core scan done"))
 end
 --[[ "On modular configs
 ;;  This method is pased a function so it ca be set up to use any file format
@@ -332,57 +554,58 @@ end
 ;;  returns a table, anything else is fair game.
 ;;               example:
 ;;                (let [fade_config (core:load_modular_configs :dj-f- :cfg core.config_loader_fennel)
-;;                      segment_config (core:load_modular_configs :dj-s- :cfg core.config_loader_lua)]" ]]--
+;;                      segment_config (core:load_modular_configs :dj-s- :cfg core.config_loader_lua)]" ]]
 local function load_modular_configs(self, prefix, ext, loader)
-  --[[ "Builds and returns a table by evaluating files of a given prefix" ]]--
-  --[[ "takes a prefix to search for, a file extension to load, and a function" ]]--
-  --[[ "that will load the files" ]]--
+  --[[ "Builds and returns a table by evaluating files of a given prefix" ]]
+  --[[ "takes a prefix to search for, a file extension to load, and a function" ]]
+  --[[ "that will load the files" ]]
   local config = {}
   local files
   do
-    local tbl_15_auto = {}
-    local i_16_auto = #tbl_15_auto
+    local tbl_17_auto = {}
+    local i_18_auto = #tbl_17_auto
     for _, file_name in ipairs(cf.listFiles("data/config", ("*" .. ext))) do
-      local val_17_auto
+      local val_19_auto
       if (string.sub(file_name, 1, #prefix) == prefix) then
-        val_17_auto = file_name
+        val_19_auto = file_name
       else
-        val_17_auto = nil
+        val_19_auto = nil
       end
-      if (nil ~= val_17_auto) then
-        i_16_auto = (i_16_auto + 1)
-        do end (tbl_15_auto)[i_16_auto] = val_17_auto
-      else
+      if (nil ~= val_19_auto) then
+        i_18_auto = (i_18_auto + 1)
+        do end (tbl_17_auto)[i_18_auto] = val_19_auto
       end
     end
-    files = tbl_15_auto
+    files = tbl_17_auto
   end
   local holding
   do
-    local tbl_15_auto = {}
-    local i_16_auto = #tbl_15_auto
+    local tbl_17_auto = {}
+    local i_18_auto = #tbl_17_auto
     for _, file_name in ipairs(files) do
-      local val_17_auto
+      local val_19_auto
       do
         local m_table = loader((file_name .. "." .. ext))
-        if (m_table.priority == nil) then
-          m_table.priority = 1
+        if (type(m_table) == "table") then
+          if (m_table.priority == nil) then
+            m_table.priority = 1
+          end
+          val_19_auto = m_table
         else
+          val_19_auto = nil
         end
-        val_17_auto = m_table
       end
-      if (nil ~= val_17_auto) then
-        i_16_auto = (i_16_auto + 1)
-        do end (tbl_15_auto)[i_16_auto] = val_17_auto
-      else
+      if (nil ~= val_19_auto) then
+        i_18_auto = (i_18_auto + 1)
+        do end (tbl_17_auto)[i_18_auto] = val_19_auto
       end
     end
-    holding = tbl_15_auto
+    holding = tbl_17_auto
   end
-  local function _42_(l, r)
+  local function _69_(l, r)
     return (l.priority < r.priority)
   end
-  table.sort(holding, _42_)
+  table.sort(holding, _69_)
   for _, mod in ipairs(holding) do
     self:merge_tables_recursive(mod, config, true, {"priority"})
   end
@@ -404,7 +627,7 @@ local function config_loader_fennel(file_name)
     print(("Empty file " .. file_name))
     this_table = {}
   else
-    print((" loading modular config from " .. file_name))
+    print((" loading modular fennel config from " .. file_name))
     this_table = fennel.eval(text)
   end
   file:close()
@@ -425,13 +648,27 @@ local function config_loader_lua(file_name)
     print(("Empty file " .. file_name))
     this_table = {}
   else
-    print((" loading modular config from " .. file_name))
-    this_table = loadstring(("return " .. text))()
+    print((" loading modular lua config from " .. file_name))
+    if ((type(text) == "string") and (0 < #text)) then
+      print(text)
+      local _71_, _72_ = loadstring(text)
+      if ((_71_ == nil) and (nil ~= _72_)) then
+        local err = _72_
+        this_table = print(err)
+      elseif (nil ~= _71_) then
+        local r = _71_
+        this_table = r()
+      else
+        this_table = nil
+      end
+    else
+      this_table = nil
+    end
   end
   file:close()
   return this_table
 end
-local core = {safe_subtable = safe_subtable, safe_global_table = safe_global_table, recursive_table_print = recursive_table_print, reload = reload, reload_modules = reload_modules, add_order = add_order, add_sexp = add_sexp, load_modular_configs = load_modular_configs, merge_tables_recursive = merge_tables_recursive, is_value_in = is_value_in, get_module = get_module, config_loader_fennel = config_loader_fennel, config_loader_lua = config_loader_lua, print = print, warn_once = warn_once}
+local core = {safe_subtable = safe_subtable, safe_global_table = safe_global_table, recursive_table_print = recursive_table_print, module_setup = module_setup, reload = reload, reload_modules = reload_modules, add_order = add_order, add_sexp = add_sexp, load_modular_configs = load_modular_configs, merge_tables_recursive = merge_tables_recursive, is_value_in = is_value_in, get_module = get_module, config_loader_fennel = config_loader_fennel, config_loader_lua = config_loader_lua, print = print, warn_once = warn_once, get_module_namespace = get_module_namespace, add_hook = add_hook, scan_load_modules = scan_load_modules, verify_table_keys = verify_table_keys}
 local corelib = core.safe_global_table("plasma_core")
 core:merge_tables_recursive(core, corelib, true, {"modules"})
 return corelib
