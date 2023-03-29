@@ -7,14 +7,11 @@ mn.LuaSEXPs["lua-get-closest-from-team"].Action = function(origin, targetTeam, t
 
 	if origin:isValid() and targetVariable:isValid() then
 	
-		local numShips = #mn.Ships
 		local bestShip
 		local bestDistance = 99999999
 		
-		for i=1, numShips do
+		for thisShip in mn.getShipList() do
 		
-			local thisShip = mn.Ships[i]
-			
 			if thisShip:isValid() and (thisShip ~= origin) and (thisShip.Team.Name == targetTeam) then
 			
 				local thisDistance = origin.Position:getDistance(thisShip.Position)
