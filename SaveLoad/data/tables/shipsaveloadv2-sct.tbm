@@ -488,7 +488,7 @@ $On Game Init:
 
 		-- recreate departed status
 		elseif shipstatus == -1 then
-			mn.evaluateSEXP("(set-departure-info !"..shipname.."! !Hyperspace! !<no anchor>! !0! !0! (false))")
+			mn.evaluateSEXP("(set-departure-info !"..shipname.."! !Hyperspace! !<no anchor>! 0 0 (false))")
 			ship:warpOut()
 
 		-- recreate destroyed status
