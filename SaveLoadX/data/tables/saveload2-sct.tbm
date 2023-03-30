@@ -667,7 +667,7 @@ end
 --Bon voyage!
 function SaveState:InstantDepart(ship)
 
-	mn.runSEXP("(set-departure-info !" .. ship.Name .. "! !Hyperspace! !<no anchor>! 0 0 false)")
+	mn.runSEXP("(set-departure-info !" .. ship.Name .. "! !Hyperspace! !<no anchor>! 0 0 (false))")
 	ship:warpOut()
 
 end
@@ -678,11 +678,11 @@ function SaveState:ApplyParseData(ship,data)
 	ba.print("SAVELOAD: Applying parse data to " .. ship.Name .. "\n")
 
 	--Set the ship to arrive by hyperspace without warp-in to save the FREDder from having to do that
-	mn.runSEXP("(set-arrival-info !" .. ship.Name .. "! !Hyperspace! !<any friendly>! 0 0 0 false)")
+	mn.runSEXP("(set-arrival-info !" .. ship.Name .. "! !Hyperspace! !<any friendly>! 0 0 0 (false))")
 	ba.print("    set-arrival-info set!\n")
 	
 	if data.Wing then
-		mn.runSEXP("(set-arrival-info !" .. data.Wing .. "! !Hyperspace! !<any friendly>! 0 0 0 false)")
+		mn.runSEXP("(set-arrival-info !" .. data.Wing .. "! !Hyperspace! !<any friendly>! 0 0 0 (false))")
 		ba.print("    set-arrival-info (wing) set!\n")
 	end
 
