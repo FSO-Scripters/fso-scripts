@@ -64,10 +64,8 @@ function SaveState:GetAllCurrentShips()
 	ba.print("SAVELOAD: Getting ships present at start...\n")
 
 	local t = {}
-	local numShips = #mn.Ships
 	
-	for i=1, numShips do
-		local thisShip = mn.Ships[i]
+	for thisShip in mn.getShipList() do
 		if thisShip and thisShip:isValid() then
 			t[#t+1] = thisShip.Name
 			ba.print("SAVELOAD: Found " .. thisShip.Name .. ", adding to Ship List\n")
@@ -445,10 +443,7 @@ function SaveState:LoadAll(index)
 	
 	--Apply saved data to ships that are present
 	
-	local numShips = #mn.Ships
-	
-	for i=1, numShips do
-		local thisShip = mn.Ships[i]
+	for thisShip in mn.getShipList() do
 		if thisShip and thisShip:isValid() then
 			local thisShipName = thisShip.Name
 			local data = thisloadeddata[thisShipName]

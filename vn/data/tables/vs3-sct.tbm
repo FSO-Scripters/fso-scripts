@@ -3575,8 +3575,8 @@ function Freeze()
 		SLAF = {} --SEXP Library Axem Freeze
 		SLAFActions = {"immobile", "invulnerable", "protect-ship", "afterburners-locked", "primaries-locked", "secondaries-locked"}
 
-		for i = 1, #mn.Ships do
-			local name = mn.Ships[i].Name
+		for thisShip in mn.getShipList() do
+			local name = thisShip.Name
 			local t = {}
 			
 			for __, action in ipairs(SLAFActions) do

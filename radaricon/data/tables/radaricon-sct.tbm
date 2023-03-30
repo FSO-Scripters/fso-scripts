@@ -347,14 +347,12 @@ function RadarIcon:MaybeDeleteWeapon(weapon)
 end
 
 function RadarIcon:LoadShips()
-	local number = #mn.Ships
-	for i = 1, number, 1 do
-		RadarIcon:MaybeAddShip(mn.Ships[i])
+	for thisShip in mn.getShipList() do
+		RadarIcon:MaybeAddShip(thisShip)
 	end
-	number = #mn.Weapons
-	for i = 1, number, 1 do
-		local team = mn.Weapons[i].Team
-		local parent = mn.Weapons[i].Parent
+	for thisMissile in mn.getMissileList() do
+		local team = thisMissile.Team
+		local parent = thisMissile.Parent
 		while parent ~= nil and parent:getBreedName() ~= "Ship" do
 			if parent:getSignature() == parent.Parent:getSignature() then
 				break
@@ -372,7 +370,7 @@ function RadarIcon:LoadShips()
 				species = parent.Class.Species
 			end
 			
-			RadarIcon:MaybeAddWeapon(mn.Weapons[i], team, RadarIcon:GetTeamColor(mn.Weapons[i], team, species))
+			RadarIcon:MaybeAddWeapon(thisMissile, team, RadarIcon:GetTeamColor(thisMissile, team, species))
 		end
 	end
 end
