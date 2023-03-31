@@ -645,10 +645,10 @@ $On Ship Depart:
 	end
 ]
 
-$On Death:
+$On Ship Death:
 [
-	if RadarIcon.Enabled and hv.Self:getBreedName() == "Ship" then
-		RadarIcon:MaybeDeleteShip(hv.Self)
+	if RadarIcon.Enabled then
+		RadarIcon:MaybeDeleteShip(hv.Ship)
 	end
 ]
 
