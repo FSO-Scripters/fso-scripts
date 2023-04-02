@@ -384,10 +384,10 @@ $On Mission End:
 	end
 ]
 
-$On Death:
+$On Ship Death:
 [
 	if CloakSys.Enabled then
-		CloakSys:MaybeRemove(hv.Self:getSignature())		
+		CloakSys:MaybeRemove(hv.Ship:getSignature())		
 	end
 ]
 

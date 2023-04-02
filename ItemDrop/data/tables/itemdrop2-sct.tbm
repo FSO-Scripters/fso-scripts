@@ -336,10 +336,6 @@ function Items:DeathDropMaybe(ship)
 		return
 	end
 
-	if ship:getBreedName() ~= "Ship" then
-		return
-	end
-
 	local rightTeam = false
 
 	for i,v in ipairs(self.Config.Global.DropTeams) do
@@ -1071,11 +1067,11 @@ $On Frame:
 	end
 ]
 
-$On Death:
+$On Ship Death:
 [
 	if Items.Enabled then
-		if not Items:CheckContainerDeath(hv.Self) then
-			Items:DeathDropMaybe(hv.Self)
+		if not Items:CheckContainerDeath(hv.Ship) then
+			Items:DeathDropMaybe(hv.Ship)
 		end
 	end
 ]

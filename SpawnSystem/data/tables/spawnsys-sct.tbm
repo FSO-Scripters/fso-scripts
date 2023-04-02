@@ -621,10 +621,10 @@ $On Frame:
 	
 ]
 
-$On Death:
+$On Ship Death:
 [
 	if SpawnSystem.Enabled and SpawnSystem.SpawnList then
-		SpawnSystem:RemoveShip(hv.Self)
+		SpawnSystem:RemoveShip(hv.Ship)
 	end
 ]
 

@@ -160,24 +160,22 @@ $On Ship Depart:
 	end
 ]
 
-$On Death:
+$On Ship Death:
 [
 	-- if either the tracking device or the ship it tracks has been destroyed, remove the entry
 	local td = TrackingDevice
 	if td.Enabled then
-		if hv.Self:getBreedName() == "Ship" then
-			local ship_name = hv.Self.Name
-			local t = td.TrackerToTrackee
-			if t then
-				for tracker_name, trackee_name in pairs(t) do
-					-- remove entry
-					if tracker_name == ship_name or trackee_name == ship_name then
-						t[tracker_name] = nil
-					end
-					-- if the trackee was destroyed, destroy any trackers
-					if trackee_name == ship_name then
-						mn.evaluateSEXP("( self-destruct !" .. tracker_name .. "!)")
-					end
+		local ship_name = hv.Ship.Name
+		local t = td.TrackerToTrackee
+		if t then
+			for tracker_name, trackee_name in pairs(t) do
+				-- remove entry
+				if tracker_name == ship_name or trackee_name == ship_name then
+					t[tracker_name] = nil
+				end
+				-- if the trackee was destroyed, destroy any trackers
+				if trackee_name == ship_name then
+					mn.evaluateSEXP("( self-destruct !" .. tracker_name .. "!)")
 				end
 			end
 		end
