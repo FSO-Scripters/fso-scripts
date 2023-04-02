@@ -336,11 +336,6 @@ function Items:DeathDropMaybe(ship)
 		return
 	end
 
-	--No longer needed. We're guaranteed by the hook that this is a ship
-	--if ship:getBreedName() ~= "Ship" then
-	--	return
-	--end
-
 	local rightTeam = false
 
 	for i,v in ipairs(self.Config.Global.DropTeams) do
