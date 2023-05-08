@@ -32,4 +32,22 @@ $Parameter:
 	+Type: ship
 
 
+$Operator: lua-is-cloaked
+$Category: Change
+$Subcategory: Cloaking
+$Minimum Arguments: 1
+$Return Type: Boolean
+$Description: Returns true only if all ships listed are currently cloaked
+$Repeat
+$Parameter:
+    +Description: Ship to check
+    +Type: ship
+
+$Operator: lua-player-is-cloaked
+$Category: Change
+$Subcategory: Cloaking
+$Minimum Arguments: 0
+$Return Type: Boolean
+$Description: Returns true if player is currently cloaked
+
 #End

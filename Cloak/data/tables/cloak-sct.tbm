@@ -323,7 +323,7 @@ function DeepTableCopy(orig)
     return copy
 end
 
-;;FSO 3.8.1.20180119;; mn.LuaSEXPs["lua-set-cloak-ability"].Action = function(onoff, mode, ...) 
+mn.LuaSEXPs["lua-set-cloak-ability"].Action = function(onoff, mode, ...) 
 
 	for i,data in ipairs(arg) do
 		local entry = data[1]
@@ -337,7 +337,7 @@ end
 
 end
 
-;;FSO 3.8.1.20180119;; mn.LuaSEXPs["lua-force-cloak"].Action = function(onoff, ...) 
+mn.LuaSEXPs["lua-force-cloak"].Action = function(onoff, ...) 
 
 	for i,data in ipairs(arg) do
 		local entry = data[1]
@@ -351,6 +351,23 @@ end
 	
 end
 
+mn.LuaSEXPs["lua-is-cloaked"].Action = function(...) 
+    for i,data in ipairs(arg) do
+		local entry = CloakSys:GetEntryByName(data[1].Name)
+        
+        if entry == nil or entry.Status ~= 1 then
+            return false
+        end
+    end
+    return true
+end
+
+mn.LuaSEXPs["lua-player-is-cloaked"].Action = function(...) 
+	if CloakSys.Ships[CloakSys.Player.Index].Status ~= 1 then
+		return false
+	end
+    return true
+end
 ]
 $State: GS_STATE_GAME_PLAY
 $On Gameplay Start:
