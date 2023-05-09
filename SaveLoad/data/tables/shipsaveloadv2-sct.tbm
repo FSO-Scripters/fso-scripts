@@ -10,15 +10,22 @@ $On Game Init:
 	ShipSave = {}
 
 	--definitions for savefile
-	ShipSave.path_shipsave = "data/scripts/"
+	ShipSave.path_shipsave = "data/players"
+	ShipSave.save_file_name = nil
 
 	-- ================================================== --
 	-- sexp functions (public API)
 	-- ================================================== --
+	
+	if ShipSave.save_file_name == nil then
+		ba.error("Save load needs a save file name! Please modify the script definitions at the top of the file!")
+	end
 
 	function ShipSave:save_init(filename)
 		if filename then
 			self.active_filename = filename
+		else
+			self.active_filename = mn.getMissionFilename()
 		end
 		self:clear()
 	end
@@ -28,7 +35,7 @@ $On Game Init:
 
 	function ShipSave:save_ship(shipname)
 		if shipname then
-			self.shipsaveload_data.ships[shipname] = self:write_ship_string(shipname)
+			self.shipsaveload_data.ships[shipname] = self:get_ship_array(shipname)
 		end
 	end
 	mn.LuaSEXPs["lua-save-ship"].Action = function(...)
@@ -39,7 +46,7 @@ $On Game Init:
 
 	function ShipSave:save_variable(varname)
 		if varname then
-			self.shipsaveload_data.variables[varname] = self:write_variable_string(varname)
+			self.shipsaveload_data.variables[varname] = self:collect_variable_data(varname)
 		end
 	end
 	mn.LuaSEXPs["lua-save-variable"].Action = function(...)
@@ -58,6 +65,8 @@ $On Game Init:
 	function ShipSave:load_init(filename)
 		if filename then
 			self.active_filename = filename
+		else
+			self.active_filename = mn.getMissionFilename()
 		end
 		self:loadshipfile()
 	end
@@ -67,7 +76,11 @@ $On Game Init:
 
 	function ShipSave:load_ship(shipname, loadtype)
 		if shipname then
-			self:read_ship_from_string(shipname, self.shipsaveload_data.ships[shipname], loadtype)
+			if self.shipsaveload_data.ships[shipname] then
+				self:set_ship_from_data(shipname, self.shipsaveload_data.ships[shipname], loadtype)
+			else
+				ba.print("Save data does not exist for ship " .. shipname .. ".\n")
+			end
 		end
 	end
 	mn.LuaSEXPs["lua-load-ship"].Action = function(loadtype, ...)
@@ -78,7 +91,11 @@ $On Game Init:
 
 	function ShipSave:load_variable(varname)
 		if varname then
-			self:read_variable_from_string(varname, self.shipsaveload_data.variables[varname])
+			if self.shipsaveload_data.variables[varname] then
+				self:set_variable_from_data(varname, self.shipsaveload_data.variables[varname])
+			else
+				ba.print("Save data does not exist for variable " .. varname .. ".\n")
+			end
 		end
 	end
 	mn.LuaSEXPs["lua-load-variable"].Action = function(...)
@@ -89,8 +106,8 @@ $On Game Init:
 
 	function ShipSave:copy_ship(shipname1, shipname2, loadtype)
 		if shipname1 and shipname2 then
-			local str = self:write_ship_string(shipname1)
-			self:read_ship_from_string(shipname2, str, loadtype)
+			local data = self:get_ship_array(shipname1)
+			self:set_ship_from_data(shipname2, data, loadtype)
 
 			local ship = mn.Ships[shipname1]
 			if ship:isValid() then
@@ -109,10 +126,37 @@ $On Game Init:
 
 	--checks if there is a savefile, is called in fred
 	function ShipSave:saveexist(filename)
-		if filename then
-			self.active_filename = filename
+		
+		if filename == nil then
+			filename = mn.getMissionFilename()
 		end
-		return cf.fileExists(self.active_filename,self.path_shipsave,true)
+	
+		local json = require("dkjson")
+		local file = nil
+		local config = {}
+
+		if cf.fileExists(ShipSave.save_file_name) then
+			file = cf.openFile(ShipSave.save_file_name, "r", ShipSave.path_shipsave)
+			config = json.decode(file:read("*a"))
+			file:close()
+			if not config then
+				ba.print("Please ensure that " .. ShipSave.save_file_name .. " exists in " .. ShipSave.path_shipsave .. " and is valid JSON.")
+				return false
+			end
+		else
+			ba.print("SaveLoad: file " .. ShipSave.save_file_name .. " does not exist!\n")
+			return false
+		end
+		
+		if config[ba.getCurrentPlayer():getName()] == nil then
+			return false
+		end
+		
+		if config[ba.getCurrentPlayer():getName()][filename] == nil then
+			return false
+		end
+		
+		return true
 	end
 	mn.LuaSEXPs["lua-save-file-exists"].Action = function(filename)
 		return ShipSave:saveexist(filename)
@@ -120,12 +164,36 @@ $On Game Init:
 
 	--deletes savefile, is called in fred
 	function ShipSave:deleteshipsavefile(filename)
-		if filename then
-			self.active_filename = filename
+		if filename == nil then
+			filename = mn.getMissionFilename()
 		end
-		if (cf.fileExists(self.active_filename,self.path_shipsave,true)) then
-			cf.deleteFile(self.active_filename,self.path_shipsave)
+		
+		local json = require("dkjson")
+		local file = nil
+		local config = {}
+
+		if cf.fileExists(ShipSave.save_file_name) then
+			file = cf.openFile(ShipSave.save_file_name, "r", ShipSave.path_shipsave)
+			config = json.decode(file:read("*a"))
+			file:close()
+			if not config then
+				ba.print("Please ensure that " .. ShipSave.save_file_name .. " exists in " .. ShipSave.path_shipsave .. " and is valid JSON.")
+				return
+			end
+		else
+			ba.print("SaveLoad: file " .. ShipSave.save_file_name .. " does not exist!\n")
+			return
 		end
+		
+		if config[ba.getCurrentPlayer():getName()] == nil then
+			return
+		end
+		
+		config[ba.getCurrentPlayer():getName()][filename] = nil
+		
+		local file = cf.openFile(ShipSave.save_file_name, 'w', ShipSave.path_shipsave)
+		file:write(json.encode(config))
+		file:close()
 	end
 	mn.LuaSEXPs["lua-delete-save-file"].Action = function(filename)
 		ShipSave:deleteshipsavefile(filename)
@@ -134,7 +202,7 @@ $On Game Init:
 	-- ================================================== --
 	-- internal functions, not called by sexp
 	-- ================================================== --
-
+	
 	function ShipSave:clear()
 		self.shipsaveload_data = {}
 		self.shipsaveload_data.ships = {}
@@ -143,94 +211,63 @@ $On Game Init:
 
 	--stores data into the savefile
 	function ShipSave:saveshipfile()
-		local file = cf.openFile(self.active_filename,"w",self.path_shipsave)
-		if not file or not file:isValid() then
-			ba.print("SaveLoad: could not open file '" .. self.active_filename .. "' for writing!\n")
-			return
-		end
-		file:write("§")
-
-		-- write variables
-		local wrote_first = false
-		for k,v in pairs(self.shipsaveload_data.variables) do
-			if wrote_first then
-				file:write("&")
-			else
-				wrote_first = true
+	
+		local json = require("dkjson")
+		
+		local config = {}
+		if cf.fileExists(ShipSave.save_file_name) then
+			file = cf.openFile(ShipSave.save_file_name, "r", ShipSave.path_shipsave)
+			config = json.decode(file:read("*a"))
+			file:close()
+			if not config then
+			  ba.error("Please ensure that " .. ShipSave.save_file_name .. " exists in " .. ShipSave.path_shipsave .. " and is valid JSON.")
 			end
-			file:write(v)
+		else
+			ba.print("SaveLoad: could not open file " .. ShipSave.save_file_name .. " for writing! Previous data may be lost!\n")
 		end
-		file:write("\n")
-
-		-- write ship names
-		wrote_first = false
-		for k,v in pairs(self.shipsaveload_data.ships) do
-			if wrote_first then
-				file:write(",")
-			else
-				wrote_first = true
-			end
-			file:write(k)
+		
+		if config[ba.getCurrentPlayer():getName()] == nil then
+			config[ba.getCurrentPlayer():getName()] = {}
 		end
-		file:write("\n")
-
-		-- write ship info
-		for k,v in pairs(self.shipsaveload_data.ships) do
-			file:write(v .. "\n")
-		end
-
+		
+		config[ba.getCurrentPlayer():getName()][self.active_filename] = self.shipsaveload_data
+		local file = cf.openFile(ShipSave.save_file_name, 'w', ShipSave.path_shipsave)
+		file:write(json.encode(config))
 		file:close()
 	end
 
 	--loads savefile and splits the lists
 	function ShipSave:loadshipfile()
-		if not cf.fileExists(self.active_filename,self.path_shipsave,true) then
-			ba.print("SaveLoad: file " .. self.active_filename .. " does not exist!\n")
-			return
-		end
-		local file = cf.openFile(self.active_filename,"r",self.path_shipsave)
-		if not file or not file:isValid() then
-			ba.print("SaveLoad: could not open file '" .. self.active_filename .. "' for reading!\n")
-			return
-		end
-		self:clear()
+	
+		local json = require("dkjson")
+		local file = nil
+		local config = {}
 
-		-- get the variables
-		local varline = file:read("*l")
-		if string.find(varline, "§") == 1 then
-			local tempb = self:split(varline, "§")
-			local varstrings = self:split(tempb[2], "&")
-			for i=1,#varstrings do
-				local vardata = self:split(varstrings[i], ",")
-				if #vardata ~= 3 then
-					ba.print("SaveLoad: could not split " .. varstrings[i] .. " into three tokens\n")
-				else
-					self.shipsaveload_data.variables[vardata[1]] = varstrings[i]
-				end
+		if cf.fileExists(ShipSave.save_file_name) then
+			file = cf.openFile(ShipSave.save_file_name, "r", ShipSave.path_shipsave)
+			config = json.decode(file:read("*a"))
+			file:close()
+			if not config then
+				ba.error("Please ensure that " .. ShipSave.save_file_name .. " exists in " .. ShipSave.path_shipsave .. " and is valid JSON.")
 			end
 		else
-			ba.print("SaveLoad: could not read variables; improperly formatted file!\n")
+			ba.print("SaveLoad: file " .. ShipSave.save_file_name .. " does not exist!\n")
+			return
 		end
-
-		-- get the ships
-		local shipline = file:read("*l")
-		if shipline and shipline ~= "" then
-			local ships = self:split(shipline, ",")
-			for i=1,#ships do
-				local shipline = file:read("*l")
-				if shipline and shipline ~= "" then
-					self.shipsaveload_data.ships[ships[i]] = shipline
-				else
-					ba.print("SaveLoad: could not read ships; improperly formatted file!\n")
-					break
-				end
-			end
+		
+		if config[ba.getCurrentPlayer():getName()] == nil then
+			self:clear()
+			return
 		end
-
-		file:close()
+		
+		if config[ba.getCurrentPlayer():getName()][self.active_filename] then
+			self.shipsaveload_data = config[ba.getCurrentPlayer():getName()][self.active_filename]
+		else
+			self:clear()
+		end
 	end
 
-	function ShipSave:write_variable_string(varname)
+	function ShipSave:collect_variable_data(varname)
 		if not varname then
 			return nil
 		end
@@ -238,18 +275,23 @@ $On Game Init:
 		if not var or not var:isValid() then
 			return nil
 		end
-		local str
+
+		local t = nil
 		if var.Type == SEXPVAR_TYPE_NUMBER then
-			str = varname .. ",n," .. tostring(var.Value)
+			t = "n"
 		else
-			str = varname .. ",s," .. var.Value
+			t = "s"
 		end
-		return str
+		
+		local array = {}
+		array[1] = t
+		array[2] = var
+		return array
 	end
 
 	-- tries to set a variable
-	function ShipSave:read_variable_from_string(varname, str)
-		if not varname or not str then
+	function ShipSave:set_variable_from_data(varname, data)
+		if not varname or not data then
 			return
 		end
 		local var = mn.SEXPVariables[varname]
@@ -257,72 +299,33 @@ $On Game Init:
 			ba.print("SaveLoad: target variable '"..varname.."' not found\n")
 			return
 		end
-		local arr = self:split(str, ",")
 		if var.Type == SEXPVAR_TYPE_NUMBER then
-			if arr[2] ~= "n" then
+			if data[1] ~= "n" then
 				ba.print("SaveLoad: variable type mismatch; source is string but target is numeric\n")
 				return
 			end
-			var.Value = tonumber(arr[3])
+			var.Value = tonumber(data[2])
 		else
-			if arr[2] ~= "s" then
+			if data[1] ~= "s" then
 				ba.print("SaveLoad: variable type mismatch; source is numeric but target is string\n")
 				return
 			end
-			var.Value = arr[3]
+			var.Value = data[2]
 		end
 	end
 
-	function ShipSave:write_ship_string(shipname)
+	function ShipSave:get_ship_array(shipname)
 		if not shipname then
 			return nil
 		end
 		return self:shipdatacollect(shipname)
 	end
 
-	function ShipSave:read_ship_from_string(shipname, str, loadtype)
-		if not shipname or not str or not loadtype then
+	function ShipSave:set_ship_from_data(shipname, data, loadtype)
+		if not shipname or not data or not loadtype then
 			return
 		end
-		self:shipdataset(shipname, str, loadtype)
-	end
-
-	--splits strings
-	function ShipSave:split(str, sep, maxNb)
-		-- Eliminate bad cases...
-		if string.find(str, sep) == nil then
-			return { str }
-		end
-		if maxNb == nil or maxNb < 1 then
-			maxNb = 0    -- No limit
-		end
-		local result = {}
-		local pat = "(.-)" .. sep .. "()"
-		local nb = 0
-		local lastPos
-		for part, pos in string.gmatch(str, pat) do
-			nb = nb + 1
-			result[nb] = part
-			lastPos = pos
-			if nb == maxNb then break end
-		end
-		-- Handle the last field
-		if nb ~= maxNb then
-			result[nb + 1] = string.sub(str, lastPos)
-		end
-		return result
-	end
-
-	function ShipSave:booltonum(val)
-		if val then
-			return 1
-		else
-			return 0
-		end
-	end
-
-	function ShipSave:numtobool(val)
-		return val and (val ~= 0)
+		self:shipdataset(shipname, data, loadtype)
 	end
 
 	function ShipSave:shipdatacollect(shipname)		--shipdata collector function including string creation
@@ -406,17 +409,17 @@ $On Game Init:
 				shipdata[1][1] = -3		--ship handle invalid, ship-vanish used or something like it
 			end
 		end
-		return self:createshipstring(shipdata)
+		
+		return shipdata
 	end
 
-	function ShipSave:shipdataset(shipname, shipstring, loadtype)
+	function ShipSave:shipdataset(shipname, shipdata, loadtype)
 		local ship = mn.Ships[shipname]		--ship handle
 		if not ship:isValid() then
 			-- nothing to do
 			return
 		end
 
-		local shipdata = self:shipstringsplitter(shipstring)		-- create shipdata array and fill it
 		local basicdata = shipdata[1]
 		local shipstatus = basicdata[1]
 
@@ -488,7 +491,7 @@ $On Game Init:
 
 		-- recreate departed status
 		elseif shipstatus == -1 then
-			mn.evaluateSEXP("(set-departure-info !"..shipname.."! !Hyperspace! !<no anchor>! 0 0 (false))")
+			mn.evaluateSEXP("(set-departure-info !"..shipname.."! !Hyperspace! !<no anchor>! !0! !0! (false))")
 			ship:warpOut()
 
 		-- recreate destroyed status
@@ -524,13 +527,13 @@ $On Game Init:
 			local n = #bank		--number of weapons in bank
 			if (n > 0) then
 				array[1] = n
-				array[2] = self:booltonum(bank.Linked)		--linked
-				array[3] = self:booltonum(bank.DualFire)		--dual fire
+				array[2] = bank.Linked		--linked
+				array[3] = bank.DualFire		--dual fire
 				for j=1,n do
 					local wbank=bank[j] 	--weaponbank handle
 					local weapon = {}
 					weapon[1] = wbank.WeaponClass.Name		--weapon class name
-					weapon[2] = self:booltonum(wbank.Armed)		--weapon active
+					weapon[2] = wbank.Armed		--weapon active
 					weapon[3] = wbank.AmmoMax
 					if (weapon[3] > 0) then
 						weapon[4] = wbank.AmmoLeft
@@ -566,8 +569,8 @@ $On Game Init:
 
 	function ShipSave:weaponbankinsert(bank,array,which_wep)		--array to weaponbankdata
 		if (bank:isValid()) then
-			bank.Linked = self:numtobool(array[2])		--linked
-			bank.DualFire = self:numtobool(array[3])		--dual fire
+			bank.Linked = array[2]		--linked
+			bank.DualFire = array[3]		--dual fire
 			local n = array[1]
 			for j=1,n do
 				local wbank=bank[j] 	--weaponbank handle
@@ -575,7 +578,7 @@ $On Game Init:
 				if (wbank.WeaponClass.Name ~= weapon[1]) then		--prevent it from doing unnecessary stuff
 					wbank.WeaponClass = tb.WeaponClasses[weapon[1]]		--weapon class
 				end
-				local b_armed = self:numtobool(weapon[2])
+				local b_armed = weapon[2]
 				if b_armed then
 					wbank.Armed = b_armed						--weapon active
 				end
@@ -588,124 +591,6 @@ $On Game Init:
 		end
 	end
 
-	function ShipSave:createshipstring(shipdata)		--shipstring creation for savefile
-		local savestring = (shipdata[1][1]..",")
-		local addstring
-		if (shipdata[1][1] == 1) then
-			savestring = (savestring..table.concat(shipdata[1],",",2,13)..",")		--basic data
-			savestring = (savestring..":")
-
-			local arr_subsys = shipdata[2]
-			local n_subsystems = arr_subsys[1]
-			savestring = (savestring..n_subsystems.."&")		--number of subsystems
-			if (n_subsystems > 0) then
-				for i=1,n_subsystems do		--subsystems and turret data
-					savestring = (savestring..arr_subsys[2*i].."§")
-					addstring = self:createweaponstring(arr_subsys[2*i+1])
-					savestring = (savestring..addstring.."&")
-				end
-			end
-
-			savestring = (savestring..":")
-			addstring = self:createweaponstring(shipdata[3])		--weapons
-			savestring = (savestring..addstring..":")
-			savestring = (savestring..table.concat(shipdata[4],",",1,18))		--position and orientation
-		else
-			savestring = (savestring..":::")
-		end
-		return savestring
-	end
-
-	function ShipSave:createweaponstring(array)		--weaponstring creation for savefile
-		local savestring = ""		--returns an empty string in any case
-		for j=1,3 do
-			local weaponbank = array[j]
-			local n = weaponbank[1]
-			if (n > 0) then
-				savestring = (savestring..n..","..weaponbank[2]..","..weaponbank[3]..",")		--number, linked, dualfire
-				for k=1,n do
-					local weapon = weaponbank[3+k]
-					savestring = (savestring..weapon[1]..","..weapon[2]..","..weapon[3]..",")		--weaponclass, ammomax, ammoleft
-					savestring = (savestring..weapon[4])
-					if (j ~= 3) then		--splitter wont like me without this
-						savestring = (savestring..",")
-					end
-				end
-			else
-				savestring = (savestring..n)
-				if (j ~= 3) then		--splitter wont like me without this
-					savestring = (savestring..",")
-				end
-			end
-		end
-		return savestring
-	end
-
-	function ShipSave:shipstringsplitter(shipstring)		--splits shipstring into shipdata array
-		local _tonumber = tonumber
-		local shipdata = {}
-
-		local temp = self:split(shipstring,":")
-		shipdata[1] = {}
-		shipdata[1] = self:split(temp[1],",")
-		shipdata[1][1] = _tonumber(shipdata[1][1])		--need something like (if string = a number then change string to number) in the split function
-		if (shipdata[1][1] == 1) then
-			for m=4,13 do
-				shipdata[1][m] = _tonumber(shipdata[1][m])
-			end
-
-			shipdata[2] = {}
-			local subtemp = self:split(temp[2],"&")
-			local n_subsystems = _tonumber(subtemp[1])
-			shipdata[2][1] = n_subsystems
-			if (n_subsystems > 0) then
-				for i=1,n_subsystems do
-					local subtempint = self:split(subtemp[i+1],"§")
-					shipdata[2][2*i] = _tonumber(subtempint[1])
-					shipdata[2][2*i+1] = self:weaponstringsplitter(subtempint[2])
-				end
-			end
-
-			shipdata[3] = self:weaponstringsplitter(temp[3])
-
-			shipdata[4] = self:split(temp[4],",")
-			for m=1,12 do
-				shipdata[4][m] = _tonumber(shipdata[4][m])
-			end
-		end
-		return shipdata
-	end
-
-	function ShipSave:weaponstringsplitter(subtempint)		--splits weapondata into array
-		local _tonumber = tonumber
-		local array = {}
-		local pos = 1
-
-		local temp = self:split(subtempint,",")
-		for j=1,3 do
-			local weaponbank = {}
-			local n = _tonumber(temp[pos])
-			weaponbank[1] = n								--number
-			if (n > 0) then
-				weaponbank[2] = _tonumber(temp[pos+1])		--linked
-				weaponbank[3] = _tonumber(temp[pos+2])		--dualfire
-				pos = pos + 3
-				for k=1,n do
-					local weapon = {}
-					weapon[1] = temp[pos]					--weapon class name
-					weapon[2] = _tonumber(temp[pos+1])		--weapon active
-					weapon[3] = _tonumber(temp[pos+2])		--max ammo
-					weapon[4] = _tonumber(temp[pos+3])		--ammo remaining
-					weaponbank[k+3] = weapon
-					pos = pos + 4
-				end
-			else
-				pos = pos + 1
-			end
-			array[j] = weaponbank
-		end
-		return array
-	end
 ]
 
 $On Mission Start:
