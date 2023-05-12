@@ -1,0 +1,16 @@
+#Conditional Hooks
+$Application: FS2_Open
+
+$On Game Init:
+[
+
+AXUI = require "axui"
+
+]
+
+$On Mouse Moved:
+[
+	AXUI:UpdateMouseCoords()
+]
+
+#End

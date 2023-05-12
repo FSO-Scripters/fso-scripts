@@ -1,0 +1,11 @@
+#Conditional Hooks
+$Application: FS2_Open
+
+$On Game Init:
+[
+
+axemParse = require "axparse"
+
+]
+
+#End
