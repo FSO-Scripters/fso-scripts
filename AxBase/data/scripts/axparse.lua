@@ -314,10 +314,6 @@ function axSaveData(key, value, suffix)
 
 end
 
-;;FSO 3.8.1.20180119;; mn.LuaSEXPs["lua-save-data-integer"].Action = axSaveData
-
-;;FSO 3.8.1.20180119;; mn.LuaSEXPs["lua-save-data-string"].Action = axSaveData
-
 function LDX(key, suffix, variable) -- Load Data for purposes of eXchanging between campaigns
 
 	local t = {}
@@ -386,6 +382,10 @@ end
 
 
 if mn.LuaSEXPs ~= nil then --backwards-compatibility guard
+	mn.LuaSEXPs["lua-save-data-integer"].Action = axSaveData
+
+	mn.LuaSEXPs["lua-save-data-string"].Action = axSaveData
+
     mn.LuaSEXPs["lua-get-data-integer"].Action = axLoadDataInt
 
     mn.LuaSEXPs["lua-get-data-string"].Action = axLoadDataStr

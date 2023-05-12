@@ -1,5 +1,8 @@
 local AXUI = {}
 
+axemParse = require "axParse"
+if not axemParse then ba.error("axemParse not found, ensure AxBase is in mod stack") end
+
 function AXUI:Init()
 
 	ba.print("AXUI starting up...\n")

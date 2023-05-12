@@ -178,7 +178,9 @@ setmetatable(Globals, mt)
 
 -- InitialValues
 Globals.nullVec = ba.createVector(0, 0, 0)
-;;FSO 21.0.0;;    Globals.identityOrient = ba.createOrientationFromVectors(ba.createVector(1, 0, 0), ba.createVector(0, 1, 0), ba.createVector(0, 0, 1))
+if ba.isEngineVersionAtLeast(21,0,0) then
+    Globals.identityOrient = ba.createOrientationFromVectors(ba.createVector(1, 0, 0), ba.createVector(0, 1, 0), ba.createVector(0, 0, 1))
+end
 
 -----------------------------------------------------------
 -- Implementation of a module loader for the CFilesystem --
@@ -199,6 +201,3 @@ end
 
 -- Install the loader so that it's called just before the normal Lua loader
 table.insert(package.loaders, 2, load)
-]
-
-#End
