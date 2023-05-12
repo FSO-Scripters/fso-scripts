@@ -1,11 +1,4 @@
-#Conditional Hooks
-$Application: FS2_Open
-
-$On Game Init:
-[
-
-
-axemParse = {}
+local axemParse = {}
 
 function axemParse:Open(file, directory)	--Load a file into a table
 
@@ -375,10 +368,6 @@ function axLoadDataStr(key, variable, suffix)
 
 end
 
-;;FSO 3.8.1.20180119;; mn.LuaSEXPs["lua-get-data-integer"].Action = axLoadDataInt
-
-;;FSO 3.8.1.20180119;; mn.LuaSEXPs["lua-get-data-string"].Action = axLoadDataStr
-
 function CDX(campaignonly, suffix) -- Clears saved data
 
 	if mn.isInCampaign() then
@@ -395,7 +384,14 @@ function CDX(campaignonly, suffix) -- Clears saved data
 		
 end
 
-;;FSO 3.8.1.20180119;; mn.LuaSEXPs["lua-clear-saved-data"].Action = CDX
+
+if mn.LuaSEXPs ~= nil then --backwards-compatibility guard
+    mn.LuaSEXPs["lua-get-data-integer"].Action = axLoadDataInt
+
+    mn.LuaSEXPs["lua-get-data-string"].Action = axLoadDataStr
+
+    mn.LuaSEXPs["lua-clear-saved-data"].Action = CDX
+end
 
 function trim(str)
 	return str:find'^%s*$' and '' or str:match'^%s*(.*%S)'
@@ -430,6 +426,4 @@ function extractRight(attribute)
 	end
 end
 
-]
-
-#End
+return axemParse

@@ -1,8 +1,3 @@
-#Conditional Hooks
-
-$Application: FS2_Open
-$On Game Init:
-[
 require("debug") -- Add forward compatibility for Lua 5.2
 
 function error(str)

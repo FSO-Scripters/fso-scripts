@@ -8,9 +8,4 @@ AXUI = require "axui"
 
 ]
 
-$On Mouse Moved:
-[
-	AXUI:UpdateMouseCoords()
-]
-
 #End

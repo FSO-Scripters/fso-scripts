@@ -1,15 +1,9 @@
-#Conditional Hooks
-$Application: FS2_Open
-
-$On Game Init:
-[
-
-AXUI = {}
+local AXUI = {}
 
 function AXUI:Init()
 
 	ba.print("AXUI starting up...\n")
-
+	engine.addHook("On Mouse Moved", function () AXUI:UpdateMouseCoords() end )
 	--Please don't mind the many commented debug lines!
 	self:ScreenInit()
 	self:SetupColors()		--Creates a table of FreeSpace UI colors
@@ -1318,11 +1312,4 @@ end
 
 AXUI:Init()
 
-]
-
-$On Mouse Moved:
-[
-	AXUI:UpdateMouseCoords()
-]
-
-#End
+return AXUI
