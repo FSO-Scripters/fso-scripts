@@ -14,6 +14,7 @@ This is a collection of user-made scripts for the [FreeSpace Open engine](https:
 |Countdown|Shows a big and dramatic countdown to the player|21.0|AxBase|Axem|
 |DebugTools|Adds tools to easily debug SEXP variables and Lua Scripts|21.0|AxBase|Axem|
 |DirDmgIndicator|Displays a brief graphical directional indicator when the player takes damage|20.0||Asteroth|
+|(PCM) Dynamic Jams|Tools to align mission events and musical structure to each other|23.0|Plasma core 0.11.0, Fennel 1.3.0|EatThePath|  
 |ExtendedLoadingScreen|Allows further customization of the loading screen|21.0|AxBase|Axem|
 |Fennel|Runtime compiler for the Fennel Lisp(implemented in lua, compiles to Lua)|22.0||EatThePath|
 |HealthBars|Tools to display player health bars as well as boss healthbars|21.0|AxBase|Axem|
