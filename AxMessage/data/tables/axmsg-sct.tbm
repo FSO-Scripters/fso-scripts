@@ -436,7 +436,7 @@ function AXMessage:DrawBacklog()
 			gr.setColor(self.Color.Text[1], self.Color.Text[2], self.Color.Text[3], alpha)
 			
 			if text and y1 > (-1 * (guessedLines+1) * fontHeight) then
-				if (not self.Backlog.Timeout) or (self.Backlog.Timeout and self.Backlog.Entry[i].Expire and (self.Backlog.Entry[i].Expire > mn.getMissionTime())) then
+				if (not self.LoadedData.Backlog.Timeout) or (self.LoadedData.Backlog.Timeout and self.Backlog.Entry[i].Expire and (self.Backlog.Entry[i].Expire > mn.getMissionTime())) then
 					gr.drawString = gr.drawString(sender, x1, y1)
 					drawnLines = gr.drawString(text, x1 + gr.getStringWidth(sender), y1, x2, y2)
 				end
