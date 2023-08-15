@@ -362,7 +362,7 @@ mn.LuaSEXPs["lua-is-cloaked"].Action = function(...)
     return true
 end
 
-mn.LuaSEXPs["lua-player-is-cloaked"].Action = function(...) 
+mn.LuaSEXPs["lua-player-is-cloaked"].Action = function() 
 	if CloakSys.Ships[CloakSys.Player.Index].Status ~= 1 then
 		return false
 	end
