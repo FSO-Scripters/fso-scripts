@@ -47,6 +47,7 @@ $Operator: lua-player-is-cloaked
 $Category: Change
 $Subcategory: Cloaking
 $Minimum Arguments: 0
+$Maximum Arguments: 0
 $Return Type: Boolean
 $Description: Returns true if player is currently cloaked
 
