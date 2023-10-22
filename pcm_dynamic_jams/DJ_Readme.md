@@ -73,7 +73,7 @@ A piece of music that is 10s of silence. You may need multiple of these with dif
 ```
 
 # Usage
-Sexps have in-fred docmentation for details, but the following is an overall of the tools and what they were created to do.
+Sexps have in-FRED documentation for details, but the following is an overview of the tools and what they were created to do.
 
 ## SEXP: (dj-queue "trackname" "transitionname")
 
