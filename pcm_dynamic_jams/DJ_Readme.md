@@ -83,7 +83,7 @@ If a track is already queued when you queue a new track, the previous queued tra
 
 ## SEXP: (dj-check-time-span "segment_name" "high_bound" "low_bound")
 
-Used to check if the named track was playing, or is scheduled to change, in the specified band of time. Time is always in seconds, and is added to the current time. The bounds can be left blank, in which case they will be set to the end and start of the timeline respectivley.
+Used to check if the named track was playing, or is scheduled to change, in the specified band of time. Time is always in seconds, and is added to the current time. The bounds can be left blank, in which case they will be set to the end and start of the timeline respectively.
 
 Expected use is to line events up to musical transitions or to chain together segments.
 
