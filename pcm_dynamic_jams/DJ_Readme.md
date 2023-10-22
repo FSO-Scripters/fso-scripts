@@ -89,6 +89,6 @@ Expected use is to line events up to musical transitions or to chain together se
 
 ## SEXP: (dj-time-from-mark "return_unit" "return_type" "mark_check" "offset_amount" "offset_unit")
 
-Returns distance to a point in the musical structure in thousandths of a second, measure or beat. Highly configurable, see the in-fred documentation for details.
+Returns distance to a point in the musical structure in thousandths of a second, measure or beat. Highly configurable, see the in-FRED documentation for details.
 
 Expected use is to line events up to the musical structure within a track.
