@@ -3,6 +3,11 @@ $Application: FS2_Open
 
 $On Game Init:
 [
+AXUI = require "axui"
+if not AXUI then ba.error("AxUI not found, ensure AxBase is in mod stack") end
+
+axemParse = require "axParse"
+if not axemParse then ba.error("axemParse not found, ensure AxBase is in mod stack") end
 
 VS3 = {}
 

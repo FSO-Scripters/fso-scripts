@@ -3,6 +3,9 @@ $Application: FS2_Open
 $On Game Init:
 [
 
+axemParse = require "axParse"
+if not axemParse then ba.error("axemParse not found, ensure AxBase is in mod stack") end
+
 Items = {}
 
 -- Runs on mission start

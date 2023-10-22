@@ -3,6 +3,9 @@ $Application: FS2_Open
 
 $On Game Init:
 [
+AXUI = reqiure "axui"
+if not AXUI then ba.error("AxUI not found, ensure AxBase is in mod stack") end
+
 PromptBox = {}
 
 function PromptBox:Init(mode)
