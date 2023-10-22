@@ -24,7 +24,7 @@ Possible values:
    * Any other value is treated as instant.
 
 ## Fade
-Fade definition allows you to define a crossfade between two tracks. Volume is managed with the assumption that one is fading in at the same time as the other is fading out, but you can define both periods seperately if you want.
+Fade definition allows you to define a crossfade between two tracks. Volume is managed with the assumption that one is fading in at the same time as the other is fading out, but you can define both periods separately if you want.
 
 Each value of the fade is defined as `[:unit value]`. Valid units are, `:beat`,  `:measure`, `:sec`, or `:full` for the full duration of the track. These are relative to the currently playing track.All fade values are relative to the alignment point, so `[:measure -0.5]` is one half measure before the alignment.
 
