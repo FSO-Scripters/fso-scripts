@@ -12,3 +12,5 @@
 - Added the option to start VN fadeout from an external SEXP
 - Added the option to set whether the cursor should stay hidden when a VN is loaded from the SEXP
 - Added a configuration option that allows certain messages to be displayed retail-style and not through the VN
+## 3.2.0
+- Added the LOADSCENE action by Goober5000

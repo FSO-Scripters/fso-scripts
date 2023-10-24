@@ -42,7 +42,7 @@ function VS3.randomItem(list)
 end
 
 function VS3:Init(hideCursor)
-	--THIS IS VERSION 3.0.3
+	--THIS IS VERSION 3.x
 	
 	
 	ba.print("*****Initializing Visual Novel System...\n")
@@ -164,12 +164,6 @@ end
 
 mn.LuaSEXPs["lua-vn-load"].Action = function(filename, start, hideCursor)
 
-	local ext = ".txt"
-	
-	if not filename:ends(ext) then
-		filename = filename .. ext
-	end
-
 	-- simulate not supplying the "start" argument if we're forced to supply it
 	if start then
 		if start == "" or start:lower() == "none" then
@@ -181,12 +175,6 @@ mn.LuaSEXPs["lua-vn-load"].Action = function(filename, start, hideCursor)
 
 end
 
-function VS3:L(filename, start, stayInGame)
-
-	self:LoadScene{filename=filename .. ".txt", start=start, stayInGame=stayInGame}
-	
-end
-
 function VS3:LoadScene(args)
 
 	-- use table syntax in case one or more of the args isn't specified
@@ -194,6 +182,12 @@ function VS3:LoadScene(args)
 	local start = args.start
 	local stayInGame = args.stayInGame
 	local hideCursor = args.hideCursor
+	local skipInit = args.skipInit
+
+	local ext = ".txt"
+	if not filename:ends(ext) then
+		filename = filename .. ext
+	end
 
 	if not cf.fileExists(filename, "data/fiction", true) then
 		ba.error("VN Script: File " .. filename .. " was not found!\n")
@@ -204,9 +198,11 @@ function VS3:LoadScene(args)
 			start = string.lower(start)
 		end
 	
+	if not skipInit then
 		VS3:Init(hideCursor)
 		
 		if Lockdown and self.Config.LockByDefault then Lockdown() end
+	end
 		
 		local config = self.Config
 
@@ -221,7 +217,8 @@ function VS3:LoadScene(args)
 		self.Scene.ProcessLine = self.ProcessLine
 		self.Scene.EvalIf = self.EvalIf
 		self.Scene.ScanToNextELSEIFOrENDIF = self.ScanToNextELSEIFOrENDIF
-		
+
+	if not skipInit then
 		self.Enabled = true
 		self.StayInGame = stayInGame
 		
@@ -272,6 +269,7 @@ function VS3:LoadScene(args)
 			self.Anchor = AXMessage.Position.y
 			self.Anchor_pct = self.Anchor / AXUI.Screen.h
 		end
+	end
 		
 		--track current depth of nested if's
 		self.Scene.IfDepth = 0
@@ -294,7 +292,9 @@ function VS3:LoadScene(args)
 			self.Scene.Line = 0
 		end
 		
+	if not skipInit then
 		self:PreloadGraphics()
+	end
 		self.Scene:NextLine()
 		
 end
@@ -675,16 +675,22 @@ function VS3:Action(t)
 	--  3+ = parameter
 	
 	local action = string.lower(t[2])
-	
+
 	local t3types
-	if action == "lockdown" or action == "endscene" then
-		t3types = {"number", "string"}
+	if action == "lockdown" or action == "endscene" or action == "loadscene" then
+		t3types = "string"
 	else
 		t3types = "number"
 	end
+	local t4types
+	if action == "loadscene" then
+		t4types = "string"
+	else
+		t4types = "number"
+	end
 	
 	axemParse:Validate("line " .. self.Scene.Line .. ": argument 1", t[3], t3types, true)
-	axemParse:Validate("line " .. self.Scene.Line .. ": argument 2", t[4], "number", true)
+	axemParse:Validate("line " .. self.Scene.Line .. ": argument 2", t[4], t4types, true)
 	axemParse:Validate("line " .. self.Scene.Line .. ": argument 3", t[5], "number", true)
 	axemParse:Validate("line " .. self.Scene.Line .. ": argument 4", t[6], "number", true)
 	
@@ -741,6 +747,11 @@ function VS3:Action(t)
 			io.setCursorHidden(true)
 		end
 		VS3:Exit(true, nil, t[3] and string.lower(t[3])=="keephudhidden")		--keepvars=true, initflag=nil
+	elseif action == "loadscene" then
+		if t[3] then
+			ba.print("VN: Loading Scene " .. t[3] .. "!\n")
+			VS3:LoadScene{filename=t[3], start=t[4], skipInit=true}
+		end
 	elseif action == "hidecursor" then
 		io.setCursorHidden(true)
 		VS3.ShowCursor = false

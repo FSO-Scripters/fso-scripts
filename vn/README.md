@@ -293,10 +293,11 @@ Action | Result & Usage
 -|-
 FADEIN | Fades the screen from a solid color to the current image. The first parameter after the  FADEIN is the time in seconds (0 by default), the following three the color in RGB (black by default). Syntax:<br> ```ACTION FADEIN [time] [colorR] [colorG] [colorB]```
 FADEOUT | Fades the screen the current image to a solid color. Parameters equivalent to FADEIN. Syntax:<br> ```ACTION FADEOUT [time] [colorR] [colorG] [colorB]```
-LOCKDOWN | Locks the players ship (disables weapons, afterburner, ETS, gets taken over by AI with play dead command, as well as increases deceleration by a thousand). With the everything flag set, it will also set the ship flags immobile, protect-ship, afterburners-locked, primaries-locked and secondaries-locked. Syntax:<br> ```ACTION LOCKDOWN [EVERYTHING]```
+LOCKDOWN | Locks the players ship (disables weapons, afterburner, ETS, gets taken over by AI with play dead command, as well as increases deceleration by a thousand). When used with EVERYTHING, it will also set the ship flags immobile, protect-ship, afterburners-locked, primaries-locked and secondaries-locked. Syntax:<br> ```ACTION LOCKDOWN [EVERYTHING]```
 UNLOCKDOWN | Undoes the player lock. Syntax:<br> ```ACTION UNLOCKDOWN```
+LOADSCENE | Loads a different VN file and immediately starts it, optionally at a specified label. VN-internal variables and other data from the current scene are carried over to the new scene. Syntax:<br> ```ACTION LOADSCENE [filename] [label]```
+ENDSCENE | Ends the VN sequence and returns to the active mission. When used with KEEPHUDHIDDEN, will not make the player's HUD visible. Can return to the VN via SEXP (the VN-internal variables will stay set). Use this after setting a trigger SEXP-variable to tell FRED the VN segment is over. Syntax:<br> ```ACTION ENDSCENE [KEEPHUDHIDDEN]```
 ENDMISSION | Ends the VN sequence and the mission. Syntax:<br> ```ACTION ENDMISSION```
-ENDSCENE | Ends the VN sequence and returns to the active mission. Can return to the VN via SEXP (the VN-internal variables will stay set). Use this after setting a trigger SEXP-variable to tell FRED the VN segment is over. Syntax:<br> ```ACTION ENDSCENE```
 HIDECURSOR | Hides the player's cursor. Syntax:<br> ```ACTION HIDECURSOR```
 SHOWCURSOR | Unhides the player's cursor. Syntax:<br> ```ACTION SHOWCURSOR```
 HIDEBOX | Hides the dialog box. Syntax:<br> ```ACTION HIDEBOX```
