@@ -1,0 +1,418 @@
+#Mission Info
+
+$Version: 23.1
+$Name:  XSTR("CSC Test", -1)
+$Author: TheForce172
+$Created: 10/29/23 at 03:29:48
+$Modified: 10/29/23 at 04:12:44
+$Notes:
+This is a FRED2_OPEN created mission.
+$End Notes:
+
+$Mission Desc:
+ XSTR("Put mission description here", -1)
+$end_multi_text
++Game Type Flags: 1
++Flags: 131200
++Fog Near Mult: 1.000000
+
++Fog Far Mult: 1.000000
+
+
++Disallow Support: 0
++Hull Repair Ceiling: 0.000000
++Subsystem Repair Ceiling: 100.000000
+
++Viewer pos: 0.000000, 2124.762451, -3620.383057
++Viewer orient:
+	1.000000, 0.000000, -0.000000,
+	0.000000, 0.866025, 0.500000,
+	0.000000, -0.500000, 0.866025
+
+$Starting wing names: ( "GTCV Rhea#" "Beta" "Gamma" )
+$Team-versus-team wing names: ( "GTCV Rhea#" "Zeta" )
+
+$AI Profile: FS2 RETAIL
+
+#Command Briefing
+
+#Briefing
+$start_briefing
+$num_stages: 0
+$end_briefing
+
+#Debriefing_info
+
+$Num stages: 0
+
+#Players		;! 1 total
+
+$Starting Shipname: GTCV Rhea# 1
+$Ship Choices: (
+	"GTF Ulysses"	5
+	"GTF Hercules"	5
+	"GTF Hercules Mark II"	5
+	"GTF Ares"	5
+	"GTF Erinyes"	5
+	"GTF Loki"	5
+	"GTF Pegasus"	5
+	"GTF Perseus"	5
+	"GTF Myrmidon"	5
+	"SF Mara (terrans)"	5
+	"GTB Artemis"	5
+	"GTB Artemis D.H."	5
+	"GTB Medusa"	5
+	"GTB Ursa"	5
+	"GTB Zeus"	5
+	"GTB Boanerges"	5
+	"GVF Ptah"	5
+)
+
++Weaponry Pool: (
+)
+
+#Objects		;! 7 total
+
+$Name: GTCV Rhea# 1		;! Object #0
+$Class: GTCv Deimos#Player
+$Team: Friendly
+$Location: 0.000000, 0.000000, 0.000000
+$Orientation:
+	1.000000, 0.000000, 0.000000,
+	0.000000, 1.000000, 0.000000,
+	0.000000, 0.000000, 1.000000
+$Cargo 1:  XSTR("Nothing", -1)
++Initial Hull: 100
++Initial Shields: 100
++Subsystem: Pilot
++Subsystem: Turret01
++Subsystem: Turret02
++Subsystem: Turret03
++Subsystem: Turret04
++Subsystem: Turret05
++Subsystem: Turret06
++Subsystem: Turret07
++Subsystem: Turret08
++Subsystem: Turret09
++Subsystem: Turret10
++Subsystem: Turret11
++Subsystem: Turret12
++Subsystem: Turret13
++Subsystem: Turret14
++Subsystem: Turret15
++Subsystem: Turret16
++Subsystem: Turret17
++Subsystem: Turret18
++Subsystem: Turret19
++Subsystem: Turret20
++Subsystem: Turret21
++Subsystem: Turret22
++Subsystem: Turret23
++Subsystem: Turret24
++Subsystem: Turret25
++Subsystem: Turret26
+$Arrival Location: Hyperspace
+$Arrival Cue: ( false ) 
+$Departure Location: Hyperspace
+$Departure Cue: ( false ) 
+$Determination: 10
++Flags: ( "cargo-known" "no-shields" "player-start" "invulnerable" )
++Flags2: ( )
++Respawn priority: 0
++Score: 8
+
+$Name: Target 1		;! Object #1
+$Class: GTD Orion
+$Team: Hostile
+$Location: -1111.261353, 0.000244, 3492.465576
+$Orientation:
+	-0.851691, 0.000000, -0.524044,
+	0.000000, 1.000000, 0.000000,
+	0.524044, 0.000000, -0.851691
+$AI Goals: ( goals ( ai-play-dead 50 ) )
+$Cargo 1:  XSTR("Nothing", -1)
++Initial Velocity: 33
++Initial Hull: 100
++Initial Shields: 100
++Subsystem: Pilot
++Subsystem: Turret01a
++Subsystem: Turret02a
++Subsystem: Turret03a
++Subsystem: Turret04a
++Subsystem: Turret05a
++Subsystem: Turret06
++Subsystem: Turret07
++Subsystem: Turret08
++Subsystem: Turret09
++Subsystem: Turret10
++Subsystem: Turret11
++Subsystem: Turret12
++Subsystem: Turret13
++Subsystem: Turret14
++Subsystem: Turret15
++Subsystem: Turret16
+$Arrival Location: Hyperspace
+$Arrival Cue: ( true ) 
+$Departure Location: Hyperspace
+$Departure Cue: ( false ) 
+$Determination: 10
++Flags: ( "cargo-known" "no-shields" "invulnerable" )
++Flags2: ( )
++Respawn priority: 0
++Orders Accepted List: ( )
++Use Table Score:
++Score: 1000
+
+$Name: Fodder 1		;! Object #2
+$Class: GTF Hercules
+$Team: Friendly
+$Location: 142.157516, -0.000122, 2482.098389
+$Orientation:
+	1.000000, 0.000000, 0.000000,
+	0.000000, 1.000000, 0.000000,
+	0.000000, 0.000000, 1.000000
+$Cargo 1:  XSTR("Nothing", -1)
++Initial Velocity: 33
++Initial Hull: 100
++Subsystem: Pilot
+$Arrival Location: Hyperspace
+$Arrival Cue: ( false ) 
+$Departure Location: Hyperspace
+$Departure Cue: ( false ) 
+$Determination: 10
++Flags: ( "cargo-known" "invulnerable" )
++Flags2: ( )
++Respawn priority: 0
++Use Table Score:
++Score: 10
+
+$Name: Fodder 2		;! Object #3
+$Class: GTF Hercules
+$Team: Friendly
+$Location: 45.343685, 0.000000, 2806.058350
+$Orientation:
+	1.000000, 0.000000, 0.000000,
+	0.000000, 1.000000, 0.000000,
+	0.000000, 0.000000, 1.000000
+$Cargo 1:  XSTR("Nothing", -1)
++Initial Velocity: 33
++Initial Hull: 100
++Subsystem: Pilot
+$Arrival Location: Hyperspace
+$Arrival Cue: ( false ) 
+$Departure Location: Hyperspace
+$Departure Cue: ( false ) 
+$Determination: 10
++Flags: ( "cargo-known" "invulnerable" )
++Flags2: ( )
++Respawn priority: 0
++Use Table Score:
++Score: 10
+
+$Name: Fodder 3		;! Object #4
+$Class: GTF Hercules
+$Team: Friendly
+$Location: 409.394928, 0.000000, 2919.552002
+$Orientation:
+	1.000000, 0.000000, 0.000000,
+	0.000000, 1.000000, 0.000000,
+	0.000000, 0.000000, 1.000000
+$Cargo 1:  XSTR("Nothing", -1)
++Initial Velocity: 33
++Initial Hull: 100
++Subsystem: Pilot
+$Arrival Location: Hyperspace
+$Arrival Cue: ( false ) 
+$Departure Location: Hyperspace
+$Departure Cue: ( false ) 
+$Determination: 10
++Flags: ( "cargo-known" "invulnerable" )
++Flags2: ( )
++Respawn priority: 0
++Use Table Score:
++Score: 10
+
+$Name: Fodder 4		;! Object #5
+$Class: GTF Hercules
+$Team: Friendly
+$Location: 280.922394, 0.000000, 3059.731689
+$Orientation:
+	1.000000, 0.000000, 0.000000,
+	0.000000, 1.000000, 0.000000,
+	0.000000, 0.000000, 1.000000
+$Cargo 1:  XSTR("Nothing", -1)
++Initial Velocity: 33
++Initial Hull: 100
++Subsystem: Pilot
+$Arrival Location: Hyperspace
+$Arrival Cue: ( false ) 
+$Departure Location: Hyperspace
+$Departure Cue: ( false ) 
+$Determination: 10
++Flags: ( "cargo-known" "invulnerable" )
++Flags2: ( )
++Respawn priority: 0
++Use Table Score:
++Score: 10
+
+$Name: Target 2		;! Object #6
+$Class: SD Demon
+$Team: Hostile
+$Location: 2873.524902, 0.000000, 2842.264404
+$Orientation:
+	-0.784810, 0.000000, 0.619737,
+	0.000000, 1.000000, 0.000000,
+	-0.619737, 0.000000, -0.784810
+$AI Goals: ( goals ( ai-play-dead 50 ) )
+$Cargo 1:  XSTR("Nothing", -1)
++Initial Velocity: 33
++Initial Hull: 100
++Initial Shields: 100
++Subsystem: Pilot
++Subsystem: turret01-base
++Subsystem: turret02-base
++Subsystem: turret03a-base
++Subsystem: turret04-base
++Subsystem: turret05-base
++Subsystem: turret06a-base
++Subsystem: turret07a-base
++Subsystem: turret08-base
++Subsystem: turret09-base
++Subsystem: turret10-base
++Subsystem: turret11-base
++Subsystem: turret12-base
++Subsystem: turret13-base
++Subsystem: turret14-base
++Subsystem: turret15-base
++Subsystem: turret16-base
++Subsystem: turret17-base
++Subsystem: turret18-base
++Subsystem: turret19-base
++Subsystem: turret20-base
++Subsystem: turret21-base
++Subsystem: turret22
++Subsystem: turret23
++Subsystem: turret24
++Subsystem: turret25
++Subsystem: turret26
+$Arrival Location: Hyperspace
+$Arrival Cue: ( true ) 
+$Departure Location: Hyperspace
+$Departure Cue: ( false ) 
+$Determination: 10
++Flags: ( "no-shields" "invulnerable" )
++Flags2: ( )
++Respawn priority: 0
++Orders Accepted List: ( )
++Use Table Score:
++Score: 840
+
+#Wings		;! 2 total
+
+$Name: GTCV Rhea#
+$Waves: 1
+$Wave Threshold: 0
+$Special Ship: 0		;! GTCV Rhea# 1
+$Arrival Location: Hyperspace
+$Arrival Cue: ( true ) 
+$Departure Location: Hyperspace
+$Departure Cue: ( false ) 
+$Ships: (		;! 1 total
+	"GTCV Rhea# 1"
+)
++Flags: ( )
+
+$Name: Fodder
+$Waves: 1
+$Wave Threshold: 0
+$Special Ship: 0		;! Fodder 1
+$Arrival Location: Hyperspace
+$Arrival Cue: ( true ) 
+$Departure Location: Hyperspace
+$Departure Cue: ( false ) 
+$Ships: (		;! 4 total
+	"Fodder 1"
+	"Fodder 2"
+	"Fodder 3"
+	"Fodder 4"
+)
+$AI Goals: ( goals ( ai-play-dead 50 ) )
++Flags: ( )
+
+#Events		;! 4 total
+
+$Formula: ( when 
+   ( is-in-mission "GTCv Rhea# 1" ) 
+   ( toggle-csc ( true ) ) 
+)
++Name: Activate CSC
++Repeat Count: 1
++Interval: 1
+
+$Formula: ( when 
+   ( key-pressed "1" ) 
+   ( sabotage-subsystem 
+      "GTCV Rhea# 1" 
+      "Turret11" 
+      100 
+   )
+)
++Name: Destroy Subsystem
++Repeat Count: 1
++Interval: 1
+
+$Formula: ( when 
+   ( key-pressed "3" ) 
+   ( hide-csc ( false ) ) 
+)
++Name: Show CSC
++Repeat Count: -1
++Trigger Count: -1
++Interval: 1
+
+$Formula: ( when 
+   ( key-pressed "2" ) 
+   ( hide-csc ( true ) ) 
+)
++Name: Hide CSC
++Repeat Count: -1
++Trigger Count: -1
++Interval: 1
+
+#Goals		;! 0 total
+
+
+#Waypoints		;! 0 lists total
+
+
+#Messages		;! 0 total
+
+
+#Reinforcements		;! 0 total
+
+
+#Background bitmaps		;! 0 total
+
+$Num stars: 500
+$Ambient light level: 7895160
+
+$Bitmap List:
++Flags: ( "corrected angles" )
+
+#Asteroid Fields
+
+$Density: 20
++Field Type: 0
++Debris Genre: 0
++Field Debris Type Name: Small Asteroid
+$Average Speed: 0.000000
+$Minimum: -1000.000000, -1000.000000, -1000.000000
+$Maximum: 1000.000000, 1000.000000, 1000.000000
+
+#Music
+
+$Event Music: None
+$Briefing Music: None
+
+#End
+

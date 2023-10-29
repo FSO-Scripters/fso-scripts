@@ -1,0 +1,154 @@
+#Ship Classes
+$Name:                          GTCv Deimos#Player
+$Short name:					TCorvette
+$Species:                       Terran
++Tech Description:
+XSTR("Deimos-class corvettes, such as the GTCv Actium and the GTCv Lysander, are the newest addition to the Terran fleet. These sleek, ultra-modern warships are the products of a new era of ship design, maximizing maneuverability and firepower. Their hulls are strengthened with collapsed-core molybdenum sheathing for better protection against beam fire, and their Vasudan-designed reactor core provides more energy per ton than any other allied ship class. As the Leviathan and Fenris cruisers of the Great War are gradually phased out, these corvettes will become the foundation of tomorrow's fleet.", 3056)
+$end_multi_text
+$POF file:                      Deimos.pof
+$Detail distance:	( 0, 1790, 3582, 7170 )
+$ND: 							251 248 167
+$ND: 							255 253 196
+$ND: 							239 234 134
+$ND: 							216 212 122
+$Show damage:					YES
+$Density:                       1
+$Damp:                          0.2
+$Rotdamp:                       2.0
+$Max Velocity:					0.0, 0.0, 30.0
+$Rotation time:					100.0, 100.0, 80.0
+$Rear Velocity:					0.0
+$Forward accel:					8.0
+$Forward decel:					4.0
+$Slide accel:					0.0
+$Slide decel:					0.0
+$Expl inner rad:				150.0
+$Expl outer rad:				750.0
+$Expl damage:					200.0
+$Expl blast:					11000.0
+$Expl Propagates:				YES						;; If set to Yes, then when the ship dies, the explosion propagates through it.
+$Shockwave Speed:	190.0					;; speed shockwave expands at, 0 means no shockwave
+$Shockwave Count:	3
+$Default PBanks:				()
+$Default SBanks:				()
+$SBank Capacity:				()
+$Shields:                       0
+$Power Output:					100.0
+$Max Oclk Speed:				60.0
+$Max Weapon Eng:				100.0
+$Hitpoints:                     80000
+$Armor Type:		HeavyArmor
+
+$Flags:                         ( "big damage"  "corvette" "player_ship" )
+$AI Class:                      Captain
+$Afterburner:					NO
+$Countermeasures:				0
+$Scan time:                     2000
+$EngineSnd:						128						;; Engine sound of ship
+$ExplosionSnd: MV_Large
+
+$Closeup_pos:					0.0, 0.0, -800
+$Closeup_zoom:					0.5
+$Score:							800
+$Thruster Bitmap 2:			thruster02-01LessHaze
+$Radar Image 2D:    radar-corvette
+
+$Subsystem:		turret01, 0.833, 1.0
+	$Default PBanks:                                ( "Terran Huge Turret" )
+	$Turret Base RotationSnd:	254
+	$Turret Gun RotationSnd:	255
+	$Turret BaseSnd Volume:		1.0
+	$Turret GunSnd Volume:		1.0
+	$Turret Reset Delay:	15000
+	$Flags:					( "reset when idle" )
+	$animation:				triggered
+	$type:					initial
+		+relative_angle:	70, 0, 0
+$Subsystem:		turret02, 0.833, 1.0
+$Default PBanks:                                ( "Terran Huge Turret" )
+	$Turret Base RotationSnd:	254
+	$Turret Gun RotationSnd:	255
+	$Turret BaseSnd Volume:		1.0
+	$Turret GunSnd Volume:		1.0
+	$Turret Reset Delay:	15000
+	$Flags:					( "reset when idle" )
+	$animation:				triggered
+	$type:					initial
+		+relative_angle:	70, 0, 0
+$Subsystem:		turret03, 0.833, 1.0
+$Default PBanks:                                ( "Terran Huge Turret" )
+	$Turret Base RotationSnd:	254
+	$Turret Gun RotationSnd:	255
+	$Turret BaseSnd Volume:		1.0
+	$Turret GunSnd Volume:		1.0
+	$Turret Reset Delay:	15000
+	$Flags:					( "reset when idle" )
+	$animation:				triggered
+	$type:					initial
+		+relative_angle:	70, 180, 0
+$Subsystem:		turret04, 0.833, 1.0
+$Default PBanks:                                ( "Terran Huge Turret" )
+	$Turret Base RotationSnd:	254
+	$Turret Gun RotationSnd:	255
+	$Turret BaseSnd Volume:		1.0
+	$Turret GunSnd Volume:		1.0
+	$Turret Reset Delay:	15000
+	$Flags:					( "reset when idle" )
+	$animation:				triggered
+	$type:					initial
+		+relative_angle:	45, 0, 0
+$Subsystem:                     turret05,0.833,1.0
+        $Default PBanks:                                ( "Standard Flak" )
+$Subsystem:                     turret06,0.833,1.0
+        $Default PBanks:                                ( "Standard Flak" )
+$Subsystem:                     turret07,0.833,1.0
+        $Default PBanks:                                ( "AAAf" )
+$Subsystem:                     turret08,0.833,1.0
+        $Default PBanks:                                ( "AAAf" )
+$Subsystem:                     turret09,0.833,1.0
+        $Default PBanks:                                ( "Standard Flak" )
+$Subsystem:                     turret10,0.833,1.0
+        $Default PBanks:                                ( "Standard Flak" )
+$Subsystem:                     turret11,0.833,1.0
+        $Default PBanks:                                ( "TerSlash" )
+$Subsystem:                     turret12,0.833,1.0
+        $Default PBanks:                                ( "TerSlash" )
+$Subsystem:                     turret13,0.833,1.0
+        $Default PBanks:                                ( "Standard Flak" )
+$Subsystem:                     turret14,0.833,1.0
+        $Default PBanks:                                ( "Terran Turret" )
+$Subsystem:                     turret15,0.833,1.0
+        $Default PBanks:                                ( "Terran Turret" )
+$Subsystem:                     turret16,0.833,1.0
+        $Default PBanks:                                ( "AAAf" )
+$Subsystem:                     turret17,0.833,1.0
+        $Default PBanks:                                ( "Standard Flak" )
+$Subsystem:                     turret18,0.833,1.0
+        $Default PBanks:                                ( "Terran Turret" )
+$Subsystem:                     turret19,0.833,1.0
+        $Default PBanks:                                ( "Terran Turret" )
+$Subsystem:                     turret20,0.833,1.0
+        $Default PBanks:                                ( "AAAf" )
+$Subsystem:                     turret21,0.833,1.0
+        $Default PBanks:                                ( "Terran Turret" )
+$Subsystem:                     turret22,0.833,1.0
+        $Default PBanks:                                ( "Terran Turret" )
+$Subsystem:                     turret23,0.833,1.0
+        $Default PBanks:                                ( "TerSlash" )
+$Subsystem:                     turret24,0.833,1.0
+        $Default PBanks:                                ( "TerSlash" )
+$Subsystem:                     turret25,0.833,1.0
+        $Default SBanks:                                ( "Piranha" )
+$Subsystem:                     turret26,0.833,1.0
+        $Default SBanks:                                ( "Piranha" )
+$Subsystem:                     engine01,			5,0.0
+	$Engine Wash:	Default300
+$Subsystem:                     engine02,			5,0.0
+	$Engine Wash:	Default300
+$Subsystem:                     engine03,			5,0.0
+	$Engine Wash:	Default300
+$Subsystem:                     communications,		5,0.0
+$Subsystem:                     sensors,			5,0.0
+$Subsystem:                     navigation,			5,0.0
+$Subsystem:                     weapons,			5,0.0
+#End

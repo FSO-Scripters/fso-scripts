@@ -64,46 +64,52 @@ $On Game Init:
 		gr.CurrentFont = gr.Fonts["HUD"]
 		local topY = self.currentY
 		self.currentX = self.startX
-		self.currentY = self.currentY + (self.buttonWidth / 2)
+		self.currentY = group.buttons.autoAll.BitmapY + (self.buttonWidth / 2)
 		CSCUI:SetColor(group.data.Colour)	
 		local maxX = self.currentX + (gr.getScreenWidth() / 20)
 		local maxY = self.currentY + (self.buttonWidth / 2)
 		gr.drawString(group.data.Name, self.currentX, self.currentY, maxX, maxY)
-		self.currentY = topY
 		for key, value in pairs(group.buttons) do
 			value:Draw()
 		end
-		self.currentY = topY + self.buttonWidth
-		for key, turret in pairs(group.turretElements) do
-			topY = self.currentY
-			self.currentY = self.currentY + (self.buttonWidth / 2)
-			self.currentX =  self.startX + (gr.getScreenWidth() / 20)
-			local maxX = self.currentX + (gr.getScreenWidth() / 20)
-			local maxY = self.currentY + (self.buttonWidth / 2)
-			if turret.data.Object.HitpointsLeft > 0 then
-				CSCUI:SetColor(group.data.Colour)			
-				local weaponName
-				if turret.data.Object.PrimaryBanks[1]:isValid() then
-					weaponName = turret.data.Object.PrimaryBanks[1].WeaponClass.AltName
-				elseif turret.data.Object.SecondaryBanks[1]:isValid() then
-					weaponName = turret.data.Object.SecondaryBanks[1].WeaponClass.AltName
-				else 
-					ba.print("CSC-ERROR: Turret lacks Weapon -- " .. turret.data.Object .. "\n")
-				end
-				gr.drawString(weaponName, self.currentX, self.currentY, maxX, maxY)
+		if not group.data.NoIndividual then
+			for key, turret in pairs(group.turretElements) do
+				self.currentY = turret.buttons.auto.BitmapY + (self.buttonWidth / 2)
+				self.currentX =  self.startX + (gr.getScreenWidth() / 20)
+				local maxX = self.currentX + (gr.getScreenWidth() / 20)
+				local maxY = self.currentY + (self.buttonWidth / 2)
+				if turret.data.Object.HitpointsLeft > 0 then
+					CSCUI:SetColor(group.data.Colour)			
+					local weaponName
+					if turret.data.Object.PrimaryBanks[1]:isValid() then
+						if turret.data.Object.PrimaryBanks[1].WeaponClass.AltName ~= "" then
+							ba.print(turret.data.Object.PrimaryBanks[1].WeaponClass.AltName .. "\n")
+							weaponName = turret.data.Object.PrimaryBanks[1].WeaponClass.AltName
+						else
+							weaponName = turret.data.Object.PrimaryBanks[1].WeaponClass.Name
+						end
+					elseif turret.data.Object.SecondaryBanks[1]:isValid() then
+						if turret.data.Object.SecondaryBanks[1].WeaponClass.AltName ~= "" then
+							weaponName = turret.data.Object.SecondaryBanks[1].WeaponClass.AltName
+						else 
+							weaponName = turret.data.Object.SecondaryBanks[1].WeaponClass.Name
+						end
+					else 
+						ba.print("CSC-ERROR: Turret lacks Weapon -- " .. turret.data.Object .. "\n")
+					end
+					gr.drawString(weaponName, self.currentX, self.currentY, maxX, maxY)
 				
-				self.currentX = self.startX + ((gr.getScreenWidth() / 20) * 2) + (self.buttonWidth * 4) + 10
-				gr.drawString("Target: " .. CSCUI:getTargetName(turret.data.Object.Target), self.currentX, self.currentY)
-				self.currentY = topY
-				for k, value in pairs(turret.buttons) do
-					value:Draw()
-				end
+					self.currentX = self.startX + ((gr.getScreenWidth() / 20) * 2) + (self.buttonWidth * 4) + 10
+					gr.drawString("Target: " .. CSCUI:getTargetName(turret.data.Object.Target), self.currentX, self.currentY)
+					for k, value in pairs(turret.buttons) do
+						value:Draw()
+					end
 				
-			else
-				gr.setColor(self.buttonWidth,self.buttonWidth,self.buttonWidth)
-				gr.drawString("DESTROYED", self.currentX, self.currentY, maxX, maxY)
+				else
+					gr.setColor(self.buttonWidth,self.buttonWidth,self.buttonWidth)
+					gr.drawString("DESTROYED", self.currentX, self.currentY, maxX, maxY)
+				end
 			end
-			self.currentY = topY + self.buttonWidth
 		end
 	end
 	
@@ -179,32 +185,36 @@ function CSCUI:CreateUi()
 		self.currentX =self.startX + ((gr.getScreenWidth() / 20) * 2)
 		self.currentY = self.currentY + (self.buttonWidth + 2)
 		self.elements.groups[name].turretElements = {}
-		for key, value in pairs (group.TurretData) do
-			self.currentX =self.startX + ((gr.getScreenWidth() / 20) * 2)
-			self.elements.groups[name].turretElements[key] = {}
-			self.elements.groups[name].turretElements[key].data = value
-			self.elements.groups[name].turretElements[key].buttons = {}
-			local newButton = AXUI:CreateButton("", self.currentX, self.currentY, 0, 0, group.Colour, group.Colour, group.Colour, "auto", 0, 0, "autoHover", "autoFilled", false, 0)
-			self.elements.groups[name].turretElements[key].Radio = AXUI:CreateRadioGroup()
-			self.elements.groups[name].turretElements[key].buttons.auto = newButton
-			self.elements.groups[name].turretElements[key].Radio:AddToGroup(self.elements.groups[name].turretElements[key].buttons.auto)
+			for key, value in pairs (group.TurretData) do
+				self.currentX =self.startX + ((gr.getScreenWidth() / 20) * 2)
+				self.elements.groups[name].turretElements[key] = {}
+				self.elements.groups[name].turretElements[key].data = value
+				self.elements.groups[name].turretElements[key].buttons = {}
+				local newButton = AXUI:CreateButton("", self.currentX, self.currentY, 0, 0, group.Colour, group.Colour, group.Colour, "auto", 0, 0, "autoHover", "autoFilled", false, 0)
+				self.elements.groups[name].turretElements[key].Radio = AXUI:CreateRadioGroup()
+				self.elements.groups[name].turretElements[key].buttons.auto = newButton
+				self.elements.groups[name].turretElements[key].Radio:AddToGroup(self.elements.groups[name].turretElements[key].buttons.auto)
 			
-			self.currentX = self.currentX + self.buttonWidth
-			newButton = AXUI:CreateButton("", self.currentX, self.currentY, 0, 0, group.Colour, group.Colour, group.Colour, "track", 0, 0, "trackHover", "trackFilled", false, 0)
-			self.elements.groups[name].turretElements[key].buttons.track = newButton
-			self.elements.groups[name].turretElements[key].Radio:AddToGroup(self.elements.groups[name].turretElements[key].buttons.track)
+				self.currentX = self.currentX + self.buttonWidth
+				newButton = AXUI:CreateButton("", self.currentX, self.currentY, 0, 0, group.Colour, group.Colour, group.Colour, "track", 0, 0, "trackHover", "trackFilled", false, 0)
+				self.elements.groups[name].turretElements[key].buttons.track = newButton
+				self.elements.groups[name].turretElements[key].Radio:AddToGroup(self.elements.groups[name].turretElements[key].buttons.track)
 		
-			self.currentX = self.currentX + self.buttonWidth
-			newButton = AXUI:CreateButton("", self.currentX, self.currentY, 0, 0, group.Colour, group.Colour, group.Colour, "lock", 0, 0, "lockHover", "lockFilled", false, 0)
-			self.elements.groups[name].turretElements[key].buttons.lock = newButton
-			self.elements.groups[name].turretElements[key].Radio:AddToGroup(self.elements.groups[name].turretElements[key].buttons.lock)
+				self.currentX = self.currentX + self.buttonWidth
+				newButton = AXUI:CreateButton("", self.currentX, self.currentY, 0, 0, group.Colour, group.Colour, group.Colour, "lock", 0, 0, "lockHover", "lockFilled", false, 0)
+				self.elements.groups[name].turretElements[key].buttons.lock = newButton
+				self.elements.groups[name].turretElements[key].Radio:AddToGroup(self.elements.groups[name].turretElements[key].buttons.lock)
 		
-			self.currentX = self.currentX + self.buttonWidth
-			newButton = AXUI:CreateButton("", self.currentX, self.currentY, 0, 0, group.Colour, group.Colour, group.Colour, "disable", 0, 0, "disableHover", "disableFilled", false, 0)
-			self.elements.groups[name].turretElements[key].buttons.disable = newButton
-			self.elements.groups[name].turretElements[key].Radio:AddToGroup(self.elements.groups[name].turretElements[key].buttons.disable)
-			self.currentY = self.currentY + (self.buttonWidth + 2)			
-		end
+				self.currentX = self.currentX + self.buttonWidth
+				newButton = AXUI:CreateButton("", self.currentX, self.currentY, 0, 0, group.Colour, group.Colour, group.Colour, "disable", 0, 0, "disableHover", "disableFilled", false, 0)
+				self.elements.groups[name].turretElements[key].buttons.disable = newButton
+				self.elements.groups[name].turretElements[key].Radio:AddToGroup(self.elements.groups[name].turretElements[key].buttons.disable)
+				if not group.NoIndividual then
+					self.currentY = self.currentY + (self.buttonWidth + 2)	
+				else 
+					self.currentY = self.currentY + 2
+				end
+			end
 	end
 	
 	function CSCUI:Clear()

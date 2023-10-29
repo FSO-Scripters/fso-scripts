@@ -107,7 +107,7 @@ $On Game Init:
             self.loaded = true
             ba.print(self.data.plrship.Class.Name .. " laoded as CSC Class\n")
         else
-            ba.warning("CSC-ERROR: Player's Ship class is not defined in CSC.cfg\n" ) 
+            ba.warning("CSC-ERROR: " .. self.data.plrship.Class.Name .. " class is not defined in CSC.cfg\n" ) 
         end
     end
     function CSCLOGIC:compileTurrets()
