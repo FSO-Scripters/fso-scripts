@@ -1,0 +1,22 @@
+#Lua SEXPs
+
+$Operator: toggle-csc
+$Category: Change
+$Subcategory: Scripted
+$Minimum Arguments: 1
+$Maximum Arguments: 1
+$Description: Toggles the CSC Script. Should be called at the start/end of the mission.
+$Parameter:
+	+Description: Enable/disable the script,
+	+Type: boolean
+
+$Operator: hide-csc
+$Category: Change
+$Subcategory: Scripted
+$Minimum Arguments: 1
+$Maximum Arguments: 1
+$Description: Hides the CSC interface.
+$Parameter:
+	+Description: Enable/disable the interface, True hides. False shows,
+	+Type: boolean
+#End

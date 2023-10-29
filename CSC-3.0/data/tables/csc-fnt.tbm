@@ -1,0 +1,15 @@
+#Fonts
+
+$TrueType: SquarishSans.ttf
+	+Name: HUD
+	+Size: 20
+	+Top offset:	-3
+	+Bottom offset:	1
+	
+$TrueType: SquarishSans.ttf
+	+Name: HUDTitle
+	+Size: 30
+	+Top offset:	-3
+	+Bottom offset:	1
+	
+#End
