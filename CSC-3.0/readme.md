@@ -37,6 +37,9 @@ In here are the files used by the UI they should be 64x64 image files.
 * `*hover.dds` The image for the button when it is hovered over.
 * `*filled.dds` The image for the button when it is active.
 
+## Mission
+Enable CSC with the `toggle-CSC` sexp
+Show/Hide the UI with the `hide-csc` sexp
 # Copyright
 No paticular license you are free to distribute and modify however you please just please credit Me(TheForce172), Dragon, and the orginal BP Team.
 If you do make somthing with this do please message me as I would like to see what you've made!
