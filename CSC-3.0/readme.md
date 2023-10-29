@@ -15,7 +15,7 @@ For the player the scripts functionality is almost identical to the previous ver
 * Lock - Turret will continue to shoot at current target even if tageting in changed.
 * Offline - Turret will not shoot.
 
-By using the buttons nxt to the group Name the player can set targeting parameters for the whole group.
+By using the buttons next to the group Name the player can set targeting parameters for the whole group.
 
 ## Config Format
 
@@ -36,3 +36,7 @@ In here are the files used by the UI they should be 64x64 image files.
 * `*.dds` The base image for th button
 * `*hover.dds` The image for the button when it is hovered over.
 * `*filled.dds` The image for the button when it is active.
+
+# Copyright
+No paticular license you are free to distribute and modify however you please just please credit Me(TheForce172), Dragon, and the orginal BP Team.
+If you do make somthing with this do please message me as I would like to see what you've made!
