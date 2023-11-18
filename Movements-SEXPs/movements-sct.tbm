@@ -14,7 +14,7 @@ $Application: FS2_Open
 
 $On Game Init: [
 
-	--Version 2.4, released on Janurary 17, 2023 by wookieejedi
+	--Version 2.5, released on Novemeber 18, 2023 by wookieejedi
 	--Requires FSO build of August 27, 2022 or newer
 	--Description: custom sexps and functions that allow for much easier ship movements and rotations
 	--Usage: custom sexps are included and listed in FRED under the LUA-Movements tab
@@ -374,6 +374,10 @@ $On Game Init: [
 			local wp_path_name
 			local wp_point_i
 
+			if objectname == nil then
+				return nil
+			end
+
 			local index = objectname:find(":", 0, true)
 			if index ~= nil then
 				wp_path_name = objectname:sub(1, index - 1)
@@ -410,8 +414,11 @@ $On Game Init: [
 		if object == nil then
 			object = check_get_Waypoint(objectname)
 		end
-		if not object:isValid() then
-			object = check_get_Waypoint(objectname)
+		if object ~= nil then
+			--somehow might be not be nil but possibly invalid
+			if not object:isValid() then
+				object = check_get_Waypoint(objectname)
+			end
 		end
 
 		return object
@@ -454,6 +461,23 @@ $On Game Init: [
 
 		local matching_order_i
 
+		-- Note, if give_order and then remove_order called in same frame, remove_order will return nil
+			-- b/c FSO will given an order, then the next frame process and assign a target.
+		-- For example, run_ship_track_waypoint first removes orders, then gives order.
+		-- But if run_waypoint_track_ship is run then run again in same frame,
+			-- then the AI will have two orders in it's orders list.
+			-- The internal tracking of this script properly overwrites to the second value, though.
+			-- So the ship should go to the second order, 
+			-- but in it's order list there will be a second order with the same PR hanging around.
+			-- The ship will follow the second order given since it's added to the top of the orders list, 
+			-- but when this order is met it will try to do the other order below it. 
+
+		-- So what we should probably do is remove all orders with the matching PR and overall type...
+		-- Or just clear orders..
+		-- Or add some kind of optional timestamp to when order given, and if time matches then remove, and if time different then check target.. 
+		-- Or just leave it alone and know that a second order could be in there...
+
+
 		if self.is_enabled and ship ~= nil and ship:isValid() then
 			--go through orders and find matching
 			local orders = ship.Orders
@@ -464,7 +488,7 @@ $On Game Init: [
 				for i=1,num_ords do
 					local ord = orders[i]
 					--check priority match first
-					if ord.Priority == removing_order_priority then
+					if ord ~= nil and ord:isValid() and ord.Priority == removing_order_priority then
 						local ord_typ = ord:getType()
 						local ord_matched = false
 						--match type
@@ -499,7 +523,7 @@ $On Game Init: [
 		local matching_order_i = self:GetMatchingOrder_i(ship, removing_order_priority, removing_order_string, target_of_removing_order_string)
 
 		--remove
-		if matching_order_i ~= nil then
+		if matching_order_i ~= nil and ship.Orders[matching_order_i] ~= nil then
 			ship.Orders[matching_order_i]:remove()
 			--ba.print("Movements: Removing order <"..removing_order_string.."> for ship "..ship.Name.." with priority "..tostring(removing_order_priority).."...\n")
 		end
@@ -546,7 +570,10 @@ $On Game Init: [
 
 	end
 
-	function Movements:RandomPoint_In_ShipSphere(ship)
+	function Movements:RandomPoint_On_ShipSphere(ship, return_local_coordinates)
+
+		if ship == nil then return nil end
+		if not ship:isValid() then return nil end
 
 		local ship_radius = ship.Radius
 		local ship_pos = ship.Position
@@ -563,57 +590,12 @@ $On Game Init: [
 		local y = math.cos(latitude) * math.sin(longitude) * ship_radius 
 		local z = math.sin(latitude) * ship_radius
 
-		return ba.createVector(x + ship_pos.x, y + ship_pos.y, z + ship_pos.z)
 		--ba.print(" Movements_Test: radius of sphere point to target center is "..ship_pos:getDistance(sphere_point)..", and radius is "..ship_radius.."\n")
-
-	end
-
-	function Movements:RandomPoint_On_ShipHull(ship, buffer_distance, return_local_coordinates)
-
-		--finds a point on a ship's hull 
-
-		--get ship and check validity
-		if ship == nil then return nil end
-		if not ship:isValid() then return nil end
-
-		--default arguments
-		if return_local_coordinates == nil then
-			return_local_coordinates = false
+		if return_local_coordinates then
+			return ba.createVector(x, y, z)
+		else
+			return ba.createVector(x + ship_pos.x, y + ship_pos.y, z + ship_pos.z)
 		end
-		if type(buffer_distance) ~= "number" then
-			buffer_distance = 0
-		end
-
-		local ship_pos = ship.Position
-
-
-		--1) Get a random point on the surface of the target ship's bounding sphere 
-		local sphere_point = Movements:RandomPoint_In_ShipSphere(ship)
-
-		--2) Run checkRayCollision from that point on the bounding sphere to the ship's center to get global position of hull intersection
-
-			local hull_point, collision_data = ship:checkRayCollision(sphere_point, ship_pos, return_local_coordinates)
-			--vector, collision_info checkRayCollision(vector StartPoint, vector EndPoint, [boolean Local = false])
-			--Checks the collisions between the polygons of the current object and a ray. Start and end vectors are in world coordinates
-			--Returns: World collision point (local if boolean is set to true) and the specific collsision info, nil if no collisions
-
-		--3) Use that distance and line to select a new point on the intersect line, which should be touching the outside of the hull
-
-			--note does not work if ship has no geometry at it's origin point, like a donut ship
-
-			--it is expected to hit the ship/itself
-			if hull_point ~= nil and collision_data ~= nil and collision_data:isValid() then
-
-				--face to target, so do that math
-				local position_diff = ship_pos - sphere_point 
-				local norm_diff = position_diff:getNormalized()
-				local pbh = norm_diff:getOrientation()
-
-				return hull_point + pbh:unrotateVector(ba.createVector(0, 0, buffer_distance))
-			else
-				return nil 
-			end
-
 
 	end
 
@@ -657,6 +639,55 @@ $On Game Init: [
 		else
 			return rand_pos_to_ship
 		end
+
+	end
+
+	function Movements:RandomPoint_On_ShipHull(ship, buffer_distance, return_local_coordinates)
+
+		--finds a point on a ship's hull 
+
+		--get ship and check validity
+		if ship == nil then return nil end
+		if not ship:isValid() then return nil end
+
+		--default arguments
+		if return_local_coordinates == nil then
+			return_local_coordinates = false
+		end
+		if type(buffer_distance) ~= "number" then
+			buffer_distance = 0
+		end
+
+		local ship_pos = ship.Position
+
+
+		--1) Get a random point on the surface of the target ship's bounding sphere 
+		local sphere_point = Movements:RandomPoint_On_ShipSphere(ship)
+
+		--2) Run checkRayCollision from that point on the bounding sphere to the ship's center to get global position of hull intersection
+
+		local hull_point, collision_data = ship:checkRayCollision(sphere_point, ship_pos, return_local_coordinates)
+		-- vector, collision_info checkRayCollision(vector StartPoint, vector EndPoint, [boolean Local = false])
+		-- Checks the collisions between the polygons of the current object and a ray. Start and end vectors are in world coordinates
+		-- Returns: World collision point (local if boolean is set to true) and the specific collsision info, nil if no collisions
+
+		--3) Use that distance and line to select a new point on the intersect line, which should be touching the outside of the hull
+
+		-- note does not work if ship has no geometry at it's origin point, like a donut ship
+
+		-- it is expected to hit the ship/itself
+		if hull_point ~= nil and collision_data ~= nil and collision_data:isValid() then
+
+			-- face to target, so do that math
+			local position_diff = ship_pos - sphere_point 
+			local norm_diff = position_diff:getNormalized()
+			local pbh = norm_diff:getOrientation()
+
+			return hull_point + pbh:unrotateVector(ba.createVector(0, 0, buffer_distance))
+		else
+			return nil 
+		end
+
 
 	end
 
@@ -1263,7 +1294,7 @@ $On Game Init: [
 		--quick out if we are not even facing the waypoint?
 		--if a ship blocks us, it woud be nice to rotate to at least face the waypoint?
 		--possibly not, especially with less frequent interval checks
-			--not facing waypoint, so start turning, 10 seconds later we could have already started moving and smashed into something 
+			--b/c if we are not facing waypoint, then start turning, 10 seconds later we could have already started moving and smashed into something 
 
 		--get how fast ship is moving and time until next check
 		--how far will ship have moved in that amount of time?
@@ -1286,7 +1317,7 @@ $On Game Init: [
 
 		--boolean, number getLineOfSightFirstIntersect(vector from, vector to, [table excludedObjects (expects list of objects, empty by default), boolean testForShields = false, boolean testForHull = true, number threshold = 10.0])
 		--Checks whether the to-position is in line of sight from the from-position and returns the distance to the first interruption of the line of sight, disregarding specific excluded objects and objects with a radius of less then threshold.
-		--Returns: true and zero if there is line of sight, false and the distance otherwise.
+		--Returns: true and zero if there is line of sight, false and the distance otherwise and intersecting object otherwise.
 		local has_line_of_sight, closest_obstacle_distance, intersecting_obj = mn.getLineOfSightFirstIntersect(ship_pos, ray_end_pos, {ship}, false, true, ignore_ships_with_this_radius)
 
 		local obstacle_in_way = false
@@ -1463,6 +1494,7 @@ $On Game Init: [
 			uses_smart_stop = uses_smart_stop,
 			smart_stop_ray_distance_min = smart_stop_ray_distance_min, --only used if using smart stop
 			smart_stop_triggered = false, --only used if using smart stop
+			smart_stop_blocking_obj_sig = -1,
 			smart_stop_ignore_radius = smart_stop_ignore_radius, --only used if using smart stop,
 			use_extra_safety_check = use_extra_safety_check
 		}
@@ -1477,10 +1509,11 @@ $On Game Init: [
 		if dis_to_wp1 > track_distance then
 			--if ship has space to actually run waypoints
 			local run_order = true
-			local obstacle_in_path, _ = self:ObstacleInPath(ship, entry.smart_stop_ray_distance_min, entry.smart_stop_ignore_radius, entry.track_interval, entry.ship_radius, entry.use_extra_safety_check)
+			local obstacle_in_path, blocking_obj = self:ObstacleInPath(ship, entry.smart_stop_ray_distance_min, entry.smart_stop_ignore_radius, entry.track_interval, entry.ship_radius, entry.use_extra_safety_check)
 			if uses_smart_stop and obstacle_in_path then
 				run_order = false
 				entry.smart_stop_triggered = true
+				entry.smart_stop_blocking_obj_sig = blocking_obj:getSignature()
 				--if the obstacle ship is the target ship then the per simulation frame checks will take care of that
 			end
 			--give initial waypoint order if no obstacles
@@ -1629,6 +1662,7 @@ $On Game Init: [
 											--stop ship
 											self:RemoveGoalCorrectly(ship, v.priority, "ai-waypoints-once", v.waypoint_path_name)
 											v.smart_stop_triggered = true
+											v.smart_stop_blocking_obj_sig = intersecting_obj:getSignature()
 										else --ship not moving
 											--what if the ship stopped b/c it got too close to it's final target? (ie final target is the obstacle)
 											--if that happens then this ship will never rotate to match target b/c it will never complete its waypoints
@@ -1662,6 +1696,7 @@ $On Game Init: [
 												ship:giveOrder(ORDER_WAYPOINTS_ONCE, wp_list[1], nil, v.priority/100)
 											end
 											v.smart_stop_triggered = false
+											v.smart_stop_blocking_obj_sig = -1
 										--else --ship is moving, and no obstacles so keep on doing what we are already doing
 										end
 									end
@@ -1771,6 +1806,23 @@ $On Game Init: [
 			end
 
 		end
+
+	end
+
+	function Movements:Get_Current_Obstacle_Signature(shipname) --returns blocking sigature if there is a blocker, otherweise -1 if ship tracking not valid or no obstacle or otherwise
+
+		-- narrow but useful function to get the obstacle of a given ship if the ship is tracking a waypoint and has stopped due to 'smart stop'
+
+		-- check if this ship is even using tracking waypoints
+		if self.Active_Ships_trk_Wpts == nil then return -1 end
+		local ship_entry = self.Active_Ships_trk_Wpts[shipname]
+		if ship_entry== nil then return -1 end
+
+		-- failsafe if stop not triggered
+		if not ship_entry.smart_stop_triggered then return -1 end
+
+		-- return the signature 
+		return ship_entry.smart_stop_blocking_obj_sig
 
 	end
 
@@ -2131,7 +2183,7 @@ $On Goals Cleared: [
 	end		
 ]
 
-$On State End: [
+$On Mission End: [
 	if Movements then
 		Movements:Initiate()
 	end
