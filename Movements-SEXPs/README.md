@@ -1,6 +1,5 @@
 # Custom-Movements-SEXPs
 Custom sexps and functions for FSO that allow for much easier ship movements and rotations.
-v1.2 (Dec 28, 2019)
 
 See main topic here:
 https://www.hard-light.net/forums/index.php?topic=96082.0
