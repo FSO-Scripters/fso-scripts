@@ -75,7 +75,7 @@ $Subcategory: LUA-Movements
 $Minimum Arguments: 4
 $Maximum Arguments: 7
 $Return Type: Nothing
-$Description: Moves a ship to a given orientation over a specified time duration. This sexp only has to be called once and can be used to make a much more natural looking rotational effect for ships. This sexp also includes the option to issue a play-dead-persistent order with a specified priority, which will be removed when the rotation is over. Note, running this sexp on a ship that actively is already actively using the sexp of of the 'move-to-face-object' sexp will overwrite the first usage. The order 'clear-goals' will also stop this rotation. Also, this sexp will not work on player ships in multiplayer.
+$Description: Moves a ship to a given orientation over a specified time duration. This sexp only has to be called once and can be used to make a much more natural looking rotational effect for ships. This sexp also includes the option to issue a play-dead-persistent order with a specified priority, which will be removed when the rotation is over. Note, running this sexp on a ship that is already actively using the sexp of of the 'move-to-face-object' sexp will overwrite the first usage. The order 'clear-goals' will also stop this rotation. Also, this sexp will not work on player ships in multiplayer.
 $Parameter: 
 	+Description: Ship to rotate.
 	+Type: Ship
@@ -104,7 +104,7 @@ $Subcategory: LUA-Movements
 $Minimum Arguments: 2
 $Maximum Arguments: 5
 $Return Type: Nothing
-$Description: Moves a ship to a face another ship or waypoint over a specified time duration. This sexp only has to be called once and can be used to make a much more natural looking rotational effect for ships. This sexp also includes the option to issue a play-dead-persistent order with a specified priority, which will be removed when the rotation is over. Note, running this sexp on a ship that actively is already actively using the sexp or the 'move-to-orientation' sexp will overwrite the first usage. The order 'clear-goals' will also stop this rotation. Also, this sexp will not work on player ships in multiplayer.
+$Description: Moves a ship to a face another ship or waypoint over a specified time duration. This sexp only has to be called once and can be used to make a much more natural looking rotational effect for ships. This sexp also includes the option to issue a play-dead-persistent order with a specified priority, which will be removed when the rotation is over. Note, running this sexp on a ship that is already actively using the sexp or the 'move-to-orientation' sexp will overwrite the first usage. The order 'clear-goals' will also stop this rotation. Also, this sexp will not work on player ships in multiplayer.
 $Parameter: 
 	+Description: Ship to rotate.
 	+Type: Ship
@@ -187,7 +187,7 @@ $Subcategory: LUA-Movements
 $Minimum Arguments: 3
 $Maximum Arguments: 9
 $Return Type: Nothing
-$Description: Adds a custom ai-goal for a ship to track a waypoint path. The ship will move to the final point in the waypoint path and remain in that position. If the waypoint path is moved the ship will follow the waypoint path again. Useful for having ships follow dynamic waypoints. Note, this order can only be removed via the sexps 'remove-ai-goal-track-waypoint' or 'clear-goals'. For best results do not add additional waypoints to the waypoint path once the mission has started. Also, running this sexp on a ship that is actively already using this sexp will overwrite the first usage, even if the waypoints are different. Finally, this sexp will not work on player ships in multiplayer.
+$Description: Adds a custom ai-goal for a ship to track a waypoint path. The ship will move to the final point in the waypoint path and remain in that position. If the waypoint path is moved the ship will follow the waypoint path again. Useful for having ships follow dynamic waypoints. Note, this order can only be removed via the sexps 'remove-ai-goal-track-waypoint' or 'clear-goals'. For best results do not add additional waypoints to the waypoint path once the mission has started. Also, running this sexp on a ship that is already actively using this sexp will overwrite the first usage, even if the waypoints are different. Finally, this sexp will not work on player ships in multiplayer.
 $Parameter: 
 	+Description: Ship to order.
 	+Type: Ship
