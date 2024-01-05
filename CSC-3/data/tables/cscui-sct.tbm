@@ -18,17 +18,26 @@ $On Game Init:
 		self.buttonWidth = 64
 		self.startX = (gr.getScreenWidth() / 10) * 2
 		self.startY = gr.getScreenHeight() / 10
+		CSCUI:LoadFonts()
 		CSCUI:CreateUi()
 		self.Enabled = true
 		AXUI:SetFocus(1)
 		self.show = true
 	end
 	
+	function CSCUI:LoadFonts()
+		CSCUI.largeFont = gr.Fonts["HUDTitle"]
+		CSCUI.Font = gr.Fonts["HUD"]
+		if not CSCUI.largeFont or not CSCUI.Font then
+			ba.error("CSC-ERROR, Missing Font. Check that all fonts in CSCUI:LoadFonts, have a matching table entry.")
+		end
+	end
+	
 	function CSCUI:renderUI()
 		self.BracketPadd = 8
 		self.currentX = self.startX
 		self.currentY = self.startY
-		gr.CurrentFont = gr.Fonts["HUDTitle"]
+		gr.CurrentFont = CSCUI.largeFont
 		gr.setColor(255,255,255,255)
 		gr.drawString("Command Interface", self.currentX, self.currentY)
 		self.currentY = self.startY + gr.CurrentFont.Height
@@ -61,7 +70,7 @@ $On Game Init:
 	end
 	
 	function CSCUI:renderGroup(group)
-		gr.CurrentFont = gr.Fonts["HUD"]
+		gr.CurrentFont = CSCUI.Font
 		local topY = self.currentY
 		self.currentX = self.startX
 		self.currentY = group.buttons.autoAll.BitmapY + (self.buttonWidth / 2)
@@ -145,7 +154,7 @@ function CSCUI:SetColor(c)
 
 end	
 function CSCUI:CreateUi()
-		gr.CurrentFont = gr.Fonts["HUDTitle"]
+		gr.CurrentFont = CSCUI.largeFont
 		self.currentX = self.startX
 		self.currentY = self.startY + gr.CurrentFont.Height
 		self.elements.groups = {}
@@ -156,7 +165,7 @@ function CSCUI:CreateUi()
 		end
 	end
 	function CSCUI:createGroup(name,group)
-		gr.CurrentFont = gr.Fonts["HUD"]
+		gr.CurrentFont = CSCUI.Font
 		self.currentX =  self.startX + (gr.getScreenWidth() / 20)
 		self.elements.groups[name] = {}
 		self.elements.groups[name].data = group

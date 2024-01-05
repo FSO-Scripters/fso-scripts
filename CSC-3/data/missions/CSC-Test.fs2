@@ -4,16 +4,16 @@ $Version: 23.1
 $Name:  XSTR("CSC Test", -1)
 $Author: TheForce172
 $Created: 10/29/23 at 03:29:48
-$Modified: 10/29/23 at 04:44:32
+$Modified: 01/05/24 at 09:00:46
 $Notes:
 This is a FRED2_OPEN created mission.
 $End Notes:
 
 $Mission Desc:
- XSTR("Put mission description here", -1)
+ XSTR("A simple test enviroment for the CSC Script", -1)
 $end_multi_text
 +Game Type Flags: 1
-+Flags: 131200
++Flags: 67240064
 +Fog Near Mult: 1.000000
 
 +Fog Far Mult: 1.000000
@@ -379,8 +379,13 @@ $Formula: ( when
 +Trigger Count: -1
 +Interval: 1
 
-#Goals		;! 0 total
+#Goals		;! 1 total
 
+$Type: Primary
++Name: Mess Around
+$MessageNew:  XSTR("Play Around with the CSC Script", -1)
+$end_multi_text
+$Formula: ( true ) 
 
 #Waypoints		;! 0 lists total
 
