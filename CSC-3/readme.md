@@ -29,7 +29,10 @@ The first option for the group is `Name` which will be the groups display name o
 `PlayerControl` A boolean, if true the group will appear in the UI and be under player control. If false the group will not appear in the UI but will still show targeting brackets of the groups colour
 
 ## Script
-In the script file there are only two real options. In the `CSCUI:Init()` function of `cscui-sct.tbm` there are `self.startX` and `self.startY` which can be used to adjust the UI's position.
+If your a scripter you can change anything, go wild! If you're a modder there are two fuction which you can edit easily without lua knowledge.
+ In the `CSCUI:Init()` function of `cscui-sct.tbm` there are `self.startX` and `self.startY` which can be used to adjust the UI's position.
+
+In `CSCUI:LoadFonts` you can edit the fonts used by the script `CSCui.largefont` is used by the title, while `CSCUI.Font` is used by the rest of the script's text. These fonts should be defined in a font tbl/tbm.
 
 ## Interface
 In here are the files used by the UI they should be 64x64 image files.
@@ -41,5 +44,5 @@ In here are the files used by the UI they should be 64x64 image files.
 Enable CSC with the `toggle-CSC` sexp
 Show/Hide the UI with the `hide-csc` sexp
 # Copyright
-Distributed under hte MIT Lisence(See LICENSE in root folder) though while not legally required, please credit Me(TheForce172), Dragon, and the original BP Team.
+Distributed under the MIT License(See LICENSE in root folder) though while not legally required, please credit Me(TheForce172), Dragon, and the original BP Team.
 If you do make somthing with this do please message me as I would like to see what you've made!
