@@ -76,6 +76,33 @@ $On Game Init:
 		end
 	end
 
+	function ShipSave:make_ship_arrive(shipname)
+		if shipname then
+			local entry = mn.ShipRegistry[shipname]
+			if entry and entry.Status == NOT_YET_PRESENT then
+				local parsed = entry:getParsedShip()
+				local wing = parsed:getWing()
+				if wing:isValid() then
+					if wing.TotalArrived == 0 then
+						wing.ArrivalLocation = "Hyperspace"
+						wing:setFlag(true, "no-arrival-warp", "no-arrival-music", "no-arrival-message")
+						wing:makeWingArrive()
+					end
+				else
+					parsed.ArrivalLocation = "Hyperspace"
+					parsed:setFlag(true, "no-arrival-warp", "no-arrival-music")
+					parsed:makeShipArrive()
+				end
+			end
+		end
+	end
+	mn.LuaSEXPs["lua-spawn-and-load-ship"].Action = function(loadtype, ...)
+		for i,v in ipairs(arg) do
+			ShipSave:make_ship_arrive(v[1])
+			ShipSave:load_ship(v[1], loadtype)
+		end
+	end
+
 	function ShipSave:load_variable(varname)
 		if varname then
 			self:read_variable_from_string(varname, self.shipsaveload_data.variables[varname])
@@ -398,9 +425,9 @@ $On Game Init:
 			shipdata[4] = coords
 		else
 			shipdata[1] = {}
-			if (mn.evaluateSEXP("(is-destroyed-delay !0! !"..shipname.."!)")) then
+			if (mn.evaluateSEXP("(is-destroyed-delay 0 !"..shipname.."!)")) then
 				shipdata[1][1] = -2		--ship destroyed
-			elseif (mn.evaluateSEXP("(has-departed-delay !0! !"..shipname.."!)")) then
+			elseif (mn.evaluateSEXP("(has-departed-delay 0 !"..shipname.."!)")) then
 				shipdata[1][1] = -1		--ship departed
 			else
 				shipdata[1][1] = -3		--ship handle invalid, ship-vanish used or something like it

@@ -57,7 +57,21 @@ $Category: Change
 $Subcategory: Save/Load
 $Minimum Arguments: 2
 $Return Type: Nothing
-$Description: Loads one or more ships
+$Description: Loads one or more ships.  If a ship is not present at the time the SEXP is called, that ship will be skipped.
+$Parameter:
+	+Description: Load type.  1 = hitpoints and weapon loadout$semicolon 2 = add weapon/afterburner/shield energy$semicolon 3 = add position and orientation.
+	+Type: number
+$Repeat
+$Parameter:
+	+Description: A ship
+	+Type: shipname
+
+$Operator: lua-spawn-and-load-ship
+$Category: Change
+$Subcategory: Save/Load
+$Minimum Arguments: 2
+$Return Type: Nothing
+$Description: Loads one or more ships, causing them to instantly arrive if they are not present.
 $Parameter:
 	+Description: Load type.  1 = hitpoints and weapon loadout$semicolon 2 = add weapon/afterburner/shield energy$semicolon 3 = add position and orientation.
 	+Type: number
@@ -82,7 +96,7 @@ $Category: Change
 $Subcategory: Save/Load
 $Minimum Arguments: 3
 $Return Type: Nothing
-$Description: Copies data from one ship to another
+$Description: Copies data from one ship to another.  If a ship is not present at the time the SEXP is called, that ship will be skipped.
 $Parameter:
 	+Description: Load type.  1 = hitpoints and weapon loadout$semicolon 2 = add weapon/afterburner/shield energy$semicolon 3 = add position and orientation.
 	+Type: number
