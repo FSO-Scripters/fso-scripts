@@ -29,7 +29,7 @@ The config for the Visual Novel script is done through the file vs3.cfg. In rare
 }
 ```
 A note on the shorthand for JSON that will be used from now on:
-The statement "``x.y.z`` is set to w" is essentially equivalent to the following JSON (with w being it's respective data type obviously):
+The statement "``x.y.z`` is set to w" is essentially equivalent to the following JSON (with w being its respective data type obviously):
 ```json
 {
 	"x": {
@@ -60,17 +60,17 @@ Key | Value | Optional
 -|-|-
 ``Graphics.<name>.MinRes`` | The minimally required horizontal screen resolution for this configuration
 ``Graphics.<name>.Text.Title.Color[]`` | The R, G, B, A values of the name of the currently speaking character (called title, color can be overridden by the specific character)
-``Graphics.<name>.Text.Title.Offset.x`` | The horizontal distance in pixels the title is offset from the top left of the message box (not it's bounding box)
-``Graphics.<name>.Text.Title.Offset.y`` | The vertical distance in pixels the title is offset from the top left of the message box (not it's bounding box)
+``Graphics.<name>.Text.Title.Offset.x`` | The horizontal distance in pixels the title is offset from the top left of the message box (not its bounding box)
+``Graphics.<name>.Text.Title.Offset.y`` | The vertical distance in pixels the title is offset from the top left of the message box (not its bounding box)
 ``Graphics.<name>.Text.Title.Font`` | The name of the font (in fonts.tbl) to use for the title
 ``Graphics.<name>.Text.Message.Color[]`` | The R, G, B, A values of the text for dialog
-``Graphics.<name>.Text.Message.Offset.x`` | The horizontal distance in pixels the dialog is offset from the top left of the message box (not it's bounding box)
-``Graphics.<name>.Text.Message.Offset.y`` | The vertical distance in pixels the dialog is offset from the top left of the message box (not it's bounding box)
+``Graphics.<name>.Text.Message.Offset.x`` | The horizontal distance in pixels the dialog is offset from the top left of the message box (not its bounding box)
+``Graphics.<name>.Text.Message.Offset.y`` | The vertical distance in pixels the dialog is offset from the top left of the message box (not its bounding box)
 ``Graphics.<name>.Text.Message.Font`` | The name of the font (in fonts.tbl) to use for the dialog
 ``Graphics.<name>.Text.Message.UnderTitle`` | true if the dialog should be additionally vertically offset by the height of the title text (if it exists). false otherwise
 ``Graphics.<name>.Text.Title.Color[]`` | The R, G, B, A values of the menu choices
-``Graphics.<name>.Text.Title.Offset.x`` | The horizontal distance in pixels the menu choices are offset from the top left of the message box (not it's bounding box)
-``Graphics.<name>.Text.Title.Offset.y`` | The vertical distance in pixels the menu choices are offset from the top left of the message box (not it's bounding box)
+``Graphics.<name>.Text.Title.Offset.x`` | The horizontal distance in pixels the menu choices are offset from the top left of the message box (not its bounding box)
+``Graphics.<name>.Text.Title.Offset.y`` | The vertical distance in pixels the menu choices are offset from the top left of the message box (not its bounding box)
 ``Graphics.<name>.Text.Title.Font`` | The name of the font (in fonts.tbl) to use for the menu choices
 ``Graphics.<name>.MsgBox.File`` | The image file used for the message box background (expected in the interface directory)
 ``Graphics.<name>.MsgBox.Bounding.Top`` | The distance between the top edge of the image and writable text area
@@ -253,14 +253,14 @@ The following options from SHOW are available and behave comparably:
 
 
 #### MOVE
-The MOVE command can modify some options of a character (mostly positional) set by it's SHOW command or a previous MOVE command. The time in seconds over which the options get applied (i.e. the time the actor needs to move to the new target) is specified by the additional option ``time``, which is 1 by default. ``xflip`` and ``yflip`` are exceptions to this, as they are applied at the start of the move. Syntax:
+The MOVE command can modify some options of a character (mostly positional) set by its SHOW command or a previous MOVE command. The time in seconds over which the options get applied (i.e. the time the actor needs to move to the new target) is specified by the additional option ``time``, which is 1 by default. ``xflip`` and ``yflip`` are exceptions to this, as they are applied at the start of the move. Syntax:
 ```
 MOVE <id> [time=<time>] [list of options]
 ```
 Available options to change: ``x``, ``y``. ``xflip``, ``yflip``, ``scale``, ``alpha``.
 The most common use of this command is to move the actors on the screen.
 #### CHANGE
-The CHANGE command can modify most other options of a character set by it's SHOW command or a previous CHANGE command. All changes by the CHANGE command happen instantly. Syntax:
+The CHANGE command can modify most other options of a character set by its SHOW command or a previous CHANGE command. All changes by the CHANGE command happen instantly. Syntax:
 ```
 CHANGE <id> [list of options]
 ```
@@ -287,16 +287,17 @@ HIDE ALL [NOW]
 ```
 
 #### ACTION
-The ACTION command can be used to directly influence VN behavior. It's first parameter determines which action is to be performed, while the usage of the following parameters depends on the action.
+The ACTION command can be used to directly influence VN behavior. Its first parameter determines which action is to be performed, while the usage of the following parameters depends on the action.
 List of actions:
 Action | Result & Usage
 -|-
 FADEIN | Fades the screen from a solid color to the current image. The first parameter after the  FADEIN is the time in seconds (0 by default), the following three the color in RGB (black by default). Syntax:<br> ```ACTION FADEIN [time] [colorR] [colorG] [colorB]```
 FADEOUT | Fades the screen the current image to a solid color. Parameters equivalent to FADEIN. Syntax:<br> ```ACTION FADEOUT [time] [colorR] [colorG] [colorB]```
-LOCKDOWN | Locks the players ship (disables weapons, afterburner, ETS, gets taken over by AI with play dead command, as well as increases deceleration by a thousand). With the everything flag set, it will also set the ship flags immobile, protect-ship, afterburners-locked, primaries-locked and secondaries-locked. Syntax:<br> ```ACTION LOCKDOWN [EVERYTHING]```
+LOCKDOWN | Locks the players ship (disables weapons, afterburner, ETS, gets taken over by AI with play dead command, as well as increases deceleration by a thousand). When used with EVERYTHING, it will also set the ship flags immobile, protect-ship, afterburners-locked, primaries-locked and secondaries-locked. Syntax:<br> ```ACTION LOCKDOWN [EVERYTHING]```
 UNLOCKDOWN | Undoes the player lock. Syntax:<br> ```ACTION UNLOCKDOWN```
+LOADSCENE | Loads a different VN file and immediately starts it, optionally at a specified label. VN-internal variables and other data from the current scene are carried over to the new scene. Syntax:<br> ```ACTION LOADSCENE [filename] [label]```
+ENDSCENE | Ends the VN sequence and returns to the active mission. When used with KEEPHUDHIDDEN, will not make the player's HUD visible. Can return to the VN via SEXP (the VN-internal variables will stay set). Use this after setting a trigger SEXP-variable to tell FRED the VN segment is over. Syntax:<br> ```ACTION ENDSCENE [KEEPHUDHIDDEN]```
 ENDMISSION | Ends the VN sequence and the mission. Syntax:<br> ```ACTION ENDMISSION```
-ENDSCENE | Ends the VN sequence and returns to the active mission. Can return to the VN via SEXP (the VN-internal variables will stay set). Use this after setting a trigger SEXP-variable to tell FRED the VN segment is over. Syntax:<br> ```ACTION ENDSCENE```
 HIDECURSOR | Hides the player's cursor. Syntax:<br> ```ACTION HIDECURSOR```
 SHOWCURSOR | Unhides the player's cursor. Syntax:<br> ```ACTION SHOWCURSOR```
 HIDEBOX | Hides the dialog box. Syntax:<br> ```ACTION HIDEBOX```
@@ -330,7 +331,7 @@ SETFLAG <variable> <bit number>
 
 ### Control Flow
 #### LABEL
-The LABEL command marks it's position in the script. It can be used to jump to this position from a GOTO command or enter the VN script there from a SEXP. If placed within an IF, ELSEIF or ELSE block, the remaining ELSEIF and ELSE blocks for this IF will be skipped, as if the condition of the block encapsulating the LABEL had naturally been fulfilled. Syntax:
+The LABEL command marks its position in the script. It can be used to jump to this position from a GOTO command or enter the VN script there from a SEXP. If placed within an IF, ELSEIF or ELSE block, the remaining ELSEIF and ELSE blocks for this IF will be skipped, as if the condition of the block encapsulating the LABEL had naturally been fulfilled. Syntax:
 ```
 LABEL <label name>
 ```
@@ -386,7 +387,7 @@ option | effect | default
 -|-|-
 x | The x coordinate of the display relative to the screen size. | 0.5
 y | The y coordinate of the display relative to the screen size. | 0.5
-align | Where the x coordinate refers to on the display. Can be LEFT (edge of it's background image), RIGHT (edge of it's background image) or CENTER. | LEFT
+align | Where the x coordinate refers to on the display. Can be LEFT (edge of its background image), RIGHT (edge of its background image) or CENTER. | LEFT
 
 #### HIDEDISPLAY
 HIDEDISPLAY hides a previously shown display with a defined ID. Syntax:
@@ -401,7 +402,7 @@ SETFONT [font name]
 ```
 
 #### PLAY
-PLAY is a command that is used to play various kinds of audio. It's first argument defines if it is music, a game sound or an interface sound. If music is to be played, the argument ONCE can be appended to specify that the music should not loop. In addition, playing music will make sure that music previously started by the PLAY command is stopped. Music is played by filename, while game and interface sounds are played by their table IDs
+PLAY is a command that is used to play various kinds of audio. Its first argument defines if it is music, a game sound or an interface sound. If music is to be played, the argument ONCE can be appended to specify that the music should not loop. In addition, playing music will make sure that music previously started by the PLAY command is stopped. Music is played by filename, while game and interface sounds are played by their table IDs
 Syntax for music:
 ```
 PLAY MUSIC <filename> [ONCE]
@@ -444,7 +445,7 @@ HIDEMAPICON <id>
 ```
 
 #### SHOWMAP
-The SHOWMAP command is what actually shows the map and blocks the script until the player made an input. It's first argument defines which variable will contain the index of the room the player clicked on. SHOWMAP can be called multiple times with the same map. This does not need multiple calls to LOADMAP. Do note though, that the position of the player icon (if it is displayed with SETMAPICON) will change to whichever room the player clicked last if SHOWMAP is called again. An optional second parameter can be NOFADE to indicate that the map should not fade out after it. The flag option defined which buttons are clickable, equivalent to MENU. Note that this only works to up to 32 buttons. Currently, the buttons only get activated after 0.5 seconds after displaying the map to avoid accidental clicking. Syntax:
+The SHOWMAP command is what actually shows the map and blocks the script until the player made an input. Its first argument defines which variable will contain the index of the room the player clicked on. SHOWMAP can be called multiple times with the same map. This does not need multiple calls to LOADMAP. Do note though, that the position of the player icon (if it is displayed with SETMAPICON) will change to whichever room the player clicked last if SHOWMAP is called again. An optional second parameter can be NOFADE to indicate that the map should not fade out after it. The flag option defined which buttons are clickable, equivalent to MENU. Note that this only works to up to 32 buttons. Currently, the buttons only get activated after 0.5 seconds after displaying the map to avoid accidental clicking. Syntax:
 ```
 SHOWMAP <target variable> [NOFADE] [flag=<flag>]
 ```
