@@ -1,0 +1,345 @@
+#Conditional Hooks
+
+$Application: FS2_Open
+
+$On Game Init:
+[
+	AXUI = require "axui"
+	if not AXUI then ba.error("AxUI not found, ensure AxBase is in mod stack") end
+	
+	CSCUI = {}
+	
+	function CSCUI:Init()
+		self.elements = {}
+		AXUI.InGame = true
+		AXUI:ScreenInit()
+		AXUI:SetFocus(0)
+		self.PlayerMouse = io.MouseControlStatus
+		self.buttonWidth = 64
+		self.startX = (gr.getScreenWidth() / 10) * 2
+		self.startY = gr.getScreenHeight() / 10
+		CSCUI:LoadFonts()
+		CSCUI:CreateUi()
+		self.Enabled = true
+		AXUI:SetFocus(1)
+		self.show = true
+	end
+	
+	function CSCUI:LoadFonts()
+		CSCUI.largeFont = gr.Fonts["HUDTitle"]
+		CSCUI.Font = gr.Fonts["HUD"]
+		if not CSCUI.largeFont or not CSCUI.Font then
+			ba.error("CSC-ERROR, Missing Font. Check that all fonts in CSCUI:LoadFonts, have a matching table entry.")
+		end
+	end
+	
+	function CSCUI:renderUI()
+		self.BracketPadd = 8
+		self.currentX = self.startX
+		self.currentY = self.startY
+		gr.CurrentFont = CSCUI.largeFont
+		gr.setColor(255,255,255,255)
+		gr.drawString("Command Interface", self.currentX, self.currentY)
+		self.currentY = self.startY + gr.CurrentFont.Height
+		for k, value in pairs(self.elements.groups) do
+			if value.data.PlayerControl then
+				CSCUI:renderGroup(value)
+				if value.data.first == true then
+					value.Radio:SwitchTo(1)
+					for turretname, turret in pairs(value.turretElements) do
+						turret.Radio:SwitchTo(1)
+					end
+					value.data.first = false
+				end
+			end
+		end
+		for k, value in pairs(CSCLOGIC:getGroups()) do
+			CSCUI:renderBrackets(value)
+			self.BracketPadd = self.BracketPadd + 5
+		end
+	end
+	
+	function CSCUI:renderBrackets(group)
+		for key, turret in pairs(group.TurretData) do
+			target = turret.Object.Target
+			if target:isValid() then
+				CSCUI:SetColor(group.Colour)
+				gr.drawTargetingBrackets(target, true, self.BracketPadd)
+			end
+		end
+	end
+	
+	function CSCUI:renderGroup(group)
+		gr.CurrentFont = CSCUI.Font
+		local topY = self.currentY
+		self.currentX = self.startX
+		self.currentY = group.buttons.autoAll.BitmapY + (self.buttonWidth / 2)
+		CSCUI:SetColor(group.data.Colour)	
+		local maxX = self.currentX + (gr.getScreenWidth() / 20)
+		local maxY = self.currentY + (self.buttonWidth / 2)
+		gr.drawString(group.data.Name, self.currentX, self.currentY, maxX, maxY)
+		for key, value in pairs(group.buttons) do
+			value:Draw()
+		end
+		if not group.data.NoIndividual then
+			for key, turret in pairs(group.turretElements) do
+				self.currentY = turret.buttons.auto.BitmapY + (self.buttonWidth / 2)
+				self.currentX =  self.startX + (gr.getScreenWidth() / 20)
+				local maxX = self.currentX + (gr.getScreenWidth() / 20)
+				local maxY = self.currentY + (self.buttonWidth / 2)
+				if turret.data.Object.HitpointsLeft > 0 then
+					CSCUI:SetColor(group.data.Colour)			
+					local weaponName
+					if turret.data.Object.PrimaryBanks[1]:isValid() then
+						if turret.data.Object.PrimaryBanks[1].WeaponClass.AltName ~= "" then
+							ba.print(turret.data.Object.PrimaryBanks[1].WeaponClass.AltName .. "\n")
+							weaponName = turret.data.Object.PrimaryBanks[1].WeaponClass.AltName
+						else
+							weaponName = turret.data.Object.PrimaryBanks[1].WeaponClass.Name
+						end
+					elseif turret.data.Object.SecondaryBanks[1]:isValid() then
+						if turret.data.Object.SecondaryBanks[1].WeaponClass.AltName ~= "" then
+							weaponName = turret.data.Object.SecondaryBanks[1].WeaponClass.AltName
+						else 
+							weaponName = turret.data.Object.SecondaryBanks[1].WeaponClass.Name
+						end
+					else 
+						ba.print("CSC-ERROR: Turret lacks Weapon -- " .. turret.data.Object .. "\n")
+					end
+					gr.drawString(weaponName, self.currentX, self.currentY, maxX, maxY)
+				
+					self.currentX = self.startX + ((gr.getScreenWidth() / 20) * 2) + (self.buttonWidth * 4) + 10
+					gr.drawString("Target: " .. CSCUI:getTargetName(turret.data.Object.Target), self.currentX, self.currentY)
+					for k, value in pairs(turret.buttons) do
+						value:Draw()
+					end
+				
+				else
+					gr.setColor(self.buttonWidth,self.buttonWidth,self.buttonWidth)
+					gr.drawString("DESTROYED", self.currentX, self.currentY, maxX, maxY)
+				end
+			end
+		end
+	end
+	
+function CSCUI:getTargetName(target)
+    local targetname
+    if target then
+		local targetship = mn.getObjectFromSignature(target:getSignature())
+		if targetship:isValid() then
+			if targetship:getBreedName() == "Ship" then
+				--ba.print(targetship.DisplayName .. "\n")
+					targetname = targetship:getDisplayString()
+			else 
+				targetname = targetship:getBreedName()
+			end
+		else
+			targetname = "None"
+		end
+    else
+		targetname = "None"
+    end
+    return targetname
+end
+	
+function CSCUI:SetColor(c)
+
+	--Basically gr.setColor with predefined colors so I don't need to keep remembering them
+
+	if c == nil then
+		return
+	end
+
+	gr.setColor(c[1], c[2], c[3], c[4])
+
+end	
+function CSCUI:CreateUi()
+		gr.CurrentFont = CSCUI.largeFont
+		self.currentX = self.startX
+		self.currentY = self.startY + gr.CurrentFont.Height
+		self.elements.groups = {}
+		for key, value in pairs(CSCLOGIC:getGroups()) do
+			if value.PlayerControl then
+				CSCUI:createGroup(key, value)
+			end
+		end
+	end
+	function CSCUI:createGroup(name,group)
+		gr.CurrentFont = CSCUI.Font
+		self.currentX =  self.startX + (gr.getScreenWidth() / 20)
+		self.elements.groups[name] = {}
+		self.elements.groups[name].data = group
+		group.first = true
+		self.elements.groups[name].Radio = AXUI:CreateRadioGroup()
+		self.elements.groups[name].buttons = {}
+		local newButton = AXUI:CreateButton("", self.currentX, self.currentY, 0, 0, group.Colour, group.Colour, group.Colour, "auto", 0, 0, "autoHover", "autoFilled", false, 0)
+		self.elements.groups[name].buttons.autoAll = newButton
+		self.elements.groups[name].Radio:AddToGroup(self.elements.groups[name].buttons.autoAll)
+		
+		self.currentX = self.currentX + self.buttonWidth
+		newButton = AXUI:CreateButton("", self.currentX, self.currentY, 0, 0, group.Colour, group.Colour, group.Colour, "track", 0, 0, "trackHover", "trackFilled", false, 0)
+		self.elements.groups[name].buttons.trackAll = newButton
+		self.elements.groups[name].Radio:AddToGroup(self.elements.groups[name].buttons.trackAll)
+		
+		self.currentX = self.currentX + self.buttonWidth
+		newButton = AXUI:CreateButton("", self.currentX, self.currentY, 0, 0, group.Colour, group.Colour, group.Colour, "lock", 0, 0, "lockHover", "lockFilled", false, 0)
+		self.elements.groups[name].buttons.lockAll = newButton
+		self.elements.groups[name].Radio:AddToGroup(self.elements.groups[name].buttons.lockAll)
+		
+		self.currentX = self.currentX + self.buttonWidth
+		newButton = AXUI:CreateButton("", self.currentX, self.currentY, 0, 0, group.Colour, group.Colour, group.Colour, "disable", 0, 0, "disableHover", "disableFilled", false, 0)
+		self.elements.groups[name].buttons.disableAll = newButton
+		self.elements.groups[name].Radio:AddToGroup(self.elements.groups[name].buttons.disableAll)
+		
+		self.currentX =self.startX + ((gr.getScreenWidth() / 20) * 2)
+		self.currentY = self.currentY + (self.buttonWidth + 2)
+		self.elements.groups[name].turretElements = {}
+			for key, value in pairs (group.TurretData) do
+				self.currentX =self.startX + ((gr.getScreenWidth() / 20) * 2)
+				self.elements.groups[name].turretElements[key] = {}
+				self.elements.groups[name].turretElements[key].data = value
+				self.elements.groups[name].turretElements[key].buttons = {}
+				local newButton = AXUI:CreateButton("", self.currentX, self.currentY, 0, 0, group.Colour, group.Colour, group.Colour, "auto", 0, 0, "autoHover", "autoFilled", false, 0)
+				self.elements.groups[name].turretElements[key].Radio = AXUI:CreateRadioGroup()
+				self.elements.groups[name].turretElements[key].buttons.auto = newButton
+				self.elements.groups[name].turretElements[key].Radio:AddToGroup(self.elements.groups[name].turretElements[key].buttons.auto)
+			
+				self.currentX = self.currentX + self.buttonWidth
+				newButton = AXUI:CreateButton("", self.currentX, self.currentY, 0, 0, group.Colour, group.Colour, group.Colour, "track", 0, 0, "trackHover", "trackFilled", false, 0)
+				self.elements.groups[name].turretElements[key].buttons.track = newButton
+				self.elements.groups[name].turretElements[key].Radio:AddToGroup(self.elements.groups[name].turretElements[key].buttons.track)
+		
+				self.currentX = self.currentX + self.buttonWidth
+				newButton = AXUI:CreateButton("", self.currentX, self.currentY, 0, 0, group.Colour, group.Colour, group.Colour, "lock", 0, 0, "lockHover", "lockFilled", false, 0)
+				self.elements.groups[name].turretElements[key].buttons.lock = newButton
+				self.elements.groups[name].turretElements[key].Radio:AddToGroup(self.elements.groups[name].turretElements[key].buttons.lock)
+		
+				self.currentX = self.currentX + self.buttonWidth
+				newButton = AXUI:CreateButton("", self.currentX, self.currentY, 0, 0, group.Colour, group.Colour, group.Colour, "disable", 0, 0, "disableHover", "disableFilled", false, 0)
+				self.elements.groups[name].turretElements[key].buttons.disable = newButton
+				self.elements.groups[name].turretElements[key].Radio:AddToGroup(self.elements.groups[name].turretElements[key].buttons.disable)
+				if not group.NoIndividual then
+					self.currentY = self.currentY + (self.buttonWidth + 2)	
+				else 
+					self.currentY = self.currentY + 2
+				end
+			end
+	end
+	
+	function CSCUI:Clear()
+		self.elements = {}
+		self.Enabled = false
+		self.show = false
+		self.first = true
+	end
+	
+	function CSCUI:MonitorActions()
+		for k, v in pairs(self.elements.groups) do
+			if v.buttons.autoAll:Clicked() then 
+				v.Radio:SwitchTo(1)
+				v.buttons.autoAll.Clickable = true
+				for turretname, turret in pairs(self.elements.groups[k].turretElements) do
+					CSCLOGIC:turretSetAuto(turret.data)
+					turret.Radio:SwitchTo(1)
+				end
+			end
+			
+			if v.buttons.trackAll:Clicked() then 
+				v.Radio:SwitchTo(2)
+				v.buttons.trackAll.Clickable = true
+				for turretname, turret in pairs(self.elements.groups[k].turretElements) do
+					CSCLOGIC:turretSetTrack(turret.data)
+					turret.Radio:SwitchTo(2)
+				end
+			end
+			
+			if v.buttons.lockAll:Clicked() then 
+				v.Radio:SwitchTo(3)
+				v.buttons.lockAll.Clickable = true
+				for turretname, turret in pairs(self.elements.groups[k].turretElements) do
+					CSCLOGIC:turretSetLock(turret.data)
+					turret.Radio:SwitchTo(3)
+				end
+			end
+			
+			if v.buttons.disableAll:Clicked() then 
+				v.Radio:SwitchTo(4)
+				v.buttons.disableAll.Clickable = true
+				for turretname, turret in pairs(self.elements.groups[k].turretElements) do
+					CSCLOGIC:turretSetOffline(turret.data)
+					turret.Radio:SwitchTo(4)
+				end
+			end
+		
+		
+			for turretname, turret in pairs(self.elements.groups[k].turretElements) do
+				if turret.buttons.auto:Clicked() then
+					CSCLOGIC:turretSetAuto(turret.data)
+					turret.Radio:SwitchTo(1)
+				end
+			
+				if turret.buttons.track:Clicked() then
+					CSCLOGIC:turretSetTrack(turret.data)
+					turret.Radio:SwitchTo(2)
+				end
+			
+				if turret.buttons.lock:Clicked() then
+					CSCLOGIC:turretSetLock(turret.data)
+					turret.Radio:SwitchTo(3)
+				end
+			
+				if turret.buttons.disable:Clicked() then
+					CSCLOGIC:turretSetOffline(turret.data)
+					turret.Radio:SwitchTo(4)
+				end
+			end
+		end
+	end
+	function CSCUI:isKey(Key)
+		--ba.print("Game State\n")
+		--ba.print(Key .."\n")
+		if CSCUI.show == true then
+			if Key == "Alt" then
+				return true
+			end
+		end
+	end
+]
+$On HUD Draw:
+[
+	if CSCUI.show == true then 
+		CSCUI:renderUI()
+	end
+]
+
+$State: GS_STATE_GAME_PLAY
+$On Mouse Released:
+[
+	if CSCUI.show == true then
+		if bit.checkBit(hv.MouseButton, 0) then
+			CSCUI:MonitorActions()
+		end
+	end
+]
+
+$State: GS_STATE_GAME_PLAY
+$On Key Pressed:
+[
+	if CSCUI:isKey(hv.Key) then
+		io.setCursorHidden(false)
+		io.MouseControlStatus = false
+		AXUI:SetFocus(0)
+	end
+]
+
+$State: GS_STATE_GAME_PLAY
+$On Key Released:
+[
+if CSCUI:isKey(hv.Key) then
+	io.setCursorHidden(true)
+	io.MouseControlStatus = true
+	AXUI:SetFocus(1)
+end
+]
+
+#End

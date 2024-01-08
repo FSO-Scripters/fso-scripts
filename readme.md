@@ -10,6 +10,7 @@ This is a collection of user-made scripts for the [FreeSpace Open engine](https:
 |AxMiscFunctions|Some of Axems convenience SEXP, including player target manipulation, locking down ships, and waypoint manuipulation.|21.0||Axem|
 |BtASystemViewer|A customizable 2D map built in FSO's Script Game State|21.0|AxBase|Axem/MjnMixael|
 |Cloak|Allows to cloak both AI and Player|21.0|AxBase|Axem|
+|CSC V3|Capship Command script with AXUI|21.0|AxBase|TheForce172|
 |(PCM) Codekeys|A tool for interactive development, runtime-updated hotkeyed code snippets|23.0|Plasma core 0.11.0|EatThePath|
 |Countdown|Shows a big and dramatic countdown to the player|21.0|AxBase|Axem|
 |DebugTools|Adds tools to easily debug SEXP variables and Lua Scripts|21.0|AxBase|Axem|

@@ -1,0 +1,150 @@
+#Conditional Hooks
+
+$Application: FS2_Open
+
+$On Game Init:
+[
+    CSCLOGIC = {}
+
+    mn.LuaSEXPs["toggle-csc"].Action = function(enable)
+        if (enable == true)  and (CSCLOGIC.Enabled == false) then
+	        CSCLOGIC:loadCSC()
+            ba.print("CSC Enabled\n")
+            CSCLOGIC.Enabled = true
+			CSCUI:Init()
+        elseif (enable == false) and (CSCLOGIC.Enabled == true) then
+            CSCLOGIC:killCSC()
+            ba.print("CSC Disabled\n")
+            CSCLOGIC.Enabled = false
+			CSCUI:Clear()
+        end
+    end
+
+    mn.LuaSEXPs["hide-csc"].Action = function(hide)
+        if hide == true then
+            CSCUI.show = false
+        else
+            CSCUI.show = true
+        end
+    end
+
+    function CSCLOGIC:turretSetAuto(turret)
+        turret.Object:targetingOverride(false)
+        for WeaponGroup, WeaponGroupdata in pairs(self.data.ship.WeaponGroups) do
+			for turretname, turret2 in pairs(WeaponGroupdata.TurretData) do
+				if turret2.Object == turret.Object then
+					turret2.Mode = "Auto"
+				end
+			end
+		end
+    end
+
+    function CSCLOGIC:turretSetTrack(turret)
+        turret.Object:targetingOverride(true)
+		--ba.print("Changeing " .. turret.Object.Name .. " Mode to Track\n")
+        for WeaponGroup, WeaponGroupdata in pairs(self.data.ship.WeaponGroups) do
+			for turretname, turret2 in pairs(WeaponGroupdata.TurretData) do
+				if turret2.Object == turret.Object then
+					ba.print("Done\n")
+					turret2.Mode = "Track"
+				end
+			end
+		end
+    end
+
+    function CSCLOGIC:turretSetLock(turret)
+        turret.Object:targetingOverride(true)
+        turret.Object.Target = self.data.plrship.Target
+        for WeaponGroup, WeaponGroupdata in pairs(self.data.ship.WeaponGroups) do
+			for turretname, turret2 in pairs(WeaponGroupdata.TurretData) do
+				if turret2.Object == turret.Object then
+					turret2.Mode = "Lock"
+				end
+			end
+		end
+    end
+
+    function CSCLOGIC:turretSetOffline(turret)
+        turret.Object:targetingOverride(true)
+        turret.Object.Target = nil
+        for WeaponGroup, WeaponGroupdata in pairs(self.data.ship.WeaponGroups) do
+			for turretname, turret2 in pairs(WeaponGroupdata.TurretData) do
+				if turret2.Object == turret.Object then
+					turret2.Mode = "Off"
+				end
+			end
+		end
+    end
+
+    function CSCLOGIC:setTrackingTarget()
+        for WeaponGroup, WeaponGroupdata in pairs(self.data.ship.WeaponGroups) do
+            for turretname, turretdata in pairs(WeaponGroupdata.TurretData) do
+				--ba.print(turretdata.Mode .. "\n")
+                if turretdata.Mode == "Track" then
+                    turretdata.Object.Target = self.data.plrship.Target
+                end
+            end
+        end
+    end
+
+    function CSCLOGIC:getGroups()
+        return self.data.ship.WeaponGroups
+    end
+
+    function CSCLOGIC:loadCSC()
+        if cf.fileExists("csc.cfg", "data/config", true) then
+            self.cscconfig = axemParse:ReadJSON("csc.cfg")
+        else 
+            ba.error("CSC-ERROR: Config file missing! Cannot proceed!\n")
+        end
+        self.data = {}
+        self.data.plrship = hv.Player
+        self.data.trackingTurrets = {}
+        self.data.lockedTurrets = {}
+        if self.cscconfig[self.data.plrship.Class.Name] then
+            self.data.ship = self.cscconfig[self.data.plrship.Class.Name]
+            CSCLOGIC:compileTurrets()
+            self.loaded = true
+            ba.print(self.data.plrship.Class.Name .. " laoded as CSC Class\n")
+        else
+            ba.warning("CSC-ERROR: " .. self.data.plrship.Class.Name .. " class is not defined in CSC.cfg\n" ) 
+        end
+    end
+    function CSCLOGIC:compileTurrets()
+        for key, value in pairs(self.data.ship.WeaponGroups) do
+            value.TurretData = {}
+            for k,turret in pairs(value.Turrets) do
+                local Turretdata = {
+                    Mode = "Auto",
+                    Object = self.data.plrship[turret],
+                }
+                if Turretdata.Object == nil then
+                    ba.warning("CSC-ERROR: Turret defined in config but not on ship --" .. k .. "\n" ) 
+                end
+                value.TurretData[turret] = Turretdata
+            end
+        end
+    end
+
+    function CSCLOGIC:getCSC()
+        return self.loaded
+    end
+
+    function CSCLOGIC:Init()
+        self.Enabled = false
+        self.loaded = false
+        self.cscdef = {}
+    end
+
+    CSCLOGIC:Init()
+]
+
+$State: GS_STATE_GAME_PLAY
+$On Frame:
+[
+    if (CSCLOGIC:getCSC() == true) then 
+        CSCLOGIC:setTrackingTarget()
+    end
+]
+
+#End
