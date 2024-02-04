@@ -8,6 +8,7 @@ $Application: FS2_Open
 $On Game Init:
 [
 	ShipSave = {}
+	ShipSave.save_file_exists_cache = {}
 
 	--definitions for savefile
 	ShipSave.path_shipsave = "data/scripts/"
@@ -139,7 +140,14 @@ $On Game Init:
 		if filename then
 			self.active_filename = filename
 		end
-		return cf.fileExists(self.active_filename,self.path_shipsave,true)
+		local result = self.save_file_exists_cache[self.active_filename]
+		if result == nil then
+			-- cache the result so we don't need to keep querying the file system
+			-- (the cache is cleared on each mission start)
+			result = cf.fileExists(self.active_filename,self.path_shipsave,true)
+			self.save_file_exists_cache[self.active_filename] = result
+		end
+		return result
 	end
 	mn.LuaSEXPs["lua-save-file-exists"].Action = function(filename)
 		return ShipSave:saveexist(filename)
@@ -737,6 +745,7 @@ $On Game Init:
 
 $On Mission Start:
 [
+	ShipSave.save_file_exists_cache = {}
 	ShipSave:save_init(mn.getMissionFilename())
 ]
 
