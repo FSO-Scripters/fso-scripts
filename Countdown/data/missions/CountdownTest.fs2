@@ -1,7 +1,7 @@
 #Mission Info
 
 $Version: 0.10
-$Name:  XSTR("Untitled", -1)
+$Name:  XSTR("Countdown Test", -1)
 $Author: Joel Reimer
 $Created: 02/10/18 at 21:26:02
 $Modified: 07/03/20 at 18:57:03
@@ -187,8 +187,11 @@ $Formula: ( when
    ( lua-countdown-setup 
       -15 
       ( true ) 
-      2 
+      90 
       ( true ) 
+      "CountdownStart" 
+      30 
+      "CountdownChirp" 
    )
    ( lua-countdown-start ) 
 )
