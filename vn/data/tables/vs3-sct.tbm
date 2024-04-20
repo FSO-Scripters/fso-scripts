@@ -114,17 +114,32 @@ function VS3:Init(hideCursor)
 	
 	-- Stuff for sending a character message as a "standard" message
 	self.StandardMessage = nil
-	
-	self.StandardTextPosition = {}
-	self.StandardTextPosition.x, self.StandardTextPosition.y = 8, 5 + 4 * 17
-	
+	self.StandardText = {}
 	self.StandardHead = {}
+	
+	-- check the actual HUD head to determine how to set it up
+;;FSO 24.0.0;;	local talkinghead_gauge = hu.getHUDGaugeHandle("Talking Head")
+;;FSO 24.0.0;;	if talkinghead_gauge:isHiRes() then
+		self.StandardText.x, self.StandardText.y = 8, 5 + 4 * 17	-- put the text on the lowest line of the message scrollback
+		self.StandardText.Font = gr.Fonts[3]
+	
 	self.StandardHead.x, self.StandardHead.y = 20, 100
 	self.StandardHead.w, self.StandardHead.h = 256, 206
 	self.StandardHead.header_dx, self.StandardHead.header_dy = 6, 3
 	self.StandardHead.anim_dx, self.StandardHead.anim_dy = 3, 16
 	self.StandardHead.anim_w, self.StandardHead.anim_h = 250, 187
 	self.StandardHead.FrameHandle = gr.loadTexture("2_head1", true)
+;;FSO 24.0.0;;	else
+;;FSO 24.0.0;;		self.StandardText.x, self.StandardText.y = 8, 5 + 2 * 9 	-- put the text on the lowest line of the message scrollback
+;;FSO 24.0.0;;		self.StandardText.Font = gr.Fonts[1]
+;;FSO 24.0.0;;		
+;;FSO 24.0.0;;		self.StandardHead.x, self.StandardHead.y = 5, 56
+;;FSO 24.0.0;;		self.StandardHead.w, self.StandardHead.h = 164, 132
+;;FSO 24.0.0;;		self.StandardHead.header_dx, self.StandardHead.header_dy = 2, 2
+;;FSO 24.0.0;;		self.StandardHead.anim_dx, self.StandardHead.anim_dy = 2, 10
+;;FSO 24.0.0;;		self.StandardHead.anim_w, self.StandardHead.anim_h = 160, 120
+;;FSO 24.0.0;;		self.StandardHead.FrameHandle = gr.loadTexture("head1", true)
+;;FSO 24.0.0;;	end
 	
 	self.HUDHeadColor = {}
 	self.HUDHeadColor[1], self.HUDHeadColor[2], self.HUDHeadColor[3], self.HUDHeadColor[4] = hu.getHUDGaugeColor(27) --27 is message lines!
@@ -3437,8 +3452,8 @@ function VS3:MaybeDrawStandard()
 		-- text is kinda easy
 		-- use alpha color of 220 for text which is HUD_NEW_ALPHA_BRIGHT
 		gr.setColor(self.HUDTextColor[1], self.HUDTextColor[2], self.HUDTextColor[3], 220)
-		gr.CurrentFont = gr.Fonts[3]
-		gr.drawString(self.StandardMessage.Text, self.StandardTextPosition.x, self.StandardTextPosition.y)
+		gr.CurrentFont = self.StandardText.Font
+		gr.drawString(self.StandardMessage.Text, self.StandardText.x, self.StandardText.y)
 
 		-- ANI is a bit harder
 		if self.StandardMessage.ANIHandle then
