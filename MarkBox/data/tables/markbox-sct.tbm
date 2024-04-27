@@ -402,13 +402,18 @@ function MarkBox:DrawSubsystemBracket(subsys, data)
 			end
 			
 			if data.Text then
-				local savedFont = gr.CurrentFont
+				local prevFont = gr.CurrentFont
 				gr.CurrentFont = self.FONT
 				local xt, yt = self:RescaleCoords(nx2+5, ny2-20)
+				local prevResizeMode = gr.CurrentResizeMode
+				gr.CurrentResizeMode = GR_RESIZE_FULL
 				gr.setScreenScale(self.BASE_WIDTH, self.BASE_HEIGHT)
-				gr.drawStringResized(GR_RESIZE_FULL, data.Text, xt, yt)
+				gr.setClip(0, 0, self.BASE_WIDTH, self.BASE_HEIGHT)
+				gr.drawString(data.Text, xt, yt)
 				gr.resetScreenScale()
-				gr.CurrentFont = savedFont
+				gr.resetClip()
+				gr.CurrentFont = prevFont
+				gr.CurrentResizeMode = prevResizeMode
 			end
 
 			if self.DrawSubsysHealth and subsys.HitpointsMax > 0 then
@@ -446,13 +451,18 @@ function MarkBox:DrawShipBracket(ship, data)
 		if data.Text then
 			local x1,y1,x2,y2 = gr.drawTargetingBrackets(ship, false)
 			if x1 and y1 then
-				local savedFont = gr.CurrentFont
+				local prevFont = gr.CurrentFont
 				gr.CurrentFont = self.FONT
 				local xt, yt = self:RescaleCoords(x1-5, y1-16)
+				local prevResizeMode = gr.CurrentResizeMode
+				gr.CurrentResizeMode = GR_RESIZE_FULL
 				gr.setScreenScale(self.BASE_WIDTH, self.BASE_HEIGHT)
-				gr.drawStringResized(GR_RESIZE_FULL, data.Text, xt, yt)
+				gr.setClip(0, 0, self.BASE_WIDTH, self.BASE_HEIGHT)
+				gr.drawString(data.Text, xt, yt)
 				gr.resetScreenScale()
-				gr.CurrentFont = savedFont
+				gr.resetClip()
+				gr.CurrentFont = prevFont
+				gr.CurrentResizeMode = prevResizeMode
 			end
 		end
 	end

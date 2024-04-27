@@ -134,8 +134,12 @@ function Scroll:Draw()
 
 		local numLines = #self.Lines
 	if numLines > 0 then
+		local prevResizeMode
 		if self.UseConfig then
+			prevResizeMode = gr.CurrentResizeMode
+			gr.CurrentResizeMode = GR_RESIZE_FULL
 			gr.setScreenScale(self.BaseWidth, self.BaseHeight)
+			gr.setClip(0, 0, self.BaseWidth, self.BaseHeight)
 		end
 
 		for i = 1, numLines do
@@ -183,12 +187,8 @@ function Scroll:Draw()
 							x = x - (gr.getStringWidth(line.Text)/2)
 						end
 
-						if self.UseConfig then
-							gr.drawStringResized(GR_RESIZE_FULL,displayString,x,y)
-						else
 						gr.drawString(displayString,x,y)
 					end
-				end
 				end
 			else
 				table.remove(self.Lines,i)
@@ -202,6 +202,8 @@ function Scroll:Draw()
 
 		if self.UseConfig then
 			gr.resetScreenScale()
+			gr.resetClip()
+			gr.CurrentResizeMode = prevResizeMode
 		end
 		if savedFont then
 			gr.CurrentFont = savedFont
