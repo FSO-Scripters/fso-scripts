@@ -57,7 +57,7 @@ return reqver{}
 
 Minor or patch values can be omitted, and will be treated as 0 if so. This is true of all version specifiers in reqver.
 
-To load a module there are two modes that can be used, require and request. Require throws an error when the version check can't be satisfied, request merely returns false. With request you can set up scripts that can work with multiple versions of a dependancy, or have optional dependancies entirely.
+To load a module there are two modes that can be used, require and request. Require throws an error when the version check can't be satisfied, request merely returns false. With request you can set up scripts that can work with multiple versions of a dependency, or have optional dependancies entirely.
 
 A script using reqver might look like this:
 
