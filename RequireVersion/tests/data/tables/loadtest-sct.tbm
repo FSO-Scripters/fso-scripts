@@ -1,0 +1,26 @@
+#Conditional Hooks
+
+$Application: FS2_Open
+
+$On Game Init:
+[
+require("reqver"):install({1})
+--this assert should pass, as this is the exact version number in the test table.
+assert(type(request_version("loadtest",{2, 3, 4})) == "table","reqver test #1")
+
+--these should pass, as they're requesting old versions which 2.3.4 should be compatible with.
+assert(type(request_version("loadtest",{2, 1, 10})) == "table","reqver test #2")
+assert(type(request_version("loadtest",{2, 1, 0})) == "table","reqver test #3")
+assert(type(request_version("loadtest",{2})) == "table","reqver test #4")
+
+--These should pass, as they're testing that trying to load a newer than available version fails. Failure to load = passed test
+local y = request_version("loadtest",{2, 3, 8})
+local x = request_version("loadtest",{2, 4})
+local z = request_version("loadtest",{3})
+assert(type(x) == "boolean" and x == false,"reqver test #5")
+assert(type(y) == "boolean" and y == false,"reqver test #5")
+assert(type(z) == "boolean" and z == false,"reqver test #5")
+--This should assert with message "version request for module loadtest: requested major version 1, found 2"
+require_version("loadtest",{1})
+]
+#end
