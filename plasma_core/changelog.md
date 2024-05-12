@@ -1,3 +1,7 @@
+# 1.0.0 2024-05-21 
+ * updated to use reqver for versioning.
+ * activated scanload in the included -sct.tbm.
+
 # 0.11.0 2023-03-07
  
  * Fennel version now requires fennel compiler 1.3.0

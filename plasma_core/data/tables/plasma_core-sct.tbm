@@ -4,8 +4,16 @@ $Application: FS2_Open
 
 $On Game Init:
 [
-require 'add_fennel'
-local core = require 'plasma_core'
+require('reqver'):install({1});
+
+if(not request_version('add_fennel', {1, 3})) then
+    ba.println("Plasma core starting without fennel")
+end
+
+local core = require('plasma_core')
+
+core:scan_load_modules()
+
 ]
 
 

@@ -56,14 +56,18 @@
             using the repl if you need to add a new hook at runtime.
           An example of a hook function
                 (fn hook [self core]
-                  (core.add_hook(self, " clear_all ", " On Mission About To End ")
-                  (core.add_hook(self, " message_send ", " On Message Received "))
+                  (core.add_hook(self :clear_all "On Mission About To End" ))
+                  (core.add_hook(self :message_send "On Message Received")))
                or in lua
                 local function hook(self, core)
-                  core.add_hook(self, " clear_all ", " On Mission About To End ")
-                  core.add_hook(self, " message_send ", " On Message Received ")
+                  core.add_hook(self, "clear_all", "On Mission About To End")
+                  core.add_hook(self, "message_send", "On Message Received")
                 end
 " ]]
+--[[ requirements ]]
+local reqver = require("reqver")
+reqver:install({1, 0, 0})
+local plasma_version = {1, 0, 0}
 --[[ General utility functions ]]
 local function print(output, opt_label)
   --[[ "A safe wrapper around the engine print function, prints each on it's own line" ]]
@@ -319,13 +323,15 @@ local function module_setup(self, module, file_name, first_load, reload, reset)
   end
   return ba.println(("done setting up " .. file_name .. ""))
 end
-local function get_module(self, file_name, opt_reload, opt_reset)
+local function get_module(self, file_name, opt_reload, opt_reset, opt_version_spec, opt_optional)
   --[[ "Gets or loads a module by filename.
     Method
       Params
       file_name, string.
       reload, bool, optional. Pass true to reload the module's functions and configuration
       reset, bool, optional. Pass true to reset the module's state.
+      version_spec, table, optional. Version specification table per reqver module, to check the loaded table. Version check will be skipped if omitted.
+      optional, bool, optional. Is passed to reqver check if there is a version specification. Assumed false if omitted.
     Neither reloads or resets will rerun hook attachment. Use add_hook to create
       reloadable hooks, and use the repl to add new ones at runtime if needed." ]]
   local modules = self:safe_subtable("modules")
@@ -352,11 +358,22 @@ local function get_module(self, file_name, opt_reload, opt_reset)
     end
     lua_managed = t_41_
   end
+  local optional
+  if opt_optional then
+    optional = opt_optional
+  else
+    optional = false
+  end
   if (lua_managed and (reload or (type(lua_managed) == "userdata") or (type(lua_managed) == "bool"))) then
     _G.package.loaded[file_name] = nil
   end
   if (first_load or reload) then
-    local new_mod = require(file_name)
+    local new_mod
+    if opt_version_spec then
+      new_mod = reqver.require_version(file_name, opt_version_spec)
+    else
+      new_mod = require(file_name)
+    end
     local preload = preinit_modules[file_name]
     if (first_load and preload) then
       self.print(("Module " .. file_name .. "First load with preload"))
@@ -422,14 +439,14 @@ local function verify_table_keys(t, required, optional, opt_label)
         Useful to guard against typos in config tables.
         Optional label parameter is used for debug output" ]]
   local preamble
-  local function _52_()
+  local function _54_()
     if opt_label then
       return (" for " .. opt_label .. " ")
     else
       return ""
     end
   end
-  preamble = ("table verification error" .. _52_())
+  preamble = ("table verification error" .. _54_())
   local missing_required = {}
   local missing_optional = {}
   local found_unknown = {}
@@ -524,7 +541,7 @@ local function scan_load_modules(self, opt_b)
     local fennel_files = cf.listFiles("data/scripts/plasma_modules/", "*/*.fnl")
     local fennel_files2 = cf.listFiles("data/scripts/", "plasma_modules/*.fnl")
     local scan
-    local function _62_(t)
+    local function _64_(t)
       for i, f in ipairs(t) do
         local pf = string.sub(f, 1, 15)
         local n = string.sub(f, 16, -5)
@@ -535,7 +552,7 @@ local function scan_load_modules(self, opt_b)
       end
       return
     end
-    scan = _62_
+    scan = _64_
     scan(lua_files)
     scan(lua_files2)
     scan(fennel_files)
@@ -602,10 +619,10 @@ local function load_modular_configs(self, prefix, ext, loader)
     end
     holding = tbl_17_auto
   end
-  local function _69_(l, r)
+  local function _71_(l, r)
     return (l.priority < r.priority)
   end
-  table.sort(holding, _69_)
+  table.sort(holding, _71_)
   for _, mod in ipairs(holding) do
     self:merge_tables_recursive(mod, config, true, {"priority"})
   end
@@ -651,12 +668,12 @@ local function config_loader_lua(file_name)
     print((" loading modular lua config from " .. file_name))
     if ((type(text) == "string") and (0 < #text)) then
       print(text)
-      local _71_, _72_ = loadstring(text)
-      if ((_71_ == nil) and (nil ~= _72_)) then
-        local err = _72_
+      local _73_, _74_ = loadstring(text)
+      if ((_73_ == nil) and (nil ~= _74_)) then
+        local err = _74_
         this_table = print(err)
-      elseif (nil ~= _71_) then
-        local r = _71_
+      elseif (nil ~= _73_) then
+        local r = _73_
         this_table = r()
       else
         this_table = nil
@@ -668,7 +685,7 @@ local function config_loader_lua(file_name)
   file:close()
   return this_table
 end
-local core = {safe_subtable = safe_subtable, safe_global_table = safe_global_table, recursive_table_print = recursive_table_print, module_setup = module_setup, reload = reload, reload_modules = reload_modules, add_order = add_order, add_sexp = add_sexp, load_modular_configs = load_modular_configs, merge_tables_recursive = merge_tables_recursive, is_value_in = is_value_in, get_module = get_module, config_loader_fennel = config_loader_fennel, config_loader_lua = config_loader_lua, print = print, warn_once = warn_once, get_module_namespace = get_module_namespace, add_hook = add_hook, scan_load_modules = scan_load_modules, verify_table_keys = verify_table_keys}
+local core = {["-reqver-version-info"] = plasma_version, safe_subtable = safe_subtable, safe_global_table = safe_global_table, recursive_table_print = recursive_table_print, module_setup = module_setup, reload = reload, reload_modules = reload_modules, add_order = add_order, add_sexp = add_sexp, load_modular_configs = load_modular_configs, merge_tables_recursive = merge_tables_recursive, is_value_in = is_value_in, get_module = get_module, config_loader_fennel = config_loader_fennel, config_loader_lua = config_loader_lua, print = print, warn_once = warn_once, get_module_namespace = get_module_namespace, add_hook = add_hook, scan_load_modules = scan_load_modules, verify_table_keys = verify_table_keys}
 local corelib = core.safe_global_table("plasma_core")
 core:merge_tables_recursive(core, corelib, true, {"modules"})
 return corelib

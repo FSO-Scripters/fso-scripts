@@ -1,6 +1,6 @@
 
 # Plasma Core FSO Script Management Library
-## Version 0.11.0
+## Version 1.0.0
 
 Plasma Core is intended as a foundational system to keep libraries, modules, and scripted gameplay systems of all stripes tidy and enable live-reloading of their code without restarting the game or wiping state. Plasma Core should work with standard Lua modules just as well as Fennel modules, so long as they are structured for it.
 
@@ -16,7 +16,11 @@ This code deliberately breaks with Fennel style and with many existing modules a
 ## Installing
 Provided are both .lua and .fennel files for plasma core. If you use the fennel files you must also use the fennel support package included in the fso scripters repository.
 
-The REPL files included are both an example of how a simple module can be structured, and a way to make use of the live development reload capabilties of the module. This workflow works best with features added during the FSO 22.3 development cycle
+The Codekeys files included are both an example of how a simple module can be structured, and a way to make use of the live development reload capabilties of the module. This workflow works best with features added during the FSO 22.3 development cycle
+
+## Dependencies
+* (optional) Fennel 1.3.0
+* Reqver 1.0.0
 
 ## Usage
 A module designed from plasma core should be a file that returns a table of functions. Fennel convention is to declare all functions as locals and then build a table of all the ones to be exported, but it is equally valid to create the table ahead and create the functions as members of it intially.
@@ -225,11 +229,19 @@ Host is the self of the module that the attached function belongs to. Consequent
 
 > *bool* ?reset
 
+> *table* ?version_spec 
+
+> *bool* ?optional
+
 Gets or loads a module by filename.
 
 If reload is true, it will reload the module's functions and configuration
 
 If reset is true, the module's state will also be reinitalized
+
+If ?version_spec is present, it is passed to reqver as a version specifier table. Otherwise no version checking is done
+
+If ?optional is present and ?version_spec is also passed, this sets reqver's checking to optional mode. Assumed false if omitted.
 
 get_module only attaches a module's hooks on first load, as there is currently no way to replace existing hooks. Modules should design hooks around this limitation. Actions for orders and sexps are re-attached each load as that is a safe replacement.
 
