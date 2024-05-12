@@ -44,3 +44,5 @@ table.insert(package.loaders or package.searchers, fso_fennel_searcher(_e))
 --This doesn't seem to actually work, so I'm commenting it out.
 --table.insert(fennel["macro-searchers"], fso_fennel_searcher("_COMPILER"))
 
+return {
+    ["-reqver-version-info"] = {1, 3, 0}}
