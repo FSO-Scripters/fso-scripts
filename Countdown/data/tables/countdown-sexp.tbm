@@ -14,7 +14,7 @@ $Parameter:
 	+Description: Count direction. If true, countdown will count positive. If false, countdown will count negative.
 	+Type: boolean
 $Parameter:
-	+Description: Beep option. If 0, no beep is used. If -1, you'll get a beep every second. Any positive number will be a threshold that will cause beeps to start when the countdown's distance from 0 is within this number. Beeping increases in frequency the lower the timer.
+	+Description: Beep option. If 0, no beep is used. If -1, you'll get a beep every second for the entire count. Any positive number will be a threshold that will cause beeps to start when the countdown's distance from 0 is within this number. Beeping is normally once a second$semicolon but it will quicken to twice a second when the distance from 0 is within 60 seconds, four times a second within 15 seconds, and near-constant within 1 second.
 	+Type: number
 $Parameter:
 	+Description: Whether to stop at zero. If true, the countdown will stop at zero, if false, it will continue counting after passing zero.

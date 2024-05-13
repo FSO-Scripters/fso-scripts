@@ -178,7 +178,7 @@ end
 
 function Countdown:MaybeChangeBeepInterval(CurrentTime)
 
-	--Normally the counter will beep once a second. If its under a minute left and its going down, it quickens to 2 times a second
+	--Normally the counter will beep once a second. If its under a minute left, it quickens to 2 times a second
 	--Under 15 seconds, 4 times a second. Under 1 second, it's a near constant tone
 
 	if (self.Direction == 1) and (CurrentTime < 0) or (self.Direction == -1) and (CurrentTime > 0) then
