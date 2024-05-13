@@ -3,23 +3,33 @@
 $Operator: lua-countdown-setup
 $Category: Change
 $Subcategory: Scripted
-$Minimum Arguments: 4
-$Maximum Arguments: 4
+$Minimum Arguments: 7
+$Maximum Arguments: 7
 $Return Type: Nothing
-$Description: Sets up the scripted countdown system. Must be done before lua-countdown-start. Just a note at the confusing nature of "counting down" and the count direction works. If you want a countdown, you need a negative time on clock and a positive count direction, so the count heads to 0. You can also have a positive time on clock and negative count direction, that heads to 0 as well. Just as long as it heads to zero that's all that matters! If you want to just have a generic timer that counts up, just set time on clock to 0.
+$Description: Sets up the scripted countdown system. Must be done before lua-countdown-start. Just a note at the confusing nature of "counting down" and the count direction works. If you use a negative time on the clock and a positive count direction, the count heads to 0. You can also have a positive time on clock and negative count direction that heads to 0 as well. Just as long as it heads to zero that's all that matters! If you want to just have a generic timer that counts up, just set time on clock to 0.
 $Parameter:
-	+Description: Time on clock. If you are performing a countdown, you should probably make this a negative number. If you are doing a timer, make this zero.
+	+Description: Time on clock. This can be a positive or negative number. If you are doing a timer, make this zero.
 	+Type: number
 $Parameter:
-	+Description: Count direction. If true, countdown will count positive (up). If false, countdown will count negative (down).
+	+Description: Count direction. If true, countdown will count positive. If false, countdown will count negative.
 	+Type: boolean
 $Parameter:
-	+Description: Sound option. If 0, no sound is used. If 1, you'll get a beep every second. If 2, you'll only get beeps under 90 seconds. Beeping increases in frequency the lower the timer.
+	+Description: Beep option. If 0, no beep is used. If -1, you'll get a beep every second for the entire count. Any positive number will be a threshold that will cause beeps to start when the countdown's distance from 0 is within this number. Beeping is normally once a second$semicolon but it will quicken to twice a second when the distance from 0 is within 60 seconds, four times a second within 15 seconds, and near-constant within 1 second.
 	+Type: number
 $Parameter:
-	+Description: Stop at zero. If true, the countdown will stop at zero, if false, it will continue counting after passing zero.
+	+Description: Whether to stop at zero. If true, the countdown will stop at zero, if false, it will continue counting after passing zero.
 	+Type: boolean
-	
+$Parameter:
+	+Description: Sound to play when the countdown is activated.  Can be <none>.
+	+Type: soundentry
+$Parameter:
+	+Description: Sound to play when the countdown is deactivated.  Can be <none>.
+	+Type: soundentry
+$Parameter:
+	+Description: Sound to play when the countdown is beeping.  Can be <none>.
+	+Type: soundentry
+
+
 $Operator: lua-countdown-start
 $Category: Change
 $Subcategory: Scripted
