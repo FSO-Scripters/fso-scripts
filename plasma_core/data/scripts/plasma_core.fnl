@@ -76,7 +76,7 @@
 
 
 (fn print [output ?label]
-  (comment "A safe wrapper around the engine print function, prints each on it's own line")
+  (comment "A safe wrapper around the engine print function, prints each on its own line")
   (let [label (if (= nil ?label) "" ?label)
         t (type output)
         has_label (< 0 (length label))
