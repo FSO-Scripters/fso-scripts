@@ -70,7 +70,7 @@ reqver:install({1, 0, 0})
 local plasma_version = {1, 0, 0}
 --[[ General utility functions ]]
 local function print(output, opt_label)
-  --[[ "A safe wrapper around the engine print function, prints each on it's own line" ]]
+  --[[ "A safe wrapper around the engine print function, prints each on its own line" ]]
   local label
   if (nil == opt_label) then
     label = ""
