@@ -58,19 +58,25 @@
             using the repl if you need to add a new hook at runtime.
           An example of a hook function
                 (fn hook [self core]
-                  (core.add_hook(self, "clear_all", "On Mission About To End")
-                  (core.add_hook(self, "message_send", "On Message Received"))
+                  (core.add_hook(self :clear_all \"On Mission About To End\" ))
+                  (core.add_hook(self :message_send \"On Message Received\")))
                or in lua
                 local function hook(self, core)
-                  core.add_hook(self, "clear_all", "On Mission About To End")
-                  core.add_hook(self, "message_send", "On Message Received")
+                  core.add_hook(self, 'clear_all', 'On Mission About To End')
+                  core.add_hook(self, 'message_send', 'On Message Received')
                 end
 ")
+
+(comment requirements)
+(local reqver (require :reqver))
+(reqver:install [1 0 0])
+(local plasma_version [1 0 0])
+
 (comment General utility functions)
 
-;
+
 (fn print [output ?label]
-  (comment "A safe wrapper around the engine print function, prints each on it's own line")
+  (comment "A safe wrapper around the engine print function, prints each on its own line")
   (let [label (if (= nil ?label) "" ?label)
         t (type output)
         has_label (< 0 (length label))
@@ -80,7 +86,7 @@
     :userdata (ba.print (.. "*: " label (if has_label " " "")  "is userdata\n"))
     :string (ba.print (.. "*: " label (if has_label " " "")  output "\n"))
     :Nil (ba.print (.. "*: " label (if has_label " " "")  "is nil" "\n"))
-    :_ (ba.print (.. "*: " label (if has_label" " "") "type " t ":" (tostring output) "\n")))))
+    :_ (ba.print (.. "*: " label (if has_label " " "") "type " t ":" (tostring output) "\n")))))
 
 
 (lambda warn_once [id text memory]
@@ -213,13 +219,15 @@
   (ba.println (.. "done setting up " file_name "")))
 
 
-(lambda get_module [self file_name ?reload ?reset]
+(lambda get_module [self file_name ?reload ?reset ?version_spec ?optional]
   (comment "Gets or loads a module by filename.
   Method
     Params
     file_name, string.
     reload, bool, optional. Pass true to reload the module's functions and configuration
     reset, bool, optional. Pass true to reset the module's state.
+    version_spec, table, optional. Version specification table per reqver module, to check the loaded table. Version check will be skipped if omitted.
+    optional, bool, optional. Is passed to reqver check if there is a version specification. Assumed false if omitted.
   Neither reloads or resets will rerun hook attachment. Use add_hook to create
     reloadable hooks, and use the repl to add new ones at runtime if needed.")
   (let [modules (self:safe_subtable :modules)
@@ -228,7 +236,8 @@
         first_load (not old_mod)
         reload (if ?reload ?reload false)
         reset (if ?reset ?reset false)
-        lua_managed (?. _G.package.loaded file_name)]
+        lua_managed (?. _G.package.loaded file_name)
+        optional (if ?optional ?optional false)]
     ;(self.print {: file_name : first_load : reload : reset})
     ;(self.print file_name)
     ;(self.print (. _G.package file_name))
@@ -243,7 +252,7 @@
     (when
       (or first_load reload)
     ;;Require will now do what is needed in either case
-      (let [new_mod (require file_name)
+      (let [new_mod (if ?version_spec (reqver.require_version file_name ?version_spec) (require file_name))
             preload (. preinit_modules file_name)]
         (if
           (and first_load preload)
@@ -461,6 +470,7 @@
 
 ;;Attach this module to the library, and return the module
 (local core {
+            :-reqver-version-info plasma_version
             : safe_subtable
             : safe_global_table
             : recursive_table_print
