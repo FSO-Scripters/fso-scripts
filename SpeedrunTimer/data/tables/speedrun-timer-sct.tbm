@@ -1,0 +1,138 @@
+#Conditional Hooks
+$Application: FS2_Open
+
+$On Game Init:
+[
+--[[
+***Speedrun Timer - LiveSplit Integration***
+        By Zero Serenity
+
+Allows for timer integrations with LiveSplit for Freespace 1 and Freespace 2.
+
+]]--
+
+    SpeedrunTimer = {}
+
+    function SpeedrunTimer:Init()
+        self.Initialized = false
+        self.RunningStatus = false --Status of the clock running.
+        self.SegmentTimes = {} --Holds segment times for the timer.
+        self.CurrentSegmentTime = 0 --The time for the current segment.
+        self.TotalTime = 0 --The time since the start of the run.
+        self.CurrentMission = "" --Holds the current mission filename.
+        self.LSEndpoint = "\\\\.\\pipe\\LiveSplit" --Localhost LiveSplit pipe. Will not likely work with a file.
+        self.InputOutput = require "io" --io is defaulted to the controls. Since we need it to send LiveSplit commands, we need an alias.
+        self.LSPipe = self.InputOutput.open(self.LSEndpoint, "w") --Open/start the pipe. Flush is required after every command.
+        ba.println("Speedrun Timer: Initialized - " .. tostring(time.getCurrentTime()))
+        self.Initialized = true
+    end
+
+    function SpeedrunTimer:StopTimer()
+        self.RunningStatus = false
+        ba.println("Speedrun Timer: StopTimer called - Last Segment Time: " .. self.CurrentSegmentTime)
+        self.CurrentSegmentTime = 0
+        self:PauseLiveSplit();
+    end
+
+    function SpeedrunTimer:PauseLiveSplit() --Send Pause to LiveSplit, and split if its on a tracked segment.
+        ba.println("Speedrun Timer: PauseLiveSplit called - Mission Filename: " .. mn.getMissionFilename())
+        if not(mn.isTraining() or --Training Missions
+         mn.getMissionFilename():upper() == "SM1-01" or --Start of the game.
+         self.CurrentMission == mn.getMissionFilename() --We restarted a mission.
+        ) then
+            self.LSPipe:write "split\n" --Split time.
+            self.LSPipe:flush()
+        end
+        self.LSPipe:write "pausegametime\n" --Stop the clock for the loading screen.
+        self.LSPipe:flush()
+        self.CurrentMission = mn.getMissionFilename()
+    end
+
+    function SpeedrunTimer:StartTimer()
+        self.RunningStatus = true
+        self.LastStart = time.getCurrentTime()
+        ba.println("Speedrun Timer: StartTimer called")
+        self:StartLiveSplit()
+    end
+    
+    function SpeedrunTimer:StartLiveSplit() --Send Resume to LiveSplit
+        if (self.TotalTime == 0) then
+            ba.println("Speedrun Timer: Run started, calling LiveSplit.")
+            self.LSPipe:write "start\n" --Start the game!
+            self.LSPipe:flush()
+        else
+            ba.println("Speedrun Timer: Segment Unpaused, calling LiveSplit.")
+            self.LSPipe:write "unpausegametime\n" --Loading screen is done, unpause the clock.
+            self.LSPipe:flush()
+        end
+    end
+
+    function SpeedrunTimer:ResetLiveSplit()
+        self.LSPipe:write "reset\n"
+        self.LSPipe:flush()
+        self.LSPipe:close()
+    end
+]
+
+$On Load Screen:
+[
+    if SpeedrunTimer.RunningStatus == true then
+        SpeedrunTimer:StopTimer()
+        ba.println("Speedrun Timer: Paused, Loading Screen")
+    end
+]
+
+$On Load Complete:
+[
+    if (mn == nil) then
+        return
+    end
+    if (mn.getMissionFilename():upper() == "SM3-10A") or --SM3-10A is the FSPort Credits Mission
+        (mn.getMissionFilename():upper() == "BTM-01") or --Training One in the FSPort
+        (mn.getMissionFilename():upper() == "BTM-02") or --Training Two in the FSPort
+        (mn.getMissionFilename():upper() == "BTM-03") or --Training Three in the FSPort
+        (mn.getMissionFilename():upper() == "SM1-01A") then  --SM1-01A is the FSPort Starting Mission, timer starts on pressing accept.
+            ba.println("Speedrun Timer: Not a run point. " .. SpeedrunTimer.CurrentSegmentTime)
+        return
+    end
+    if SpeedrunTimer.RunningStatus == false then
+        SpeedrunTimer:StartTimer()
+        ba.println("Speedrun Timer: Started, Loading Screen Ended " .. SpeedrunTimer.CurrentSegmentTime)
+    end
+]
+
+$On State Start:
+[
+    local currentState = hv.NewState.Name
+    ba.println("Speedrun Timer: Start State Change - Old: " .. hv.OldState.Name .. " New: " .. currentState)
+    if (currentState ==  "GS_STATE_GAME_PLAY") then
+        if SpeedrunTimer.RunningStatus == false then
+            SpeedrunTimer:StartTimer()
+            ba.println("Speedrun Timer: Started, Gameplay Begun " .. SpeedrunTimer.CurrentSegmentTime)
+        end
+    elseif (currentState == "GS_STATE_END_OF_CAMPAIGN") then --Last Debrief, on successful ending
+        if SpeedrunTimer.RunningStatus == true then
+            SpeedrunTimer:StopTimer()
+            ba.println("Speedrun Timer: Stopped, Campaign Ended")
+        end
+    elseif (currentState == "GS_STATE_DEBRIEF" and ca.getNextMissionFilename() == nil) then --Last Debrief, on any ending
+        if SpeedrunTimer.RunningStatus == true then
+            SpeedrunTimer:StopTimer()
+            ba.println("Speedrun Timer: Stopped, Campaign Ended")
+        end
+    elseif (currentState == "GS_STATE_CAMPAIGN_ROOM") then
+        ba.println("Speedrun Timer: Reset from Campaign Room")
+        SpeedrunTimer:ResetLiveSplit() --Restart the external clock
+        SpeedrunTimer:Init() --Reset everything.
+    end
+]
+
+$State: GS_STATE_MAIN_MENU
+$On State Start:
+[
+    --Initialize
+    if SpeedrunTimer.Initialized == nil then
+        SpeedrunTimer:Init()
+    end
+]
+#End
