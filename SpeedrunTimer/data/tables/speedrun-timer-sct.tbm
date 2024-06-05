@@ -15,6 +15,7 @@ Allows for timer integrations with LiveSplit for Freespace 1 and Freespace 2.
 
     function SpeedrunTimer:Init()
         self.Initialized = false
+        self.Started = false
         self.RunningStatus = false --Status of the clock running.
         self.SegmentTimes = {} --Holds segment times for the timer.
         self.CurrentSegmentTime = 0 --The time for the current segment.
@@ -56,10 +57,11 @@ Allows for timer integrations with LiveSplit for Freespace 1 and Freespace 2.
     end
     
     function SpeedrunTimer:StartLiveSplit() --Send Resume to LiveSplit
-        if (self.TotalTime == 0) then
+        if not self.Started then
             ba.println("Speedrun Timer: Run started, calling LiveSplit.")
             self.LSPipe:write "start\n" --Start the game!
             self.LSPipe:flush()
+            self.Started = true
         else
             ba.println("Speedrun Timer: Segment Unpaused, calling LiveSplit.")
             self.LSPipe:write "unpausegametime\n" --Loading screen is done, unpause the clock.
