@@ -89,11 +89,12 @@ $On Load Complete:
     if (mn == nil) then
         return
     end
-    if (mn.getMissionFilename():upper() == "SM3-10A") or --SM3-10A is the FSPort Credits Mission
-        (mn.getMissionFilename():upper() == "BTM-01") or --Training One in the FSPort
-        (mn.getMissionFilename():upper() == "BTM-02") or --Training Two in the FSPort
-        (mn.getMissionFilename():upper() == "BTM-03") or --Training Three in the FSPort
-        (mn.getMissionFilename():upper() == "SM1-01A") then  --SM1-01A is the FSPort Starting Mission, timer starts on pressing accept.
+    local missionFilename = mn.getMissionFilename():upper()
+    if (missionFilename == "SM3-10A") or --SM3-10A is the FSPort Credits Mission
+        (missionFilename == "BTM-01") or --Training One in the FSPort
+        (missionFilename == "BTM-02") or --Training Two in the FSPort
+        (missionFilename == "BTM-03") or --Training Three in the FSPort
+        (missionFilename == "SM1-01A") then  --SM1-01A is the FSPort Starting Mission, timer starts on pressing accept.
             ba.println("Speedrun Timer: Not a run point. " .. SpeedrunTimer.CurrentSegmentTime)
         return
     end
