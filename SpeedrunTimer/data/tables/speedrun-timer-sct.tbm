@@ -39,7 +39,8 @@ Allows for timer integrations with LiveSplit for Freespace 1 and Freespace 2.
         ba.println("Speedrun Timer: PauseLiveSplit called - Mission Filename: " .. mn.getMissionFilename())
         if not(mn.isTraining() or --Training Missions
          mn.getMissionFilename():upper() == "SM1-01" or --Start of the game.
-         self.CurrentMission == mn.getMissionFilename() --We restarted a mission.
+         (self.CurrentMission == mn.getMissionFilename() and --We restarted a mission...
+         not (ca.getNextMissionFilename() == nil)) --...and is not the end of the campaign.
         ) then
             self.LSPipe:write "split\n" --Split time.
             self.LSPipe:flush()
@@ -50,6 +51,9 @@ Allows for timer integrations with LiveSplit for Freespace 1 and Freespace 2.
     end
 
     function SpeedrunTimer:StartTimer()
+        if(ca == nil) then
+            return
+        end
         self.RunningStatus = true
         self.LastStart = time.getCurrentTime()
         ba.println("Speedrun Timer: StartTimer called")
@@ -70,9 +74,13 @@ Allows for timer integrations with LiveSplit for Freespace 1 and Freespace 2.
     end
 
     function SpeedrunTimer:ResetLiveSplit()
-        self.LSPipe:write "reset\n"
-        self.LSPipe:flush()
-        self.LSPipe:close()
+        if self.LSPipe == nil then
+            ba.warning("Speedrun Timer: Reset called, but the pipe does not exist.")
+        else
+            self.LSPipe:write "reset\n"
+            self.LSPipe:flush()
+            self.LSPipe:close()
+        end
     end
 ]
 
@@ -118,7 +126,7 @@ $On State Start:
             SpeedrunTimer:StopTimer()
             ba.println("Speedrun Timer: Stopped, Campaign Ended")
         end
-    elseif (currentState == "GS_STATE_DEBRIEF" and ca.getNextMissionFilename() == nil) then --Last Debrief, on any ending
+    elseif (currentState == "GS_STATE_DEBRIEF" and (ca.getNextMissionFilename() == nil or ca.getNextMissionFilename() == "SM3-10A")) then --Last Debrief, on any ending
         if SpeedrunTimer.RunningStatus == true then
             SpeedrunTimer:StopTimer()
             ba.println("Speedrun Timer: Stopped, Campaign Ended")
