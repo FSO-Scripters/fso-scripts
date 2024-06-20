@@ -36,22 +36,37 @@ Allows for timer integrations with LiveSplit for Freespace 1 and Freespace 2.
     end
 
     function SpeedrunTimer:PauseLiveSplit() --Send Pause to LiveSplit, and split if its on a tracked segment.
-        ba.println("Speedrun Timer: PauseLiveSplit called - Mission Filename: " .. mn.getMissionFilename())
-        if not(mn.isTraining() or --Training Missions
-         mn.getMissionFilename():upper() == "SM1-01" or --Start of the game.
-         (self.CurrentMission == mn.getMissionFilename() and --We restarted a mission...
-         not (ca.getNextMissionFilename() == nil)) --...and is not the end of the campaign.
-        ) then
+        local missionFilename = mn.getMissionFilename():upper()
+        ba.println("Speedrun Timer: PauseLiveSplit called - Mission Filename: " .. missionFilename)
+
+        if (missionFilename == "SM3-10A") --End of FSPort.
+        then
+            ba.println("Speedrun Timer: End of FSPort reached: " .. missionFilename)
+            self.LSPipe:write "split\n" --Split time.
+            self.LSPipe:flush()
+            self.CurrentMission = mn.getMissionFilename():upper()
+            return
+        elseif (mn.isTraining()) then --Training Missions
+            ba.println("Speedrun Timer: Training mission, split not called: " .. missionFilename)
+        elseif (missionFilename == "SM1-01") then --Start of the game.
+            ba.println("Speedrun Timer: Start of the game, split not called: " .. missionFilename)
+        elseif (self.CurrentMission == missionFilename and --We restarted a mission...
+            not (ca.getNextMissionFilename() == nil)) --...and is not the end of the campaign.
+            then
+            ba.println("Speedrun Timer: Mission restarted: " .. missionFilename)
+        else
+            ba.println("Speedrun Timer: Splitting: " .. missionFilename)
             self.LSPipe:write "split\n" --Split time.
             self.LSPipe:flush()
         end
+        
         self.LSPipe:write "pausegametime\n" --Stop the clock for the loading screen.
         self.LSPipe:flush()
-        self.CurrentMission = mn.getMissionFilename()
+        self.CurrentMission = mn.getMissionFilename():upper()
     end
 
     function SpeedrunTimer:StartTimer()
-        if(ca == nil) then
+        if not(mn.isInCampaign()) then
             return
         end
         self.RunningStatus = true
@@ -94,17 +109,16 @@ $On Load Screen:
 
 $On Load Complete:
 [
-    if (mn == nil) then
-        return
-    end
     local missionFilename = mn.getMissionFilename():upper()
-    if (missionFilename == "SM3-10A") or --SM3-10A is the FSPort Credits Mission
-        (missionFilename == "BTM-01") or --Training One in the FSPort
+    if  (missionFilename == "BTM-01") or --Training One in the FSPort
         (missionFilename == "BTM-02") or --Training Two in the FSPort
         (missionFilename == "BTM-03") or --Training Three in the FSPort
         (missionFilename == "SM1-01A") then  --SM1-01A is the FSPort Starting Mission, timer starts on pressing accept.
             ba.println("Speedrun Timer: Not a run point. " .. SpeedrunTimer.CurrentSegmentTime)
         return
+    end
+    if (missionFilename == "SM3-10A") then --SM3-10A is the FSPort Credits Mission
+        SpeedrunTimer:StopTimer()
     end
     if SpeedrunTimer.RunningStatus == false then
         SpeedrunTimer:StartTimer()
