@@ -1,0 +1,1 @@
+Allows for timer integrations with [LiveSplit](https://livesplit.org/) for Freespace 1 and Freespace 2. Ignores time compression and sticks to real time, while timer pauses during loading screens.

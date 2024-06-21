@@ -37,6 +37,7 @@ This is a collection of user-made scripts for the [FreeSpace Open engine](https:
 |Send Message Alt SEXPS|More powerful versions of the built-in send-message SEXPs|22.0||Naomimyselfandi|
 |SpawnSystem|A system for infinite auto-spawning of ships|21.0|AxBase|Axem|
 |Speedlines|Draws Anime-esque Speedlines onto the screen|21.0|AxBase|Axem|
+|SpeedrunTimer|Integration with LiveSplit|21.0||ZeroSerenity|
 |TrackingDevice|Allows a missile to be treated as a tracking device that can mark any ship that it impacts|23.2||Goober5000|
 |TurretHotkey|Allows targeting turrets with hotkeys|21.0|AxBase|Axem|
 |VN|A script allowing for integrating a fully-flegded Visual Novel into FSO|21.0|AxBase, AxMessage, AxMiscFunctions|Axem, Lafiel|
