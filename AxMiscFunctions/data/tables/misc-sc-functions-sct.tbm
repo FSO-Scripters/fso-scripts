@@ -71,7 +71,9 @@ if not noplaydead then
 end
 
 if isPlayer then
-	mn.evaluateSEXP("(lock-perspective (true)))")
+	mn.evaluateSEXP("(lock-perspective (true) 0 " ..
+;;FSO 24.2.0;;       "(true)" ..
+	")")
 	mn.evaluateSEXP("(ignore-key !-1! !T! !H! !F! !Shift-T! !Shift-H! !Alt-H! !Shift-F! !Alt-M! !Alt-J! )")
 end
 
@@ -117,7 +119,9 @@ mn.evaluateSEXP("(player-not-use-ai)")
 mn.evaluateSEXP("(clear-goals !" .. name .. "!)")
 
 if isPlayer then
-	mn.evaluateSEXP("(lock-perspective (false) )")
+	mn.evaluateSEXP("(lock-perspective (false) 0 " ..
+;;FSO 24.2.0;;       "(false)" ..
+	")")
 	mn.evaluateSEXP("(ignore-key !0! !T! !H! !F! !Shift-T! !Shift-H! !Alt-H! !Shift-F! !Alt-M! !Alt-J! )")
 end
 
