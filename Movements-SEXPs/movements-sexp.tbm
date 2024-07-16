@@ -25,14 +25,28 @@ $Parameter:
 	+Description: Ship(s) to set.
 	+Type: Ship
 
+$Operator: set-acceleration-time
+$Category: Change
+$Subcategory: LUA-Movements
+$Minimum Arguments: 2
+$Return Type: Nothing
+$Description: Sets the acceleration time of a given ship (in milliseconds). Setting this to the same value on a group of ships can be useful to ensure consistent movement. Also, this sexp will not work on player ships in multiplayer.
+$Parameter: 
+	+Description: New acceleration time in milliseconds. Any negative values will be reset the value to the tabled value.  
+	+Type: Number
+$Repeat
+$Parameter: 
+	+Description: Ship(s) to set.
+	+Type: Ship
+
 $Operator: set-deceleration-time
 $Category: Change
 $Subcategory: LUA-Movements
 $Minimum Arguments: 2
 $Return Type: Nothing
-$Description: Sets the deceleration time of a given ship. Setting this to 0 will ensure that ships stop precisely at waypoints. Note, stopping may look a bit rigid. Also, this sexp will not work on player ships in multiplayer.
-$Parameter: 	
-	+Description: New deceleration time in milliseconds. Any negative values will be converted to 0.  
+$Description: Sets the deceleration time of a given ship (in milliseconds). Setting this to 0 will ensure that ships stop precisely at waypoints. Note, stopping may look a bit rigid. Also, this sexp will not work on player ships in multiplayer.
+$Parameter: 
+	+Description: New deceleration time in milliseconds. Any negative values will be reset the value to the tabled value.  
 	+Type: Number
 $Repeat
 $Parameter: 
