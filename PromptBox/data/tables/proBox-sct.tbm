@@ -519,9 +519,15 @@ end
 function PromptBox:Respond(value)
 
 	local data = self.PromptData[self.ActivePrompt]
-	
+
 	data.LastResult = value
+
+;; In 21.4, addBit was deprecated and replaced with setBit
+;;FSO 21.4.0;; 	data.Bitfield = bit.setBit(data.Bitfield, value)
+;;FSO 21.4.0;; !*
 	data.Bitfield = bit.addBit(data.Bitfield, value)
+;;FSO 21.4.0;; *!
+
 	if data.Variable then data.Variable.Value = data.Bitfield end
 
 end
