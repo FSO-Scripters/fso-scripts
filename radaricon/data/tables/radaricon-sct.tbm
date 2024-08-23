@@ -55,11 +55,9 @@ function RadarIcon:Load()
 
 	self.IconOffset = self.Config.IconOffset
 	
-	if self.Config.AtLeast_20_1_0_RC1 then
-		if mn.isNebula() then
-			self.DistanceMult = self.Alpha.NebulaMultiplier
-		end
-	end
+;;FSO 20.1.0;;  if mn.isNebula() then
+;;FSO 20.1.0;;  	self.DistanceMult = self.Alpha.NebulaMultiplier
+;;FSO 20.1.0;;  end
 	
 	self.Loaded = true
 end
@@ -163,10 +161,8 @@ function RadarIcon:BakeTexture(filename, locscale)
 		
 	loadedTex:unload()
 	loadedTexBorder:unload()
-	if self.Config.AtLeast_20_1_0_RC1 then
-		renderTex:destroyRenderTarget()
-		renderTexMany:destroyRenderTarget()
-	end
+;;FSO 20.1.0;;  renderTex:destroyRenderTarget()
+;;FSO 20.1.0;;  renderTexMany:destroyRenderTarget()
 
 	tex.Texture = renderTex
 	tex.TextureMany = renderTexMany
@@ -211,12 +207,11 @@ function RadarIcon:GetObjSpecies(obj)
 	return nil 
 end  
 
-function RadarIcon:DrawImageMonochrome(texture, x1, y1, x2, y2, alpha) 
-	if self.Config.AtLeast_20_1_0_RC1 then
-		gr.drawImage(texture, x1, y1, x2, y2, 0, 0, 1, 1, alpha, true)
-	else
-		gr.drawMonochromeImage(texture, x1, y1, x2, y2, alpha)
-	end
+function RadarIcon:DrawImageMonochrome(texture, x1, y1, x2, y2, alpha)
+;;FSO 20.1.0;; gr.drawImage(texture, x1, y1, x2, y2, 0, 0, 1, 1, alpha, true)
+;;FSO 20.1.0;; !*
+               gr.drawMonochromeImage(texture, x1, y1, x2, y2, alpha)
+;;FSO 20.1.0;; *!
 end
 
 function RadarIcon:GetColor(species, team)
@@ -246,38 +241,38 @@ function RadarIcon:DrawIcon(obj, team, species, actualtexture, pos, x, y, texrad
 		
 	local adaptScale = 1
 		
-	if self.Config.AtLeast_20_1_0_RC1 and self.Config.AdaptiveScale then
-		local l, t, ri, bo = gr.drawTargetingBrackets(obj, false, 0)
-		
-		if l~= nil and t ~= nil and ri~= nil and bo ~= nil then		
-			local h = bo - t
-			local w = ri - l
-		
-			--if h < w then
-			--	adaptScale = h / texrad * self.Config.AdaptiveScaleMult
-			--else
-			--  adaptScale = w / texrad * self.Config.AdaptiveScaleMult
-			--end
-			adaptScale = ((w + h)/2) / texrad * self.Config.AdaptiveScaleMult
-		
-			if adaptScale < self.Config.AdaptiveScale then
-				adaptScale = self.Config.AdaptiveScale
-			end
-			
-			local onscreensize = texrad * adaptScale / self.CenterY
-			
-			if onscreensize > self.Config.AdaptiveScaleMaxSize1 then
-				if onscreensize > self.Config.AdaptiveScaleMaxSize2 then
-					alpha = 0
-				else
-					alpha = alpha * (1 - (onscreensize - self.Config.AdaptiveScaleMaxSize1) / (self.Config.AdaptiveScaleMaxSize2 - self.Config.AdaptiveScaleMaxSize1))
-				end
-			end
-		elseif obj:getBreedName() == "Ship" then
-			alpha = 0
-		end
-	end
-		
+;;FSO 20.1.0;;  if self.Config.AdaptiveScale then
+;;FSO 20.1.0;;  	local l, t, ri, bo = gr.drawTargetingBrackets(obj, false, 0)
+;;FSO 20.1.0;;
+;;FSO 20.1.0;;  	if l~= nil and t ~= nil and ri~= nil and bo ~= nil then
+;;FSO 20.1.0;;  		local h = bo - t
+;;FSO 20.1.0;;  		local w = ri - l
+;;FSO 20.1.0;;
+;;FSO 20.1.0;;  		--if h < w then
+;;FSO 20.1.0;;  		--	adaptScale = h / texrad * self.Config.AdaptiveScaleMult
+;;FSO 20.1.0;;  		--else
+;;FSO 20.1.0;;  		--  adaptScale = w / texrad * self.Config.AdaptiveScaleMult
+;;FSO 20.1.0;;  		--end
+;;FSO 20.1.0;;  		adaptScale = ((w + h)/2) / texrad * self.Config.AdaptiveScaleMult
+;;FSO 20.1.0;;
+;;FSO 20.1.0;;  		if adaptScale < self.Config.AdaptiveScale then
+;;FSO 20.1.0;;  			adaptScale = self.Config.AdaptiveScale
+;;FSO 20.1.0;;  		end
+;;FSO 20.1.0;;
+;;FSO 20.1.0;;  		local onscreensize = texrad * adaptScale / self.CenterY
+;;FSO 20.1.0;;
+;;FSO 20.1.0;;  		if onscreensize > self.Config.AdaptiveScaleMaxSize1 then
+;;FSO 20.1.0;;  			if onscreensize > self.Config.AdaptiveScaleMaxSize2 then
+;;FSO 20.1.0;;  				alpha = 0
+;;FSO 20.1.0;;  			else
+;;FSO 20.1.0;;  				alpha = alpha * (1 - (onscreensize - self.Config.AdaptiveScaleMaxSize1) / (self.Config.AdaptiveScaleMaxSize2 - self.Config.AdaptiveScaleMaxSize1))
+;;FSO 20.1.0;;  			end
+;;FSO 20.1.0;;  		end
+;;FSO 20.1.0;;  	elseif obj:getBreedName() == "Ship" then
+;;FSO 20.1.0;;  		alpha = 0
+;;FSO 20.1.0;;  	end
+;;FSO 20.1.0;;  end
+
 	gr.setColor(r, g, b, alpha)
 		
 	local wHalf = actualtexture:getWidth() / 2 * adaptScale
