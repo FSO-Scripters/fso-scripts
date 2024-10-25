@@ -86,8 +86,8 @@ $On Weapon Collision:
 [
 	local trackee = hv.Ship
 	if trackee then
-	local td = TrackingDevice
-	if td.Enabled then
+		local td = TrackingDevice
+		if td.Enabled then
 			local wep = hv.Weapon
 			local tracker_class = td.WeaponToShip[wep.Class.Name]
 			if tracker_class then
@@ -181,7 +181,7 @@ $On Ship Death:
 				if trackee_name == ship_name then
 					local tracker_ship = mn.Ships[tracker_name]
 					if not tracker_ship:isDying() then
-					tracker_ship:kill(tracker_ship)
+						tracker_ship:kill(tracker_ship)
 					end
 				end
 			end
