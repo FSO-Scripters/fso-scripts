@@ -84,17 +84,17 @@ $On Mission Start:
 
 $On Weapon Collision:
 [
+	local trackee = hv.Ship
+	if trackee then
 	local td = TrackingDevice
 	if td.Enabled then
-		local wep = hv.Object
-		local trackee = hv.Self
-		if trackee:getBreedName() == "Ship" then
+			local wep = hv.Weapon
 			local tracker_class = td.WeaponToShip[wep.Class.Name]
 			if tracker_class then
 				-- spawn the tracking device and record it
 				td.TotalTracked = td.TotalTracked + 1
 				local tracker_name = tracker_class.Name .. " " .. td.TotalTracked
-				local tracker = mn.createShip(tracker_name, tracker_class, orient, pos, wep.Team)
+				local tracker = mn.createShip(tracker_name, tracker_class, orient, pos, wep.Team, false)
 				td.TrackerToTrackee[tracker_name] = trackee.Name
 				td.EveryTrackee[trackee.Name] = true
 
@@ -180,7 +180,9 @@ $On Ship Death:
 				-- if the trackee was destroyed, destroy any trackers
 				if trackee_name == ship_name then
 					local tracker_ship = mn.Ships[tracker_name]
+					if not tracker_ship:isDying() then
 					tracker_ship:kill(tracker_ship)
+					end
 				end
 			end
 		end
