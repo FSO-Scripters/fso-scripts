@@ -239,10 +239,10 @@ mn.LuaSEXPs["lua-scroll-write-configure"].Action = function(gauge_name, standard
   Scroll:Configure(gauge_name, standard_width, standard_height)
 end
 mn.LuaSEXPs["lua-scroll-write"].Action = function(text, x, y, speed, visibletime, fadeout, sound, font, center, r, g, b, loop)
-  Scroll:Write(text, x, y, speed/1000, visibletime/1000, fadeout/1000, sound, font, center, r, g, b, loop)
+  Scroll:Write(text, x, y, speed and speed/1000, visibletime and visibletime/1000, fadeout and fadeout/1000, sound, font, center, r, g, b, loop)
 end
 mn.LuaSEXPs["lua-scroll-write-file"].Action = function(file, x, y, speed, visibletime, fadeout, sound, font, center, r, g, b, loop)
-  Scroll:WriteFromFile(file, x, y, speed/1000, visibletime/1000, fadeout/1000, sound, font, center, r, g, b, loop)
+  Scroll:WriteFromFile(file, x, y, speed and speed/1000, visibletime and visibletime/1000, fadeout and fadeout/1000, sound, font, center, r, g, b, loop)
 end
 mn.LuaSEXPs["lua-scroll-write-clear"].Action = function()
   Scroll:Clear()
