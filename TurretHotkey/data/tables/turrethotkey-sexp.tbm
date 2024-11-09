@@ -1,8 +1,8 @@
 #Lua SEXPs
-	
+
 $Operator: lua-turrethotkey-add
 $Category: Change
-$Subcategory: Scripted
+$Subcategory: Targeting and Brackets
 $Minimum Arguments: 3
 $Maximum Arguments: 4
 $Return Type: Nothing
@@ -15,14 +15,15 @@ $Parameter:
 	+Type: Ship
 $Parameter:
 	+Description: Turret to assign
-	+Type: String
+	+Type: subsystem
+	+Parent Parameter Index: 2
 $Parameter:
-	+Description: If this is filled out and the MarkBox script is installed, the turret will be highlighted with the text drawn next to it
+	+Description: A label to mark the turret with (requires the MarkBox or MarkerManager script to be present)
 	+Type: String
-	
+
 $Operator: lua-turrethotkey-remove
 $Category: Change
-$Subcategory: Scripted
+$Subcategory: Targeting and Brackets
 $Minimum Arguments: 2
 $Maximum Arguments: 2
 $Return Type: Nothing
@@ -32,14 +33,15 @@ $Parameter:
 	+Type: Ship
 $Parameter:
 	+Description: Turrets to assign
-	+Type: String
-	
+	+Type: subsystem
+	+Parent Parameter Index: 1
+
 $Operator: lua-turrethotkey-clear-all
 $Category: Change
-$Subcategory: Scripted
+$Subcategory: Targeting and Brackets
 $Minimum Arguments: 0
 $Maximum Arguments: 0
 $Return Type: Nothing
 $Description: Clears all the turret hotkey data. (NOTE: This will also clear all MarkBox list data too!)
-	
+
 #End
