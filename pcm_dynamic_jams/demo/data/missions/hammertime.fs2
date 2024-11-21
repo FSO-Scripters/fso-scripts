@@ -1,0 +1,369 @@
+#Mission Info
+
+$Version: 0.10
+$Name:  XSTR("Hammer Time", -1)
+$Author: siber
+$Created: 11/13/22 at 11:02:19
+$Modified: 11/27/22 at 14:54:13
+$Notes:
+This is a FRED2_OPEN created mission.
+$End Notes:
+
+$Mission Desc:
+ XSTR("Put mission description here
+", -1)
+$end_multi_text
++Game Type Flags: 1
++Flags: 1024
++Fog Near Mult: 1.000000
+
++Fog Far Mult: 1.000000
+
++Disallow Support: 0
++Hull Repair Ceiling: 0.000000
++Subsystem Repair Ceiling: 100.000000
+
++Viewer pos: 0.000000, 150.000000, -200.000000
++Viewer orient:
+	1.000000, 0.000000, -0.000000,
+	0.000000, 0.866025, 0.500000,
+	0.000000, -0.500000, 0.866025
+
+
+$AI Profile: FS2 RETAIL
+
+#Command Briefing
+
+#Briefing
+$start_briefing
+$num_stages: 0
+$end_briefing
+
+#Debriefing_info
+
+$Num stages: 0
+
+#Players		;! 1 total
+
+$Starting Shipname: Alpha 1
+$Ship Choices: (
+	"GTF Ulysses"	5
+	"GTF Hercules"	5
+	"GTF Hercules Mark II"	5
+	"GTF Ares"	5
+	"GTF Erinyes"	5
+	"GTF Loki"	5
+	"GTF Pegasus"	5
+	"GTF Perseus"	5
+	"GTF Myrmidon"	5
+	"SF Mara (terrans)"	5
+	"GTB Artemis"	5
+	"GTB Artemis D.H."	5
+	"GTB Medusa"	5
+	"GTB Ursa"	5
+	"GTB Zeus"	5
+	"GTB Boanerges"	5
+	"GVF Ptah"	5
+)
+
++Weaponry Pool: (
+	"Subach HL-7"	17
+	"Subach HL-D"	16
+	"Mekhu HL-7"	16
+	"Mekhu HL-7D"	16
+	"Akheton SDG"	16
+	"Morning Star"	16
+	"MorningStar D"	16
+	"Prometheus R"	17
+	"Prometheus S"	16
+	"Prometheus D"	16
+	"Maxim"	16
+	"Maxim D"	16
+	"UD-8 Kayser"	16
+	"UD-D Kayser"	16
+	"Circe"	16
+	"Lamprey"	16
+	"Rockeye"	505
+	"Tempest"	660
+	"Hornet"	500
+	"Tornado"	516
+	"Harpoon"	500
+	"Trebuchet"	500
+	"TAG-A"	500
+	"TAG-B"	500
+	"Piranha"	500
+	"Stiletto II"	500
+	"Infyrno"	500
+	"Infyrno D"	500
+	"Cyclops"	500
+	"Helios"	500
+	"EMP Adv."	500
+)
+
+#Objects		;! 5 total
+
+$Name: Alpha 1		;! Object #0
+$Class: GTF Myrmidon
+$Team: Friendly
+$Location: 0.000000, 0.000000, 0.000000
+$Orientation:
+	1.000000, 0.000000, 0.000000,
+	0.000000, 1.000000, 0.000000,
+	0.000000, 0.000000, 1.000000
+$Cargo 1:  XSTR("Nothing", -1)
++Initial Hull: 100
++Subsystem: Pilot
+$Arrival Location: Hyperspace
+$Arrival Cue: ( false ) 
+$Departure Location: Hyperspace
+$Departure Cue: ( false ) 
+$Determination: 10
++Flags: ( "cargo-known" "player-start" )
++Flags2: ( )
++Respawn priority: 0
++Score: 8
+
+$Name: Hammer 1		;! Object #1
+$Class: GTB Boanerges
+$Team: Friendly
+$Location: 60.437748, 0.000000, 334.212219
+$Orientation:
+	1.000000, 0.000000, 0.000000,
+	0.000000, 1.000000, 0.000000,
+	0.000000, 0.000000, 1.000000
+$Cargo 1:  XSTR("Nothing", -1)
++Initial Velocity: 33
++Initial Hull: 100
++Subsystem: Pilot
+$Arrival Location: Hyperspace
+$Arrival Cue: ( false ) 
+$Departure Location: Hyperspace
+$Departure Cue: ( false ) 
+$Determination: 10
++Flags: ( "cargo-known" )
++Flags2: ( )
++Respawn priority: 0
++Use Table Score:
++Score: 10
+
+$Name: Hammer 2		;! Object #2
+$Class: GTB Boanerges
+$Team: Friendly
+$Location: 95.515633, 0.000000, 279.023834
+$Orientation:
+	1.000000, 0.000000, 0.000000,
+	0.000000, 1.000000, 0.000000,
+	0.000000, 0.000000, 1.000000
+$Cargo 1:  XSTR("Nothing", -1)
++Initial Velocity: 33
++Initial Hull: 100
++Subsystem: Pilot
+$Arrival Location: Hyperspace
+$Arrival Cue: ( false ) 
+$Departure Location: Hyperspace
+$Departure Cue: ( false ) 
+$Determination: 10
++Flags: ( "cargo-known" )
++Flags2: ( )
++Respawn priority: 0
++Use Table Score:
++Score: 10
+
+$Name: Hammer 3		;! Object #3
+$Class: GTB Boanerges
+$Team: Friendly
+$Location: 18.665077, 0.000000, 260.078827
+$Orientation:
+	1.000000, 0.000000, 0.000000,
+	0.000000, 1.000000, 0.000000,
+	0.000000, 0.000000, 1.000000
+$Cargo 1:  XSTR("Nothing", -1)
++Initial Velocity: 33
++Initial Hull: 100
++Subsystem: Pilot
+$Arrival Location: Hyperspace
+$Arrival Cue: ( false ) 
+$Departure Location: Hyperspace
+$Departure Cue: ( false ) 
+$Determination: 10
++Flags: ( "cargo-known" )
++Flags2: ( )
++Respawn priority: 0
++Use Table Score:
++Score: 10
+
+$Name: Hammer 4		;! Object #4
+$Class: GTB Boanerges
+$Team: Friendly
+$Location: 57.833839, 0.000000, 204.959198
+$Orientation:
+	1.000000, 0.000000, 0.000000,
+	0.000000, 1.000000, 0.000000,
+	0.000000, 0.000000, 1.000000
+$Cargo 1:  XSTR("Nothing", -1)
++Initial Velocity: 33
++Initial Hull: 100
++Subsystem: Pilot
+$Arrival Location: Hyperspace
+$Arrival Cue: ( false ) 
+$Departure Location: Hyperspace
+$Departure Cue: ( false ) 
+$Determination: 10
++Flags: ( "cargo-known" )
++Flags2: ( )
++Respawn priority: 0
++Use Table Score:
++Score: 10
+
+#Wings		;! 2 total
+
+$Name: Hammer
+$Waves: 1
+$Wave Threshold: 0
+$Special Ship: 0		;! Hammer 1
+$Arrival Location: Hyperspace
+$Arrival Cue: ( true ) 
+$Departure Location: Hyperspace
+$Departure Cue: ( false ) 
+$Ships: (		;! 4 total
+	"Hammer 1"
+	"Hammer 2"
+	"Hammer 3"
+	"Hammer 4"
+)
++Flags: ( )
+
+$Name: Alpha
+$Waves: 1
+$Wave Threshold: 0
+$Special Ship: 0		;! Alpha 1
+$Arrival Location: Hyperspace
+$Arrival Cue: ( true ) 
+$Departure Location: Hyperspace
+$Departure Cue: ( false ) 
+$Ships: (		;! 1 total
+	"Alpha 1"
+)
++Hotkey: 0
++Flags: ( )
+
+#Events		;! 7 total
+
+$Formula: ( when 
+   ( true ) 
+   ( dj-queue "10s" "Hard" ) 
+)
++Name: 1
++Repeat Count: 1
++Interval: 1
+
+$Formula: ( when 
+   ( true ) 
+   ( dj-queue 
+      "DawnIntroLoop" 
+      "LongFadeI" 
+   )
+)
++Name: 2
++Repeat Count: 1
++Interval: 1
++Chained: 1
+
+$Formula: ( when 
+   ( targeted "Hammer 1" ) 
+   ( dj-queue 
+      "DawnWave1Main" 
+      "ExitLoop6s" 
+   )
+)
++Name: 3
++Repeat Count: 1
++Interval: 1
++Chained: 1
+
+$Formula: ( when 
+   ( dj-check-time-span 
+      "DawnWave1Main" 
+      "-6" 
+      "-8" 
+   )
+   ( send-message 
+      "Hammer 1" 
+      "high" 
+      "msg1" 
+   )
+)
++Name: 4
++Repeat Count: 1
++Interval: 1
++Chained: 0
+
+$Formula: ( when 
+   ( true ) 
+   ( dj-queue "10s" "LongFadeM" ) 
+)
++Name: 5
++Repeat Count: 1
++Interval: 1
++Chained: 2
+
+$Formula: ( when 
+   ( is-event-true-delay "1" 0 ) 
+   ( do-nothing ) 
+)
++Name: echo 1
++Repeat Count: 1
++Interval: 1
+
+$Formula: ( when 
+   ( true ) 
+   ( set-alpha-multiplier 
+      ( / 
+         ( dj-time-from-mark "b" "abs" "meas" ) 
+         5 
+      )
+      "Hammer" 
+   )
+)
++Name: get funky
++Repeat Count: -1
++Trigger Count: 1410065408
++Interval: 15
++Chained: 0
++Event Flags: ( "interval & delay use msecs" )
+
+#Goals		;! 0 total
+
+
+#Waypoints		;! 0 lists total
+
+
+#Messages		;! 1 total
+
+
+$Name: msg1
+$Team: -1
+$MessageNew:  XSTR("Hammer wing! Wake your gunners and hit your music!", -1)
+$end_multi_text
++Wave Name: demo_ava_Wake_up
+
+#Reinforcements		;! 0 total
+
+
+#Background bitmaps		;! 0 total
+
+$Num stars: 500
+$Ambient light level: 7895160
+
+$Bitmap List:
++Flags: ( "corrected angles" )
+
+#Asteroid Fields
+
+#Music
+
+$Event Music: None
+$Briefing Music: None
+
+#End
+
