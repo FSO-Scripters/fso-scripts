@@ -3,18 +3,23 @@ $Application: FS2_Open
 
 $On Game Init:
 [
-
 TurretHotkey = {}
 
 function TurretHotkey:Init()
 
 	self.Enabled = nil
 
+	-- use MarkBox if present, otherwise use MarkerManager
+	self.MarkBox = MarkBox
+	if not self.MarkBox then
+		self.MarkerManager = require('mark')
+	end
+
 	TurretHotkey:ClearAll()
 
 end
 
-function TurretHotkey:ClearAll(markboxtoo)
+function TurretHotkey:ClearAll()
 
 	self.List = {}
 	--Structure of List
@@ -24,23 +29,23 @@ function TurretHotkey:ClearAll(markboxtoo)
 	--Structure of position
 	--self.CurrentPosition[key, index]
 	
-	if markboxtoo and MarkBox then
-		MarkBox:ClearList()
+	if self.MarkBox then
+		self.MarkBox:ClearList()
 	end
 
 end
 
 mn.LuaSEXPs["lua-turrethotkey-clear-all"].Action = function()
 
-	TurretHotkey:ClearAll(true)
+	TurretHotkey:ClearAll()
 
 end
 
-function TurretHotkey:Add(key, ship, subsystem, usemarkbox)
+function TurretHotkey:Add(key, ship, subsystem, text)
 
 	self.Enabled = true
 
-	if ship:isValid() and ship[subsystem]:isValid() then
+	if ship:isValid() and subsystem:isValid() then
 
 		if not self.List[key] then
 			self.List[key] = {}
@@ -49,20 +54,24 @@ function TurretHotkey:Add(key, ship, subsystem, usemarkbox)
 		local entry = self.List[key]
 		local t = {}
 		t.Ship = ship
-		t.Subsystem = ship[subsystem]
+		t.Subsystem = subsystem
 		entry[#entry+1] = t
-		
-		if usemarkbox and MarkBox then
-			MarkBox:AddSubsys(ship, usemarkbox, {subsystem})
+
+		if text then
+			if self.MarkBox then
+				self.MarkBox:AddSubsys(ship, text, {subsystem:getModelName()})
+			else
+				self.MarkerManager:forShip(ship):forSubsystem(subsystem):setText(text)
+			end
 		end
-		
+
 	end
 
 end
 
-mn.LuaSEXPs["lua-turrethotkey-add"].Action = function(key, ship, subsystem, usemarkbox)
+mn.LuaSEXPs["lua-turrethotkey-add"].Action = function(key, ship, subsystem, text)
 
-	TurretHotkey:Add(key, ship, subsystem, usemarkbox)
+	TurretHotkey:Add(key, ship, subsystem, text)
 
 end
 
@@ -116,7 +125,7 @@ function TurretHotkey:GetEntry(ship, subsystem)
 			end
 	end
 	
-	ba.print("DID NOT FIND SUBSYSTEM!\n")
+	ba.print("TurretHotkey: DID NOT FIND SUBSYSTEM!\n")
 end
 
 function TurretHotkey:Remove(ship, subsystem)
@@ -134,12 +143,17 @@ function TurretHotkey:Remove(ship, subsystem)
 		end
 	end
 
+	if self.MarkBox then
+		self.MarkBox:ClearSubsys(ship, {subsystem:getModelName()})
+	else
+		self.MarkerManager:forShip(ship):forSubsystem(subsystem):setActive(false)
+	end
+
 end
 
 mn.LuaSEXPs["lua-turrethotkey-remove"].Action = function(ship, subsystem)
 
 	TurretHotkey:Remove(ship, subsystem)
-	if MarkBox then MarkBox:ClearSubsys(ship, {subsystem}) end
 
 end
 

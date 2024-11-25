@@ -56,7 +56,6 @@ function MarkBox:AddSubsys(ship, text, ...)
 				end]]--
 
 				self.List[self:DoesEntryExist(t) or #self.List+1] = t
-
 			end
 		end
 	end
@@ -297,7 +296,7 @@ function MarkBox:Draw()
 				
 					local targetSS = mn.getObjectFromSignature(thisEntry.Key)[thisEntry.Target]
 					
-					if targetSS:isValid() and targetSS.HitpointsLeft > 0 then
+					if targetSS:isValid() and (targetSS.HitpointsMax == 0 or targetSS.HitpointsLeft > 0) then
 						self:DrawSubsystemBracket(targetSS, thisEntry)	
 					else
 						table.remove(self.List,i)
