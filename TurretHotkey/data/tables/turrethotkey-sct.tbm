@@ -143,10 +143,12 @@ function TurretHotkey:Remove(ship, subsystem)
 		end
 	end
 
-	if self.MarkBox then
-		self.MarkBox:ClearSubsys(ship, {subsystem:getModelName()})
-	else
-		self.MarkerManager:forShip(ship):forSubsystem(subsystem):setActive(false)
+	if ship:isValid() and subsystem:isValid() then
+		if self.MarkBox then
+			self.MarkBox:ClearSubsys(ship, {subsystem:getModelName()})
+		else
+			self.MarkerManager:forShip(ship):forSubsystem(subsystem):setActive(false)
+		end
 	end
 
 end
