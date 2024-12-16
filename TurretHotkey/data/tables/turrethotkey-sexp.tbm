@@ -29,7 +29,7 @@ $Maximum Arguments: 2
 $Return Type: Nothing
 $Description: Removes a turret hotkey entry
 $Parameter:
-	+Description: Ship has has the turret
+	+Description: Ship that has the turret
 	+Type: Ship
 $Parameter:
 	+Description: Turrets to assign

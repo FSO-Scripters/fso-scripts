@@ -82,17 +82,19 @@ $On Game Init:
 			local entry = mn.ShipRegistry[shipname]
 			if entry and entry.Status == NOT_YET_PRESENT then
 				local parsed = entry:getParsedShip()
-				local wing = parsed:getWing()
-				if wing:isValid() then
-					if wing.TotalArrived == 0 then
-						wing.ArrivalLocation = "Hyperspace"
-						wing:setFlag(true, "no-arrival-warp", "no-arrival-music", "no-arrival-message")
-						wing:makeWingArrive()
+				if parsed:isValid() then	-- if it's not valid, it's the support ship
+					local wing = parsed:getWing()
+					if wing:isValid() then
+						if wing.TotalArrived == 0 then
+							wing.ArrivalLocation = "Hyperspace"
+							wing:setFlag(true, "no-arrival-warp", "no-arrival-music", "no-arrival-message")
+							wing:makeWingArrive()
+						end
+					else
+						parsed.ArrivalLocation = "Hyperspace"
+						parsed:setFlag(true, "no-arrival-warp", "no-arrival-music")
+						parsed:makeShipArrive()
 					end
-				else
-					parsed.ArrivalLocation = "Hyperspace"
-					parsed:setFlag(true, "no-arrival-warp", "no-arrival-music")
-					parsed:makeShipArrive()
 				end
 			end
 		end
