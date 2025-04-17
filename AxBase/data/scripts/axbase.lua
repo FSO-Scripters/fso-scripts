@@ -178,8 +178,9 @@ setmetatable(Globals, mt)
 
 -- InitialValues
 Globals.nullVec = ba.createVector(0, 0, 0)
+Globals.zeroVec = Globals.nullVec
 if ba.isEngineVersionAtLeast(21,0,0) then
-    Globals.identityOrient = ba.createOrientationFromVectors(ba.createVector(1, 0, 0), ba.createVector(0, 1, 0), ba.createVector(0, 0, 1))
+    Globals.identityOrient = ba.createOrientationFromVectors(ba.createVector(0, 0, 1), ba.createVector(0, 1, 0), ba.createVector(1, 0, 0))
 end
 
 -----------------------------------------------------------
