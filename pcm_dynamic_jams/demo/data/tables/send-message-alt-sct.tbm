@@ -1,0 +1,18 @@
+#Conditional Hooks
+$Application: FS2_Open
+
+$On Game Init: [
+
+  require('send-message-alt')
+
+  mn.LuaSEXPs["send-system-message"].Action = function(message)
+    AXMessage:AddToBacklog("SYSTEM", message:getMessage())
+  end
+
+]
+
+$On Gameplay Start: [
+  InitAltMessaging()
+]
+
+#End

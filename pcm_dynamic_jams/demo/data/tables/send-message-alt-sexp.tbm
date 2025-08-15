@@ -1,0 +1,94 @@
+#Lua SEXPs
+
+$Operator: send-message-alt
+$Category: Change
+$Subcategory: Messages and Personas
+$Minimum Arguments: 3
+$Description: A convenience alternative to send-message. This operator is intended to alleviate the annoyance of writing messages from potentially destructible ships. It accepts a list of "message alternatives", each of which can have different conditions during which it might be played. This operator will choose a message who's condition is valid and play it, if any are valid. If a message's source is a ship, then that ship being present is automatically part of its condition, and does not need to be checked manually.
+$Parameter:
+  +Description: Randomize the list of messages? If this is false, then the first currently valid message is chosen. If it is true, a random currently valid message is chosen instead. Setting this to false can be useful to give a message a "fallback" option, like sending a message from Alpha 2 if they're in the mission, and from Command otherwise.
+  +Type: Boolean
+$Repeat
+$Parameter:
+  +Description: A message to consider sending. The message's name must have the form "Source: Title", and the source must be either a ship, a special source (e.g. #Command), or an alias registered with set-message-alias. For example, a message with the name "Alpha 2: Bombers incoming!" is sent from Alpha 2.
+  +Type: Message
+$Parameter:
+  +Description: Allow this message to be sent? If this operand is false, the message above won't be considered. This can be used to dynamically adjust the list of message candidates. Alongside get-last-alt-message-source, it can be used to avoid multiple back-to-back messages from the same source.
+  +Type: Boolean
+
+$Operator: send-message-list-alt
+$Category: Change
+$Subcategory: Messages and Personas
+$Minimum Arguments: 4
+$Description: A convenience alternative to send-message-list. This operator is intended to alleviate the annoyance of writing messages from potentially destructible ships. 
+$Repeat
+$Parameter:
+  +Description: A message to send. The message's name must have the form "Source: Title", and the source must be either a ship, a special source (e.g. #Command), or an alias registered with set-message-alias. For example, a message with the name "Alpha 2: Bombers incoming!" is sent from Alpha 2.
+  +Type: Message
+$Parameter:
+  +Description: The message's duration, in milliseconds. If this is negative, it also indicates that the message is an alternative to the previous message. For example, a duration of -5500 indicates that the message takes 5500 milliseconds, and is an alternative. If a message has alternatives, one is chosen at random whose source is valid (ie. is a special source or is a ship that's in the mission).
+  +Type: Number
+
+$Operator: send-message-chain-alt
+$Category: Change
+$Subcategory: Messages and Personas
+$Minimum Arguments: 5
+$Description: Like send-message-list-alt, but with a cancellation event like send-message-chain.
+$Parameter:
+  +Description: The event that will cancel the message chain.
+  +Type: String
+$Repeat
+$Parameter:
+  +Description: A message to send. The message's name must have the form "Source: Title", and the source must be either a ship, a special source (eg. #Command), or an alias registered with set-message-alias. For example, a message with the name "Alpha 2: Bombers incoming!" is sent from Alpha 2.
+  +Type: Message
+$Parameter:
+  +Description: The message's duration, in milliseconds. If this is negative, it also indicates that the message is an alternative to the previous message. For example, a duration of -5500 indicates that the message takes 5500 milliseconds, and is an alternative. If a message has alternatives, one is chosen at random whose source is valid (ie. is a special source or is a ship that's in the mission).
+  +Type: Number
+
+$Operator: set-message-alias
+$Category: Change
+$Subcategory: Messages and Personas
+$Minimum Arguments: 2
+$Maximum Arguments: 2
+$Description: send-message-alt and related operators use a convention where a message's source is embedded in its message. This operator allows a shorter alias to used for a ship. Note that this operator will not work properly if the ship is not presently in the mission. To register an alias for a non-ship source, use set-freetext-message-alias.
+$Parameter:
+  +Description: The name of the alias. If you want to use "A2" instead of "Alpha 2", set this to "A2".
+  +Type: String
+$Parameter:
+  +Description: The sender to set the alias for. If you want to use "A2" instead of "Alpha 2", set this to "Alpha 2".
+  +Type: Ship
+
+$Operator: set-freetext-message-alias
+$Category: Change
+$Subcategory: Messages and Personas
+$Minimum Arguments: 2
+$Maximum Arguments: 2
+$Description: send-message-alt and related operators use a convention where a message's source is embedded in its message. This operator allows a shorter alias to used for a ship.
+$Parameter:
+  +Description: The name of the alias. If you want to use "A2" instead of "Alpha 2", set this to "A2".
+  +Type: String
+$Parameter:
+  +Description: The sender to set the alias for. If you want to use "A2" instead of "Alpha 2", set this to "Alpha 2".
+  +Type: String
+
+$Operator: get-last-alt-message-source
+$Category: Change
+$Subcategory: Messages and Personas
+$Minimum Arguments: 1
+$Maximum Arguments: 1
+$Description: Write the sender of the last message that was sent with send-message-alt, send-message-list-alt, or send-message-chain-alt. This can be useful to check the result when one of those operators dynamically picks a message.
+$Parameter:
+  +Description: The variable to write the sender to.
+  +Type: Variable
+
+$Operator: send-system-message
+$Category: Change
+$Subcategory: Messages and Personas
+$Minimum Arguments: 1
+$Maximum Arguments: 1
+$Description: Show a message on the top-left of the screen, like "SYSTEM: Cannot fire Cyclops without a lock.".
+$Parameter:
+  +Description: The message to show.
+  +Type: Message
+
+#End
