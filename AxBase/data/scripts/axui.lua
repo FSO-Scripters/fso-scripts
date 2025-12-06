@@ -26,6 +26,8 @@ function AXUI:Init()
 	self.Fonts.Old = nil
 	
 	self.MouseButton = {false, false, false}
+	self.MouseX = 0
+	self.MouseY = 0
 	
 end
 
