@@ -11,6 +11,17 @@ $Parameter:
 	+Description: Ship to get the current waypoint speed cap of.  
 	+Type: Ship
 
+$Operator: clear-orders-safe
+$Category: Change
+$Subcategory: LUA-Movements
+$Minimum Arguments: 0
+$Return Type: Nothing
+$Description: Safely clears the orders of a given ship(s). This method ensures that undocking orders are not interuppted. 
+$Repeat
+$Parameter: 
+	+Description: Ship(s) to safely clear orders of.
+	+Type: Ship
+
 $Operator: set-bank-constant
 $Category: Change
 $Subcategory: LUA-Movements
@@ -57,6 +68,7 @@ $Operator: set-pos-to-rand-pos-on-hull
 $Category: Change
 $Subcategory: LUA-Movements
 $Minimum Arguments: 2
+$Maximum Arguments: 3
 $Return Type: Nothing
 $Description: Chooses a random point on the hull of a given ship and sets the position of the given object to that point. 
 $Parameter: 	
@@ -73,6 +85,7 @@ $Operator: set-pos-to-rand-pos-in-b-box
 $Category: Change
 $Subcategory: LUA-Movements
 $Minimum Arguments: 2
+$Maximum Arguments: 2
 $Return Type: Nothing
 $Description: Chooses a random position within the bounding box of a given ship and sets the position of the given object to that point. Note, the randomly selected position by be inside the ship geometry.
 $Parameter: 	
