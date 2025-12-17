@@ -1,4 +1,4 @@
---Version 3.2, released on September 30, 2025 by wookieejedi
+--Version 3.3, released on December 17, 2025 by wookieejedi
 --Requires FSO build of July 01, 2025 or newer
 --Description: custom sexps and functions that allow for much easier ship movements and rotations
 --Usage: custom sexps are included and listed in FRED under the LUA-Movements tab
@@ -633,6 +633,7 @@ Movements.UseDebugMode = false
 
 	function Movements:WaypointName(waypointpath_name, waypoint_i)
 
+		waypoint_i = waypoint_i or 1
 		return waypointpath_name .. ":" .. waypoint_i
 
 	end
@@ -1749,14 +1750,14 @@ Movements.UseDebugMode = false
 				if not v.WtO_OUT_is_paused and mtime > v.WtO_OUT_time_last_check + v.WtO_OUT_track_interval then
 					v.WtO_OUT_time_last_check = mtime
 					--validity checks
-					local object = self:Get_Ship_or_Wpt_Obj_from_Name(v.WtO_OUT_target_obj_name)
-					if object ~= nil and object:isValid() then
+					local target_object = self:Get_Ship_or_Wpt_Obj_from_Name(v.WtO_OUT_target_obj_name)
+					if target_object ~= nil and target_object:isValid() then
 						local wppath = mn.WaypointLists[v.WtO_OUT_wp_path_name]
 						if wppath ~= nil and wppath:isValid() then
 							local wpoint = wppath[v.WtO_OUT_waypoint_i]
 							if wpoint ~= nil and wpoint:isValid() then
 								--then only continue if target object has moved far enough
-								local dis_wp_to_object = wpoint.Position:getDistance(object.Position)
+								local dis_wp_to_object = wpoint.Position:getDistance(target_object.Position)
 								if dis_wp_to_object > v.WtO_OUT_track_distance then
 									self:Set_Obj1_Pos_Relative_to_Obj2(k_waypointname, v.WtO_OUT_target_obj_name, v.WtO_OUT_offset_xyz, v.WtO_OUT_offset_relative)
 								end
@@ -2178,6 +2179,7 @@ Movements.UseDebugMode = false
 			StW_OUT_uses_smart_stop = uses_smart_stop,
 			StW_OUT_smart_stop_ray_min = smart_stop_ray_distance_min, --only used if using smart stop
 			StW_OUT_smart_stop_triggered = false, --only used if using smart stop
+			StW_OUT_current_wp_index = 1,
 			StW_OUT_smart_stop_blocking_obj_sig = -1,
 			StW_OUT_smart_stop_ignore_radius = smart_stop_ignore_radius, --only used if using smart stop,
 			StW_OUT_smart_stop_use_extra_check = smart_stop_use_extra_check
@@ -2197,6 +2199,7 @@ Movements.UseDebugMode = false
 			if obstacle_in_path and blocking_obj ~= nil then
 				run_order = false
 				entry.StW_OUT_smart_stop_triggered = true
+				entry.StW_OUT_current_wp_index = ship:getWaypointIndex() or 1
 				entry.StW_OUT_smart_stop_blocking_obj_sig = blocking_obj:getSignature()
 				--if the obstacle ship is the target ship then the per simulation frame checks will take care of that
 			end
@@ -2426,6 +2429,7 @@ Movements.UseDebugMode = false
 										--stop ship
 										self:RemoveGoal_Correctly(ship, v.StW_OUT_priority, "ai-waypoints-once", v.StW_OUT_wp_path_name)
 										v.StW_OUT_smart_stop_triggered = true
+										v.StW_OUT_current_wp_index = ship:getWaypointIndex() or 1
 										v.StW_OUT_smart_stop_blocking_obj_sig = intersecting_obj:getSignature()
 									else --ship not moving
 										--what if the ship stopped b/c it got too close to it's final target? (ie final target is the obstacle)
@@ -2456,6 +2460,7 @@ Movements.UseDebugMode = false
 											ship:giveOrder(ORDER_WAYPOINTS_ONCE, wp_list[1], nil, v.StW_OUT_priority/100)
 										end
 										v.StW_OUT_smart_stop_triggered = false
+										ship.Orders[1].WaypointIndex = v.StW_OUT_current_wp_index or 1
 										v.StW_OUT_smart_stop_blocking_obj_sig = -1
 									--else --ship is moving, and no obstacles so keep on doing what we are already doing
 									end
@@ -3018,6 +3023,151 @@ Movements.UseDebugMode = false
 
 	end
 
+	function Movements:OnGoalsCleared(hook_ship)
+
+		if hook_ship ~= nil and hook_ship:isValid() then
+			local shipname = hook_ship.Name
+			self:Remove_Rotation(shipname, true)
+			self:Remove_LocationMove(shipname, true)
+			self:Remove_Ship_Track_Waypoint(shipname)
+		end
+
+	end
+
+	function Movements:Orders_Remove_EqualorUnder_PR(ship, priority_threshold)
+
+		--finds a ships active orders and clears any <= certain priority. 
+		--Should really only be used for small ships since player can clear orders, too.
+
+		-- failsafe early out
+		priority_threshold = priority_threshold or 1
+		if priority_threshold < 0 then return end
+
+		--early outs
+		if ship == nil then return end
+		if not ship:isValid() then return end
+
+		local orders_og = ship.Orders
+		if orders_og == nil then return end
+		if #ship.Orders <= 0 then return end
+
+		--do not use clear orders, only remove 
+		--and do not remove any undocking orders
+
+		-- clear by checking through iteration, have to do brute force way b/c FSO order iterating is weird
+		local max_orders = 5
+		for _= 1, max_orders do
+
+			--go through orders and remove if <= PR
+			--if we do remove one then leave loop and run again (to ensure we are not removing while iterating)
+			for j=1, max_orders do
+				local ord = ship.Orders[j]
+				--should never interrupt an un-dock order, it will cause snapping back to dock position
+				if ord ~= nil and ord:isValid() and ord.Priority <= priority_threshold and ord:getType() ~= ORDER_UNDOCK then
+					--print("Movements: Removing Order Type "..tostring(ord:getType()).." \n")
+					--print("Movements: Removing Order of Priority "..tostring(ord.Priority).." \n")
+					ord:remove()
+					break
+					--as soon as number of items changes set to not lookup any more items in current list and iteration
+					--print("Removing low PR order for ship "..ship.Name.."...\n")
+				end
+			end
+
+		end
+
+
+	end
+
+	function Movements:ClearOrdersSafe(ship)
+
+		--removes all custom movement orders along with removing all goals (except for un-dock goals which need to finish)
+
+		if ship == nil then return end
+		if not ship:isValid() then return end
+
+		self:OnGoalsCleared(ship)
+
+		self:Orders_Remove_EqualorUnder_PR(ship, 200)
+
+	end
+
+	function Movements:DockOrderSafe(docker_ship, docker_pointname, dockee_ship, dockee_pointname, priority) 
+
+		--docker is ship doing the docking, dockee is the ship stationary that is being docked with, priority ranges from 1-200
+
+		if docker_ship == nil or docker_pointname == nil or dockee_ship == nil or dockee_pointname == nil then 
+			return 
+		end
+
+		if not docker_ship:isValid() or not dockee_ship:isValid() then
+			return
+		end
+
+		if dockee_ship:isDocked(dockee_ship) then 
+			return 
+		end
+
+		if type(priority) ~= "number" then
+			priority = 1
+		end
+		if priority < 0 then 
+			priority = 1
+		end
+		if priority > 200 then
+			priority = 200
+		end
+
+		mn.evaluateSEXP("( add-goal !" .. docker_ship.Name .."! ( ai-dock !" .. dockee_ship.Name .."! !"..docker_pointname.."! !"..dockee_pointname.."!  "..priority.."  ))")
+
+	end
+
+	function Movements:UndockOrderSafe(undocker_ship, priority) 
+
+		if undocker_ship == nil then return end
+		if not undocker_ship:isValid() then return end
+
+		if not undocker_ship:isDocked() then 
+			return 
+		end
+
+		--go through ship orders to see if currently undocking as top order
+		local orders = undocker_ship.Orders
+		if orders ~= nil then
+			local top_ord = orders[1] 
+			if top_ord ~= nil and top_ord:isValid() then
+				if top_ord:getType() == ORDER_UNDOCK then
+					return
+				end
+			end
+		end
+
+		if type(priority) ~= "number" then
+			priority = 1
+		end
+		if priority < 0 then 
+			priority = 1
+		end
+		if priority > 200 then
+			priority = 200
+		end
+
+		--if here then can go ahead and un-dock
+		undocker_ship:giveOrder(ORDER_UNDOCK, nil, nil, priority/100)
+
+	end
+
+	mn.LuaSEXPs["clear-orders-safe"].Action = function(...)
+
+		if not Movements.is_enabled then return end
+		if #arg <= 0 then return end
+
+		for _, value in ipairs(arg) do
+			local ship = value[1]
+			Movements:ClearOrdersSafe(ship)
+		end
+
+	end
+
 --
 --Hook Functions
 	engine.addHook("On Simulation", function()
@@ -3076,13 +3226,7 @@ Movements.UseDebugMode = false
 
 	engine.addHook("On Goals Cleared", function() 
 		if Movements and Movements.is_enabled then
-			local hook_ship = hv.Ship
-			if hook_ship ~= nil and hook_ship:isValid() then
-				local shipname = hook_ship.Name
-				Movements:Remove_Rotation(shipname, true)
-				Movements:Remove_LocationMove(shipname, true)
-				Movements:Remove_Ship_Track_Waypoint(shipname)
-			end
+			Movements:OnGoalsCleared(hv.Ship)
 		end		
 	end)
 
