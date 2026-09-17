@@ -1177,7 +1177,7 @@ function SaveState:ApplyLateData(ship,data)
 	end
 
 	--Apply AI Orders
-	ba.print("   Applying AI orders (Note waypoint orders will show up as nil!)\n")
+	ba.print("   Applying AI orders\n")
 	self:GiveOrders(ship, data)
 	
 	--Apply Ship Flags
@@ -1251,8 +1251,6 @@ end
 
 --Why????
 function SaveState:GetAIOrderFromString(order)
-
-	--Waypoints orders will return nil because we can't start a waypoint mid-way through
 
 	local orderEnum
 	
