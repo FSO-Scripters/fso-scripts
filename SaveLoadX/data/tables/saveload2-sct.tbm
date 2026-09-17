@@ -228,7 +228,11 @@ function SaveState:GetShipData(shipname)
 						ba.print("     Target: " .. tostring(tt.Target) .. "\n")
 					end
 				end
-				tt.Subsystem = order.TargetSubsystem.Name
+				local targetSubsys = order.TargetSubsystem
+				tt.Subsystem = ""
+				if targetSubsys and targetSubsys:isValid() then
+					tt.Subsystem = targetSubsys.Name
+				end
 				ba.print("     Subsystem: " .. tostring(tt.Subsystem) .. "\n")
 				
 				t.Orders[i] = tt
@@ -297,7 +301,7 @@ function SaveState:GetShipData(shipname)
 								if thisSubsys.PrimaryBanks[j] and thisSubsys.PrimaryBanks[j]:isValid() and thisSubsys.PrimaryBanks[j].AmmoMax > 0 then
 									ba.print("          Bank: " .. j .. "\n")
 									ss.PBanks[j] = {}
-									ss.PBanks[j].Class = thisSubsys.PrimaryBanks[j].WeaponClass.Name
+									ss.PBanks[j].Class = self:BankWeaponName(thisSubsys.PrimaryBanks[j])
 									ba.print("          Class: " .. tostring(ss.PBanks[j].Class) .. "\n")
 									ss.PBanks[j].AmmoLeft = math.floor((thisSubsys.PrimaryBanks[j].AmmoLeft / thisSubsys.PrimaryBanks[j].AmmoMax) * 100)
 									ba.print("          AmmoLeft: " .. tostring(ss.PBanks[j].AmmoLeft) .. "\n")
@@ -312,7 +316,7 @@ function SaveState:GetShipData(shipname)
 								if thisSubsys.SecondaryBanks[j] and thisSubsys.SecondaryBanks[j]:isValid() and thisSubsys.SecondaryBanks[j].AmmoMax > 0 then
 									ba.print("          Bank: " .. j .. "\n")
 									ss.SBanks[j] = {}
-									ss.SBanks[j].Class = thisSubsys.SecondaryBanks[j].WeaponClass.Name
+									ss.SBanks[j].Class = self:BankWeaponName(thisSubsys.SecondaryBanks[j])
 									ba.print("          Class: " .. tostring(ss.SBanks[j].Class) .. "\n")
 									ss.SBanks[j].AmmoLeft = math.floor((thisSubsys.SecondaryBanks[j].AmmoLeft / thisSubsys.SecondaryBanks[j].AmmoMax) * 100)
 									ba.print("          AmmoLeft: " .. tostring(ss.SBanks[j].AmmoLeft) .. "\n")
@@ -332,7 +336,7 @@ function SaveState:GetShipData(shipname)
 				for i=1, #ship.PrimaryBanks do
 					ba.print("     Bank: " .. i .. "\n")
 					t.PBanks[i] = {}
-					t.PBanks[i].Class = ship.PrimaryBanks[i].WeaponClass.Name
+					t.PBanks[i].Class = self:BankWeaponName(ship.PrimaryBanks[i])
 					ba.print("     Class: " .. tostring(t.PBanks[i].Class) .. "\n")
 					t.PBanks[i].AmmoLeft = math.floor((ship.PrimaryBanks[i].AmmoLeft / ship.PrimaryBanks[i].AmmoMax) * 100)
 					ba.print("     AmmoLeft: " .. tostring(t.PBanks[i].AmmoLeft) .. "\n")
@@ -345,7 +349,7 @@ function SaveState:GetShipData(shipname)
 				for i=1, #ship.SecondaryBanks do
 					ba.print("     Bank: " .. i .. "\n")
 					t.SBanks[i] = {}
-					t.SBanks[i].Class = ship.SecondaryBanks[i].WeaponClass.Name
+					t.SBanks[i].Class = self:BankWeaponName(ship.SecondaryBanks[i])
 					ba.print("     Class: " .. tostring(t.SBanks[i].Class) .. "\n")
 					t.SBanks[i].AmmoLeft = math.floor((ship.SecondaryBanks[i].AmmoLeft / ship.SecondaryBanks[i].AmmoMax) * 100)
 					ba.print("     AmmoLeft: " .. tostring(t.SBanks[i].AmmoLeft) .. "\n")
@@ -448,6 +452,18 @@ end
 function SaveState:ResolveTeam(name, shipname)
 
 	return self:ResolveHandle(mn.Teams, name, "team", shipname)
+
+end
+
+--Name of the weapon mounted in a bank, or an empty string if the bank is empty.
+function SaveState:BankWeaponName(bank)
+
+	local wclass = bank.WeaponClass
+	if wclass and wclass:isValid() then
+		return wclass.Name
+	end
+
+	return ""
 
 end
 

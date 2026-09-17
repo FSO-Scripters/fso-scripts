@@ -664,7 +664,11 @@ $On Game Init:
 				for j=1,n do
 					local wbank=bank[j] 	--weaponbank handle
 					local weapon = {}
-					weapon[1] = wbank.WeaponClass.Name		--weapon class name
+					local wclass = wbank.WeaponClass
+					weapon[1] = ""		--weapon class name, empty if the bank is empty
+					if wclass and wclass:isValid() then
+						weapon[1] = wclass.Name
+					end
 					weapon[2] = self:booltonum(wbank.Armed)		--weapon active
 					weapon[3] = wbank.AmmoMax
 					if (weapon[3] > 0) then
