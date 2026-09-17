@@ -33,6 +33,8 @@ function SaveState:Init()
 	self.CuedList = {}
 
 	self.SaveFilename = self:SaveFilenameFor(mn.getMissionFilename())
+	self.ExternalMission = nil
+	self.ExternalData = nil
 
 	self.LoadedData = {}
 	if cf.fileExists(self.SaveFilename, "data/config") then
