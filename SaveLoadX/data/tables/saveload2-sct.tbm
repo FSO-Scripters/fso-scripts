@@ -340,8 +340,10 @@ function SaveState:GetShipData(shipname)
 					t.PBanks[i] = {}
 					t.PBanks[i].Class = self:BankWeaponName(ship.PrimaryBanks[i])
 					ba.print("     Class: " .. tostring(t.PBanks[i].Class) .. "\n")
-					t.PBanks[i].AmmoLeft = math.floor((ship.PrimaryBanks[i].AmmoLeft / ship.PrimaryBanks[i].AmmoMax) * 100)
-					ba.print("     AmmoLeft: " .. tostring(t.PBanks[i].AmmoLeft) .. "\n")
+					if ship.PrimaryBanks[i].AmmoMax > 0 then
+						t.PBanks[i].AmmoLeft = math.floor((ship.PrimaryBanks[i].AmmoLeft / ship.PrimaryBanks[i].AmmoMax) * 100)
+						ba.print("     AmmoLeft: " .. tostring(t.PBanks[i].AmmoLeft) .. "\n")
+					end
 				end
 			end
 			
@@ -353,8 +355,10 @@ function SaveState:GetShipData(shipname)
 					t.SBanks[i] = {}
 					t.SBanks[i].Class = self:BankWeaponName(ship.SecondaryBanks[i])
 					ba.print("     Class: " .. tostring(t.SBanks[i].Class) .. "\n")
-					t.SBanks[i].AmmoLeft = math.floor((ship.SecondaryBanks[i].AmmoLeft / ship.SecondaryBanks[i].AmmoMax) * 100)
-					ba.print("     AmmoLeft: " .. tostring(t.SBanks[i].AmmoLeft) .. "\n")
+					if ship.SecondaryBanks[i].AmmoMax > 0 then
+						t.SBanks[i].AmmoLeft = math.floor((ship.SecondaryBanks[i].AmmoLeft / ship.SecondaryBanks[i].AmmoMax) * 100)
+						ba.print("     AmmoLeft: " .. tostring(t.SBanks[i].AmmoLeft) .. "\n")
+					end
 				end
 			end
 			
@@ -426,9 +430,10 @@ end
 -- A name lookup in one of the engine's tables returns an INVALID HANDLE rather than nil for an unknown name, so a
 -- plain truthiness test always passes. Under the "Lua API returns nil instead of invalid object" game setting it
 -- returns nil instead, so neither test alone is enough either. This returns a valid handle, or nil after logging.
+-- An empty name, which is how an empty weapon bank is saved, returns nil silently.
 function SaveState:ResolveHandle(lookup, name, kind, shipname, where)
 
-	if type(name) ~= "string" then return nil end
+	if type(name) ~= "string" or name == "" then return nil end
 
 	local handle = lookup[name]
 	if handle and handle:isValid() then return handle end
