@@ -40,12 +40,19 @@ In addition, the statement "``x.y.z[]`` is set to w and v" is essentially equiva
 |``Default.TextColor[]``|The RGBA values of the color that the message should be displayed in. FSO HUD green by default.|&#x2713;|
 |``Monochrome``|Whether the whole of AxMessage should be rendered in monochrome. Automatically sets the color to the configured HUD color if used. False by default|&#x2713;|
 |``GenericFiles[]``|An array of voice files that are used as generic audio for messages. Unlike other audio associated with messages, these do not influence the time the message is on screen. Empty by default|&#x2713;|
+|``MatchVoiceLength``|If true, a message with its own voice file (not a GenericFile) is revealed at whatever speed makes the text finish as the voice ends, instead of at ``Default.Speed``. False by default|&#x2713;|
+|``Unicode``|Whether message lengths should be counted in UTF-8 characters rather than bytes. Set this if the mod enables Unicode mode and its messages contain non-ASCII text. False by default|&#x2713;|
 
 ### Resolution configuration
 
+All positions, offsets, and sizes are in screen pixels. AxMessage draws directly to the screen, so these values do not follow HUD scaling; a larger resolution needs its own entry with proportionally larger values.
+
+Fonts may be given by name (as defined in fonts.tbl or a -fnt.tbm) or by number. Numbers count from 1 in the order the fonts are loaded, unlike the ``Font:`` field in HUD gauge tables, which counts from 0.
+
 |Key|Value|Optional|
 |---|---|---|
-|``MinHRes``|The minimal horizontal screen resolution required for this configuration. The first resolution with a MinHRes below the actual horizontal screen resolution will be picked.||
+|``MinHRes``|The minimal horizontal screen resolution required for this configuration. Of the entries whose MinHRes is not greater than the actual horizontal screen resolution, the last one is picked, so entries should be listed from smallest to largest.||
+|``Disabled``|If true, AxMessage is not used at this resolution and the built-in message display remains active. False by default|&#x2713;|
 |``TitleFont``|The font used to display the message sender.||
 |``TextFont``|The font used to display the message||
 |``Image``|The filename for the message box image. "messagebox" by default.|&#x2713;|
@@ -59,6 +66,7 @@ In addition, the statement "``x.y.z[]`` is set to w and v" is essentially equiva
 |``Backlog.Enabled``|Whether past messages should be displayed in a backlog. False by default|&#x2713;|
 |``Backlog.Height``|The maximum height of the backlog in pixels. 50 by default.|&#x2713;|
 |``Backlog.MaxSize``|The maximum number of messages in the backlog. 4 by default.|&#x2713;|
+|``Backlog.Timeout``|The number of seconds a message stays in the backlog. If not specified, messages stay until pushed out by newer ones.|&#x2713;|
 |``Backlog.Font``|The font to be used in the backlog.||
 |``Backlog.Origin[]``|The relative upper-left x,y-position of the backlog. If not specified, the backlog's upper-left corner will be at 15, 50|&#x2713;|
 |``Backlog.Offset[]``|The absolute upper-left x,y-offset of the backlog in addition to the origin. Only used if origin is defined. 0,0 by default|&#x2713;|
