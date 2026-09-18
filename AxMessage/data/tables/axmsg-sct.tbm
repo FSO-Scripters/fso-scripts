@@ -258,7 +258,15 @@ function AXMessage:SetupMessage(sender, message, messageText)
 			self.Timer = mn.getMissionTime() + thisMessage.VoiceFile.Duration + self.AfterVoice
 			self.debug = "Got Voice"
 			if self.Config.MatchVoiceLength then
-				self.Speed = self.Timer / #self.RawString
+				local charCount
+				if self.Config.Unicode then
+					charCount = utf8.len(self.RawString)
+				else
+					charCount = #self.RawString
+				end
+				if charCount > 0 then
+					self.Speed = thisMessage.VoiceFile.Duration / charCount
+				end
 			end
 		else
 			self.Timer = mn.getMissionTime() + guesstimatelength
@@ -366,7 +374,7 @@ function AXMessage:DrawMessageBox()
 		--gr.drawMonochromeImage(self.Image.file, self.Position.x, self.Position.y)
 		gr.drawImage(self.Image.file, self.Position.x, self.Position.y, self.Position.x + self.Image.w, self.Position.y + self.Image.h, 0, 0, 1, 1, 0.5, true)
 	else
-		gr.drawImage(self.Image.file, self.Position.x, self.Position.y)
+		gr.drawImage(self.Image.file, self.Position.x, self.Position.y, self.Position.x + self.Image.w, self.Position.y + self.Image.h)
 	end
 		
 	if self.DisplayString and self.Sender then
@@ -440,7 +448,7 @@ function AXMessage:DrawBacklog()
 			
 			if text and y1 > (-1 * (guessedLines+1) * fontHeight) then
 				if (not self.LoadedData.Backlog.Timeout) or (self.LoadedData.Backlog.Timeout and self.Backlog.Entry[i].Expire and (self.Backlog.Entry[i].Expire > mn.getMissionTime())) then
-					gr.drawString = gr.drawString(sender, x1, y1)
+					gr.drawString(sender, x1, y1)
 					drawnLines = gr.drawString(text, x1 + gr.getStringWidth(sender), y1, x2, y2)
 				end
 				line = line + drawnLines
