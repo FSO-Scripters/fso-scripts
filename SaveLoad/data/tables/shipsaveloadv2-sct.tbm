@@ -179,6 +179,8 @@ $On Game Init:
 		if (cf.fileExists(self.active_filename,self.path_shipsave,true)) then
 			cf.deleteFile(self.active_filename,self.path_shipsave)
 		end
+		-- recheck on the next query: the delete may have failed, or a copy may exist in a VP
+		self.save_file_exists_cache[self.active_filename] = nil
 	end
 	mn.LuaSEXPs["lua-delete-save-file"].Action = function(filename)
 		ShipSave:deleteshipsavefile(filename)
@@ -233,6 +235,7 @@ $On Game Init:
 		end
 
 		file:close()
+		self.save_file_exists_cache[self.active_filename] = true
 	end
 
 	--loads savefile and splits the lists
