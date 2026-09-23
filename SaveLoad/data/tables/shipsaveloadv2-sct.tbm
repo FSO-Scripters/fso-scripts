@@ -17,6 +17,14 @@ $On Game Init:
 	--26.0 or later.  Prefer the new name where the build has it, and never mention the old one if it does.
 	ShipSave.status_not_yet_present = SHIP_STATUS_NOT_YET_PRESENT or NOT_YET_PRESENT
 
+	--name of a handle, or an empty string if the handle is nil or invalid
+	local function NameIfValid(obj)
+		if obj and obj:isValid() then
+			return obj.Name
+		end
+		return ""
+	end
+
 	-- ================================================== --
 	-- sexp functions (public API)
 	-- ================================================== --
@@ -664,11 +672,7 @@ $On Game Init:
 				for j=1,n do
 					local wbank=bank[j] 	--weaponbank handle
 					local weapon = {}
-					local wclass = wbank.WeaponClass
-					weapon[1] = ""		--weapon class name, empty if the bank is empty
-					if wclass and wclass:isValid() then
-						weapon[1] = wclass.Name
-					end
+					weapon[1] = NameIfValid(wbank.WeaponClass)		--weapon class name, empty if the bank is empty
 					weapon[2] = self:booltonum(wbank.Armed)		--weapon active
 					weapon[3] = wbank.AmmoMax
 					if (weapon[3] > 0) then
@@ -728,11 +732,7 @@ $On Game Init:
 			local wbank=bank[j] 	--weaponbank handle
 			local weapon = array[3+j]
 			if wbank and wbank:isValid() then
-				local current = wbank.WeaponClass
-				local currentname = ""
-				if current and current:isValid() then
-					currentname = current.Name
-				end
+				local currentname = NameIfValid(wbank.WeaponClass)
 
 				if weapon[1] == "" then
 					-- the bank slot held no weapon when the ship was saved.  There is no way to empty a bank
