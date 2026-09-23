@@ -639,8 +639,11 @@ $On Game Init:
 			mn.evaluateSEXP("(destroy-instantly !"..shipname.."!)")
 
 		-- recreate vanished status
-		else
+		elseif shipstatus == -3 then
 			mn.evaluateSEXP("(ship-vanish !"..shipname.."!)")
+
+		else
+			ba.print("SaveLoad: " .. shipname .. ": unknown status " .. tostring(shipstatus) .. " in save data, skipping\n")
 
 		end
 	end
