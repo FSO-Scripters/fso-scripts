@@ -1434,13 +1434,13 @@ function SaveState:ExternalLoadVar(index, mission, ...)
 
 end
 
- --Takes the mission name as the FREDder wrote it, with or without the extension. The filename keeps that case;
- --the cache key is the folded form, so callers compare with NormalizeMissionName.
+ --Takes the mission name as the FREDder wrote it, with or without the extension and in any case.
+ --The cache key is the folded form, so callers compare with NormalizeMissionName.
 function SaveState:LoadExternalData(mission)
 
 	ba.print("SAVELOAD: Loading external data, " .. mission .. "\n")
 
-	local tempmissionfilename = self:SaveFilenameFor(mission)
+	local tempmissionfilename = self:FindSaveFile(self:SaveFilenameFor(mission))
 
 	self.ExternalMission = self:NormalizeMissionName(mission)
 
@@ -1556,6 +1556,29 @@ end
 function SaveState:SaveFilenameFor(missionname)
 
 	return ba.getCurrentPlayer():getName() .. "_" .. self:StripFS2(missionname) .. ".sav"
+
+end
+
+ --Returns the on-disk name of a save file, matched case-insensitively, or the given name if there is none.
+ --Opening a file uses the name exactly as given, which fails on a case-sensitive filesystem, and the engine's
+ --case-insensitive file index never includes .sav files.  cf.listFiles reads the directory itself.
+function SaveState:FindSaveFile(filename)
+
+	local files = cf.listFiles("data/config", "*.sav") or {}
+
+	for _, name in ipairs(files) do
+		if name == filename then return name end
+	end
+
+	local wanted = filename:lower()
+	for _, name in ipairs(files) do
+		if name:lower() == wanted then
+			ba.print("SAVELOAD: Using save file " .. name .. " for " .. filename .. "\n")
+			return name
+		end
+	end
+
+	return filename
 
 end
 
