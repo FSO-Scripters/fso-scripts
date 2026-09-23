@@ -189,8 +189,7 @@ function SaveState:GetShipData(shipname)
 				ba.print("   Wing: " .. tostring(t.Wing) .. "\n")
 			end
 			
-			--Get HP.  Round up: a living ship recorded as 0% would be restored with no hitpoints at all,
-			--either directly or through the parse object's InitialHull.
+			--Get HP, rounded up so a living ship is never saved as 0%
 			t.HP = math.ceil((ship.HitpointsLeft / ship.HitpointsMax) * 100)
 			ba.print("   HP: " .. tostring(t.HP) .. "\n")
 		
@@ -285,8 +284,7 @@ function SaveState:GetShipData(shipname)
 					ba.print("        Subsystem Name: " .. tostring(ss.Name) .. "\n")
 
 					if thisSubsys.HitpointsMax > 0 then
-						--Round up, not down: a saved 0 now means "destroyed" on load, so a subsystem that is merely
-						--almost dead must not be recorded as 0.  One at exactly 0 hitpoints still reads as 0.
+						--Rounded up, since a saved 0 means destroyed on load
 						ss.HP = math.ceil((thisSubsys.HitpointsLeft / thisSubsys.HitpointsMax) * 100)
 					else
 						ss.HP = 0
@@ -434,10 +432,8 @@ end
 -- Validation helpers
 -- ================================================== --
 
--- A name lookup in one of the engine's tables returns an INVALID HANDLE rather than nil for an unknown name, so a
--- plain truthiness test always passes. Under the "Lua API returns nil instead of invalid object" game setting it
--- returns nil instead, so neither test alone is enough either. This returns a valid handle, or nil after logging.
--- An empty name, which is how an empty weapon bank is saved, returns nil silently.
+-- Returns a valid handle, or nil after logging. A failed lookup yields an invalid handle, or nil under the
+-- nil-handles game setting. An empty name, which is how an empty weapon bank is saved, returns nil silently.
 function SaveState:ResolveHandle(lookup, name, kind, shipname, where)
 
 	if type(name) ~= "string" or name == "" then return nil end
@@ -469,10 +465,8 @@ function SaveState:ResolveTeam(name, shipname)
 
 end
 
---Forward-compatible validity test for handles that may or may not expose isValid() (currently parse_subsystem does not).
---If the handle has isValid, use it. Otherwise fall back to a guarded read of Name, which the API documents as
---"the name or empty string on error" -- so an empty string means invalid, not merely unnamed. That matters because
---parse_object.MainStatus is an invalid handle whenever the mission made no change to the main status.
+--Validity test for handles that may lack isValid() (parse_subsystem currently does). The fallback reads Name,
+--which the API documents as empty on error.
 function SaveState:HandleIsValid(h)
 
 	if h == nil then return false end
@@ -488,8 +482,7 @@ function SaveState:HandleIsValid(h)
 
 end
 
---Save slots are keyed by string. dkjson writes a Lua table as a JSON array only when its keys are dense, so a lone
---numeric slot above 10 used to be written as an object with a string key and never found again by a numeric lookup.
+--Save slots are keyed by string, since dkjson writes sparse numeric keys as strings.
 function SaveState:SlotKey(index)
 
 	if index == nil then return nil end
@@ -601,10 +594,8 @@ function SaveState:ApplyBankData(bank, bdata, shipname, where)
 
 end
 
---Applies saved subsystem data (hitpoints, armor, turret lock, turret banks) to a live ship. Entries are matched by
---canonical subsystem name; saves written before names were recorded fall back to position. Shared by ApplyData
---(ships present at load time) and ApplyLateData (ships that arrive after the load), so a not-yet-arrived ship no
---longer depends on the parse object's sparse, FRED-ordered subsystem list.
+--Applies saved subsystem data (hitpoints, armor, turret lock, turret banks) to a live ship, matched by canonical
+--subsystem name. Saves without names fall back to position.
 function SaveState:ApplySubsystemData(ship, data, shipname)
 
 	local numSubsys = #ship
@@ -660,8 +651,7 @@ function SaveState:ApplySubsystemData(ship, data, shipname)
 
 				if ssdata.HP ~= nil and thisSubsys.HitpointsMax > 0 then
 					if ssdata.HP <= 0 then
-						--Neither hitpoints value is right here: setting HitpointsLeft to 0 only disables the
-						--subsystem, and -1 or lower blows it up with debris and effects.  Use the SEXP instead.
+						--HitpointsLeft 0 only disables a subsystem, and -1 or lower blows it up with debris and effects
 						ba.print("      Destroyed\n")
 						mn.runSEXP("(destroy-subsys-instantly !" .. ship.Name .. "! !" .. subsysName .. "!)")
 					else
@@ -684,8 +674,7 @@ function SaveState:ApplySubsystemData(ship, data, shipname)
 						thisSubsys.TurretLocked = ssdata.TurretLocked
 					end
 
-					--No count warning for turrets: GetShipData only records turret banks that carry ammo, so the
-					--saved array is deliberately sparse and comparing lengths would warn on every load.
+					--No count warning: turret banks are saved only if they carry ammo, so the array is sparse
 					self:ApplyBankArray(thisSubsys.PrimaryBanks, ssdata.PBanks, shipname, subsysName .. " primary bank")
 					self:ApplyBankArray(thisSubsys.SecondaryBanks, ssdata.SBanks, shipname, subsysName .. " secondary bank")
 				end
@@ -703,9 +692,7 @@ function SaveState:ApplySubsystemData(ship, data, shipname)
 
 end
 
---Applies the ship's own primary and secondary bank data. Shared by ApplyData and ApplyLateData; the latter covers
---ships whose parse object had no MainStatus (no loadout change in FRED), which the parse-side path cannot restore.
---The ship's own bank arrays are recorded densely, so a count mismatch is worth reporting here.
+--Applies the ship's own primary and secondary bank data, which is saved densely.
 function SaveState:ApplyShipBankData(ship, data, shipname)
 
 	self:ApplyBankArray(ship.PrimaryBanks, data.PBanks, shipname, "primary bank", true)
@@ -887,8 +874,7 @@ function SaveState:LoadAll(index)
 				--Nothing to restore, but the ship still has to be killed or sent away when it arrives
 				self.CuedList[#self.CuedList+1] = thisShip.Name
 			else
-				--The ship had not arrived yet when the save was made, so the entry holds only its name and status
-				--flags.  Cueing it would run ApplyLateData against empty data and wipe the arrival state FRED set up.
+				--Had not arrived when saved, so there is nothing to apply and its FRED arrival state must be kept
 				ba.print("SAVELOAD: " .. thisShip.Name .. " had not arrived when the save was made, leaving it alone\n")
 			end
 		end
@@ -964,8 +950,7 @@ function SaveState:ApplyData(ship,data,external)
 
 	local shipname = data.Name or ship.Name
 
-	--Compare against the resolved handle's own name, not the saved string: the engine matches class names
-	--case-insensitively, so the saved name can differ in case from the one the handle reports.
+	--Class lookup is case-insensitive, so compare with the resolved handle's own name
 	if data.Class then
 		local newClass = self:ResolveShipClass(data.Class, shipname)
 		if newClass and ship.Class.Name ~= newClass.Name then
@@ -1112,9 +1097,7 @@ function SaveState:ApplyParseData(ship,data)
 		self:ApplyParseBankArray(mainStatus.SecondaryBanks, mainStatus.SecondaryAmmo, data.SBanks, shipname, "secondary bank")
 	end
 
-	--Subsystem data (damage, armor, turret locks and turret banks) is deliberately NOT applied here. The parse object
-	--only lists the subsystems FRED wrote to the mission file, in file order, so it cannot be matched to the saved
-	--model-order list. ApplyLateData applies it by name once the ship has arrived and every subsystem is addressable.
+	--Subsystem data is applied on arrival instead: the parse object lists only the subsystems FRED wrote, in file order
 	ba.print("    Done with weapons... subsystem data will be applied on arrival\n")
 
 	if type(data.Position) == "table" then
@@ -1147,8 +1130,7 @@ function SaveState:ApplyLateData(ship,data)
 		self:InstantDepart(ship)
 		return
 	elseif not data.IsInMission then
-		--GetShipData records only the name and the status flags for a ship that was not in the mission, so there is
-		--nothing to apply.  Falling through would clear the goals FRED gave the ship and blank its armor classes.
+		--Only status flags are saved for a ship not in the mission, so there is nothing to apply
 		ba.print("   Ship was not in the mission when the save was made, nothing to apply\n")
 		return
 	end
@@ -1184,11 +1166,10 @@ function SaveState:ApplyLateData(ship,data)
 	ba.print("   Running SEXPs for ship flags...\n")
 	self:ApplyShipFlags(ship, data)
 
-	--Apply subsystem data (hitpoints, armor, turret locks, turret banks) by name, now that the ship is live
 	ba.print("   Applying subsystem data...\n")
 	self:ApplySubsystemData(ship, data, shipname)
 
-	--Apply the ship's own weapon banks. This also covers ships whose parse object had no MainStatus.
+	--Also covers ships whose parse object had no MainStatus
 	ba.print("   Applying weapon bank data...\n")
 	self:ApplyShipBankData(ship, data, shipname)
 
@@ -1355,8 +1336,7 @@ function SaveState:QueryStatus(object, index)
 		end
 	end
 
-	--Not in the save state at all, which means it had not arrived when the checkpoint was taken.  The SEXP is
-	--documented as returning true for a ship that "is present or hasn't arrived", so it must be allowed to arrive.
+	--Not in the save state, so it had not arrived when the checkpoint was taken
 	return true
 
 end
@@ -1382,8 +1362,7 @@ function SaveState:ExternalLoad(index, mission, ...)
 			local entry = saveData[shipname]
 			local thisShip = mn.Ships[shipname]
 
-			--The slot is keyed by ship name but also holds the Wings and Variables tables, and a name lookup returns
-			--an invalid handle rather than nil, so both sides have to be checked before anything is applied.
+			--The slot also holds the Wings and Variables tables, so check both the entry and the ship
 			if type(entry) ~= "table" or not entry.IsInMission then
 				ba.print("SAVELOAD: no usable saved data for " .. tostring(shipname) .. " in the external save, skipping\n")
 			elseif not (thisShip and thisShip:isValid()) then
@@ -1545,9 +1524,7 @@ function SaveState:StripFS2(s)
 
 end
 
- --The one place a save filename is built, so the name Init writes and the name LoadExternalData reads always agree.
- --The case of the mission name is preserved, because this string reaches the filesystem and not every filesystem
- --is case-insensitive; only the in-memory cache key is folded (see NormalizeMissionName).
+ --Builds a save filename, preserving the mission name's case since not every filesystem is case-insensitive.
 function SaveState:SaveFilenameFor(missionname)
 
 	return ba.getCurrentPlayer():getName() .. "_" .. self:StripFS2(missionname) .. ".sav"
@@ -1555,8 +1532,7 @@ function SaveState:SaveFilenameFor(missionname)
 end
 
  --Returns the on-disk name of a save file, matched case-insensitively, or the given name if there is none.
- --Opening a file uses the name exactly as given, which fails on a case-sensitive filesystem, and the engine's
- --case-insensitive file index never includes .sav files.  cf.listFiles reads the directory itself.
+ --The engine's case-insensitive file index never includes .sav files, so this lists the directory.
 function SaveState:FindSaveFile(filename)
 
 	local files = cf.listFiles("data/config", "*.sav") or {}
