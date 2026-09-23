@@ -1345,9 +1345,7 @@ function SaveState:ExternalLoad(index, mission, ...)
 
 	ba.print("SAVELOAD: Beginning External Load!\n")
 
-	if self:NormalizeMissionName(mission) ~= self.ExternalMission then self:LoadExternalData(mission) end
-
-	local data = self.ExternalData
+	local data = self:GetMissionData(mission)
 	local key = self:SlotKey(index)
 
 	if data and key and type(data[key]) == "table" then
@@ -1381,9 +1379,7 @@ function SaveState:ExternalLoadVar(index, mission, ...)
 
 	ba.print("SAVELOAD: Beginning External Variable Load!\n")
 
-	if self:NormalizeMissionName(mission) ~= self.ExternalMission then self:LoadExternalData(mission) end
-
-	local data = self.ExternalData
+	local data = self:GetMissionData(mission)
 	local key = self:SlotKey(index)
 
 	if data and key and type(data[key]) == "table" and type(data[key].Variables) == "table" then
@@ -1427,6 +1423,18 @@ function SaveState:LoadExternalData(mission)
 
 end
 
+ --Save data for a mission named in a SEXP, served from memory for the current mission
+function SaveState:GetMissionData(mission)
+
+	if self:NormalizeMissionName(mission) == self:NormalizeMissionName(mn.getMissionFilename()) then
+		return self.LoadedData
+	end
+
+	if self:NormalizeMissionName(mission) ~= self.ExternalMission then self:LoadExternalData(mission) end
+	return self.ExternalData
+
+end
+
  --Checks to see if a save slot exists or not. We can also look at other mission save states.
 function SaveState:Exists(index, mission)
 
@@ -1437,8 +1445,7 @@ function SaveState:Exists(index, mission)
 	if not mission then
 		data = self.LoadedData
 	else
-		if self:NormalizeMissionName(mission) ~= self.ExternalMission then self:LoadExternalData(mission) end
-		data = self.ExternalData
+		data = self:GetMissionData(mission)
 	end
 	
 	if type(data) == "table" then
