@@ -221,7 +221,7 @@ function SaveState:GetShipData(shipname)
 				local order = ship.Orders[i]
 				ba.print("     Number: " .. i .. "\n")
 				
-				tt = {}
+				local tt = {}
 				tt.Priority = order.Priority
 				ba.print("     Priority: " .. tostring(tt.Priority) .. "\n")
 				tt.Type = self:GetAIOrderFromEnum(order:getType())
@@ -799,7 +799,7 @@ function SaveState:SaveAll(index, ...)
 
 	for i, entry in ipairs(self.WingList) do
 		if not self:CheckList(exclusionList,entry) then
-			wingdata,key = self:GetWingData(entry)
+			local wingdata, key = self:GetWingData(entry)
 			data.Wings[key] = wingdata
 		end
 	end
