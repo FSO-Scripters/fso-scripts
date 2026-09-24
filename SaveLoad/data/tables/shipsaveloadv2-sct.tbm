@@ -13,9 +13,16 @@ $On Game Init:
 	--definitions for savefile
 	ShipSave.path_shipsave = "data/scripts/"
 
-	--FSO 26.0 renamed the ship status enums and deprecated the old names, which raise an error in a mod that targets
-	--26.0 or later.  Prefer the new name where the build has it, and never mention the old one if it does.
+	--FSO 26.0 deprecated the old status enum names, which raise an error in a mod targeting 26.0 or later
 	ShipSave.status_not_yet_present = SHIP_STATUS_NOT_YET_PRESENT or NOT_YET_PRESENT
+
+	--name of a handle, or an empty string if the handle is nil or invalid
+	local function NameIfValid(obj)
+		if obj and obj:isValid() then
+			return obj.Name
+		end
+		return ""
+	end
 
 	-- ================================================== --
 	-- sexp functions (public API)
@@ -74,8 +81,6 @@ $On Game Init:
 		if shipname then
 			local shipstring = self.shipsaveload_data.ships[shipname]
 			if not shipstring then
-				-- e.g. the ship was not saved at all, or had not arrived when the save was made, in which case it
-				-- still has its mission settings and there is nothing to restore
 				ba.print("SaveLoad: no save data for ship '" .. shipname .. "', nothing to load\n")
 				return
 			end
@@ -174,6 +179,8 @@ $On Game Init:
 		if (cf.fileExists(self.active_filename,self.path_shipsave,true)) then
 			cf.deleteFile(self.active_filename,self.path_shipsave)
 		end
+		-- recheck on the next query: the delete may have failed, or a copy may exist in a VP
+		self.save_file_exists_cache[self.active_filename] = nil
 	end
 	mn.LuaSEXPs["lua-delete-save-file"].Action = function(filename)
 		ShipSave:deleteshipsavefile(filename)
@@ -228,6 +235,7 @@ $On Game Init:
 		end
 
 		file:close()
+		self.save_file_exists_cache[self.active_filename] = true
 	end
 
 	--loads savefile and splits the lists
@@ -382,8 +390,7 @@ $On Game Init:
 	end
 
 	--looks up a saved name in a game table, logging and returning nil if it no longer exists.
-	--note that a failed lookup yields an invalid handle rather than nil, unless the mod has opted into nil handles,
-	--so both cases have to be tested
+	--a failed lookup yields an invalid handle, or nil under the nil-handles game setting
 	function ShipSave:lookupname(gametable, name, shipname, what, keeping)
 		local handle = gametable[name]
 		if handle and handle:isValid() then
@@ -406,17 +413,14 @@ $On Game Init:
 	end
 
 	function ShipSave:shipdatacollect(shipname)		--shipdata collector function including string creation; returns nil if the ship is unknown
-		-- Consult the ship registry first so that a name the mission does not know (e.g. a typo in FRED) is caught here
-		-- rather than being handed to the SEXP parser below
+		-- an unknown name must not reach the SEXP parser below
 		local entry = mn.ShipRegistry[shipname]
 		if not entry or not entry:isValid() then
 			ba.print("SaveLoad: ship '" .. tostring(shipname) .. "' is not in this mission, not saving\n")
 			return nil
 		end
 
-		-- A ship that has not arrived yet still holds exactly the attributes in the mission file, so there is nothing
-		-- to save.  Saving it would also be harmful: it would be recorded with the "vanished" status and then be
-		-- vanished on load if it had arrived by that point.
+		-- a ship that has not arrived still has its mission-file attributes, so there is nothing to save
 		if entry.Status == self.status_not_yet_present then
 			ba.print("SaveLoad: ship '" .. shipname .. "' has not arrived yet, not saving\n")
 			return nil
@@ -495,14 +499,13 @@ $On Game Init:
 			shipdata[4] = coords
 		else
 			shipdata[1] = {}
-			-- The registry status (EXITED) does not distinguish destroyed from departed, so the SEXPs are still needed
-			-- here; they are safe because the registry has confirmed the name exists
+			-- the registry's EXITED status does not distinguish destroyed from departed
 			if (mn.evaluateSEXP("(is-destroyed-delay 0 !"..shipname.."!)")) then
 				shipdata[1][1] = -2		--ship destroyed
 			elseif (mn.evaluateSEXP("(has-departed-delay 0 !"..shipname.."!)")) then
 				shipdata[1][1] = -1		--ship departed
 			else
-				shipdata[1][1] = -3		--ship-vanish used or something like it (not-yet-arrived ships are filtered out above)
+				shipdata[1][1] = -3		--ship-vanish used or something like it
 			end
 		end
 		return self:createshipstring(shipdata)
@@ -531,8 +534,7 @@ $On Game Init:
 			if not class_matches then
 				local newclass = self:lookupname(tb.ShipClasses, newclassname, shipname, "ship class", "current class")
 				if newclass then
-					-- the game looks classes up case-insensitively, so compare against the class's own name rather
-					-- than the saved string, which may differ from it in case
+					-- class lookup is case-insensitive, so compare with the class's own name
 					if ship.Class.Name == newclass.Name then
 						class_matches = true
 					else
@@ -580,10 +582,7 @@ $On Game Init:
 				end
 			end
 
-			-- Subsystems and weapon banks are stored by position within the ship class that was saved.  If this ship
-			-- is not that class, those positions refer to entirely different subsystems and banks, so applying the
-			-- data would damage or re-arm the wrong ones.  The scalar values above are not positional and are
-			-- deliberately still applied.
+			-- subsystems and weapon banks are stored by position within the saved class, so they only fit that class
 			if not class_matches then
 				ba.print("SaveLoad: " .. shipname .. ": class does not match the save, skipping subsystem and weapon data\n")
 			else
@@ -631,8 +630,11 @@ $On Game Init:
 			mn.evaluateSEXP("(destroy-instantly !"..shipname.."!)")
 
 		-- recreate vanished status
-		else
+		elseif shipstatus == -3 then
 			mn.evaluateSEXP("(ship-vanish !"..shipname.."!)")
+
+		else
+			ba.print("SaveLoad: " .. shipname .. ": unknown status " .. tostring(shipstatus) .. " in save data, skipping\n")
 
 		end
 	end
@@ -664,7 +666,7 @@ $On Game Init:
 				for j=1,n do
 					local wbank=bank[j] 	--weaponbank handle
 					local weapon = {}
-					weapon[1] = wbank.WeaponClass.Name		--weapon class name
+					weapon[1] = NameIfValid(wbank.WeaponClass)		--weapon class name, empty if the bank is empty
 					weapon[2] = self:booltonum(wbank.Armed)		--weapon active
 					weapon[3] = wbank.AmmoMax
 					if (weapon[3] > 0) then
@@ -695,8 +697,7 @@ $On Game Init:
 		end
 	end
 
-	--writes the saved ammunition into a bank.  Only call this once the bank actually holds the saved weapon class,
-	--since AmmoMax is scaled by the cargo size of whatever weapon is mounted.
+	--writes the saved ammunition into a bank, which must already hold the saved weapon class
 	function ShipSave:setbankammo(wbank,weapon)
 		local wclass = wbank.WeaponClass
 		if not wclass or not wclass:isValid() then
@@ -724,15 +725,10 @@ $On Game Init:
 			local wbank=bank[j] 	--weaponbank handle
 			local weapon = array[3+j]
 			if wbank and wbank:isValid() then
-				local current = wbank.WeaponClass
-				local currentname = ""
-				if current and current:isValid() then
-					currentname = current.Name
-				end
+				local currentname = NameIfValid(wbank.WeaponClass)
 
 				if weapon[1] == "" then
-					-- the bank slot held no weapon when the ship was saved.  There is no way to empty a bank
-					-- through the scripting API, so leave the slot alone rather than mis-scaling its ammunition.
+					-- the slot was empty when saved, and the scripting API cannot empty a bank
 
 				elseif (currentname == weapon[1]) then		--prevent it from doing unnecessary stuff
 					self:setbankammo(wbank,weapon)
@@ -747,8 +743,7 @@ $On Game Init:
 						wbank.WeaponClass = wclass		--weapon class
 						self:setbankammo(wbank,weapon)
 					end
-					-- if the class could not be applied, the saved ammunition belongs to a different weapon and
-					-- would be scaled by the wrong cargo size, so it is skipped
+					-- otherwise the saved ammunition belongs to a different weapon
 				end
 
 				local b_armed = self:numtobool(weapon[2])
@@ -876,8 +871,7 @@ $On Game Init:
 				return nil
 			end
 
-			-- createshipstring writes 18 fields here (position, orientation, velocity and rotational velocity)
-			-- but only the first 12 are ever consumed on load, so only those are validated
+			-- createshipstring writes 18 fields here but only the first 12 are used on load
 			shipdata[4] = self:split(temp[4],",")
 			if #shipdata[4] < 12 then
 				ba.print("SaveLoad: position data has " .. #shipdata[4] .. " fields, expected at least 12\n")
@@ -918,8 +912,7 @@ $On Game Init:
 				pos = pos + 3
 				for k=1,n do
 					local weapon = {}
-					-- an empty class name is legitimate: it means the bank slot held no weapon when the ship was
-					-- saved, which is what WeaponClass.Name returns for an emptied bank
+					-- an empty class name means the bank slot was empty
 					weapon[1] = temp[pos]					--weapon class name
 					weapon[2] = self:parsenumber(temp[pos+1], "weapon " .. k .. " in bank " .. j .. " armed flag")
 					weapon[3] = self:parsenumber(temp[pos+2], "weapon " .. k .. " in bank " .. j .. " max ammo")
