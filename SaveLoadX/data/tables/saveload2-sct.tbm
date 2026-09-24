@@ -537,14 +537,15 @@ function SaveState:ApplyParseBankArray(banks, ammo, saved, shipname, label)
 
 end
 
---Sets the ship flags recorded in the save. The saved list is positional against self.ShipFlags.
+--Sets or clears the ship flags recorded in the save. The saved list is positional against self.ShipFlags.
 function SaveState:ApplyShipFlags(ship, data)
 
 	if type(data.Flags) ~= "table" then return end
 
 	for i=1, #self.ShipFlags do
-		if data.Flags[i] then
-			local sexpstring = "(alter-ship-flag !" .. self.ShipFlags[i] .. "! (true) (true) !" .. ship.Name .. "! )"
+		local value = data.Flags[i]
+		if value ~= nil then
+			local sexpstring = "(alter-ship-flag !" .. self.ShipFlags[i] .. "! (" .. tostring(value == true) .. ") (true) !" .. ship.Name .. "! )"
 			ba.print(sexpstring .. "\n")
 			mn.runSEXP(sexpstring)
 		end
