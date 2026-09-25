@@ -17,6 +17,9 @@ local function NameIfValid(obj)
 	return ""
 end
 
+--FSO 26.0 deprecated the old persistence enum names, which raise an error in a mod targeting 26.0 or later
+local PERSIST_NONE = SEXPVAR_PERSIST_NONE or SEXPVAR_NOT_PERSISTENT
+
 function SaveState:Init()
 
 	ba.print("SAVELOAD: Initialization begun...!\n")
@@ -710,7 +713,7 @@ function SaveState:GetVariableData(exclusionList)
 	for i = 1, #mn.SEXPVariables do
 		local var = mn.SEXPVariables[i]
 		if var and var:isValid() then
-			if var.Persistence == SEXPVAR_NOT_PERSISTENT and not self:CheckList(exclusionList, var.Name) then
+			if var.Persistence == PERSIST_NONE and not self:CheckList(exclusionList, var.Name) then
 				local typeStr
 				if var.Type == SEXPVAR_TYPE_NUMBER then typeStr = "number"
 				elseif var.Type == SEXPVAR_TYPE_STRING then typeStr = "string" end
