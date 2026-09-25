@@ -240,6 +240,7 @@ $On Game Init:
 
 	--loads savefile and splits the lists
 	function ShipSave:loadshipfile()
+		self:clear()
 		if not cf.fileExists(self.active_filename,self.path_shipsave,true) then
 			ba.print("SaveLoad: file " .. self.active_filename .. " does not exist!\n")
 			return
@@ -249,7 +250,6 @@ $On Game Init:
 			ba.print("SaveLoad: could not open file '" .. self.active_filename .. "' for reading!\n")
 			return
 		end
-		self:clear()
 
 		-- get the variables
 		local varline = file:read("*l")
