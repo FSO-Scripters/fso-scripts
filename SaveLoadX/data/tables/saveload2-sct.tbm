@@ -35,6 +35,7 @@ function SaveState:Init()
 	end
 	
 	self.CurrentIndex = nil
+	self.CurrentData = nil
 	self.WingList = {}
 	self.QueryStatusWarned = {}
 	self.SupportShips = {}	--set of ship names identified as support ships while a live handle was available
@@ -141,12 +142,7 @@ function SaveState:CheckLateData(ship)
 	
 	for i=1, #self.CuedList do
 		if self.CuedList[i] and self.CuedList[i] == thisShipName then
-			local thisloadeddata = self.LoadedData[self:SlotKey(self.CurrentIndex)]
-			if type(thisloadeddata) ~= "table" then
-				ba.print("SAVELOAD: save state " .. tostring(self.CurrentIndex) .. " no longer present, no late data for " .. thisShipName .. "\n")
-				return
-			end
-			local data = thisloadeddata[thisShipName]
+			local data = self.CurrentData[thisShipName]
 
 			if type(data) == "table" then self:ApplyLateData(ship,data) end
 
@@ -836,8 +832,9 @@ function SaveState:LoadAll(index)
 		return
 	end
 
-	--Only commit to the index once we know the slot exists, otherwise CheckLateData would index nil on every arrival
+	--Keep the loaded slot itself: later saves and clears change LoadedData, but not the state this mission was loaded into
 	self.CurrentIndex = index
+	self.CurrentData = thisloadeddata
 
 	--Restore mission variables before touching ships, so any SEXP evaluation
 	--triggered by ship-apply code sees the correct variable values.
@@ -1307,7 +1304,12 @@ function SaveState:QueryStatus(object, index)
 	end
 
 	local slotkey = self:SlotKey(index or self.CurrentIndex)
-	local slot = self.LoadedData[slotkey]
+	local slot
+	if slotkey == self:SlotKey(self.CurrentIndex) then
+		slot = self.CurrentData
+	else
+		slot = self.LoadedData[slotkey]
+	end
 
 	if type(slot) ~= "table" then
 		--No such save state; behave as if nothing had been loaded so arrivals are not blocked.
