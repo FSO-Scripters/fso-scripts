@@ -1,0 +1,56 @@
+#Lua SEXPs
+
+$Operator: dj-queue
+$Category: Change
+$Subcategory: Scripted Music
+$Minimum Arguments: 2
+$Maximum Arguments: 2
+$Return Type: Nothing
+$Description: Adds a clip to the queue to play at a time determined by the urgency level and the currently playing music. Replaces any other currently queued clips.
+$Parameter:;trackname
+	+Description: Segment name
+	+Type: String
+$Parameter:;transitionname
+	+Description: Fade name
+	+Type: String
+
+$Operator: dj-check-time-span
+$Category: Change
+$Subcategory: Scripted Music
+$Minimum Arguments: 3
+$Maximum Arguments: 3
+$Return Type: Boolean
+$Description: Checks if a given clip is playing, is scheduled to play, or has played. The bound values define a timeframe within which to check, relative to the current mission time. Note that the future music queue can change and at any given point this sexp can only check the currently expected future. If both bounds are blank the entire timeline is checked.
+$Parameter:;segment_name
+	+Description: Name of the track being checked for. If it does not exist in the system's configs false will be returned, and a warning message will be sent the first time.
+	+Type: String
+$Parameter:;high bound
+	+Description: High bound for check in seconds. Can be decimal. If blank, check includes all times after the low bound.
+	+Type: String
+$Parameter:;low bound
+	+Description: low bound check in seconds. Can be decimal. If blank, check includes all times before the low bound.
+	+Type: String
+
+$Operator: dj-time-from-mark
+$Category: Change
+$Subcategory: Scripted Music
+$Minimum Arguments: 3
+$Maximum Arguments: 5
+$Return Type: number
+$Description: For use timing events to the structure of the currently playing music. Will always return 0 if there is no music being played by the DJ system.
+$Parameter:;return_unit
+	+Description: Units to return. can be "b" for beat, "m" for measures or "s" for seconds. Will always be thousandths of specified unit.
+	+Type: String
+$Parameter:;return_type
+	+Description: How the return is calculated. "abs" for absolute returns the distance to the nearest mark. "next" and "last" return distance to the specified amount. "diff" for difference returns the distance to the nearest mark, but it will be positive if the nearest is the next and negative if it is the last.
+	+Type: String
+$Parameter:;mark_check
+	+Description: What is being checked. Can be "beat", "meas", "seg". Segment refers to the start and end of the currently playing track, including loop points.
+	+Type: String
+$Parameter:;offset_amount
+	+Description: Offset amount. An amount added to the current time when calculating the distance. If unit is unspecified, seconds are used. Can be a decimal amount.
+	+Type: String
+$Parameter:;offset_unit
+	+Description: Units of the offset. can be "b" for beat, "m" for measures or "s" for seconds. Defaults to seconds if absent or unknown.
+	+Type: String
+#End

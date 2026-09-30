@@ -1,0 +1,13 @@
+#Conditional Hooks
+
+$Application: FS2_Open
+
+$On Game Init:
+[
+require 'add_fennel'
+local core = require 'plasma_core'
+core:scan_load_modules()
+]
+
+
+#end
