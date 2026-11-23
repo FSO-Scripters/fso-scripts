@@ -1,4 +1,4 @@
---Version 3.4, released on February 04, 2026 by wookieejedi
+--Version 3.5, released on November 23, 2026 by wookieejedi
 --Requires FSO build of July 01, 2025 or newer
 --Description: custom sexps and functions that allow for much easier ship movements and rotations
 --Usage: custom sexps are included and listed in FRED under the LUA-Movements tab
@@ -6,7 +6,13 @@
 Movements = {  --makes a global variable! This is the only global variable this script creates.
 	Default_ShipRadius_is_Obstacle = 25,
 	Mininum_BigShip_Radius = 10, --used to track big ships above this radius, (check excludes fighters or bombers of any size)
+	HullExtents_Padding = 5, --meters added to every side of a hull's bounding box, so ships clear each other with a little room to spare
+	SmartStop_MinSweepDistance = 200, --floor on how far ahead the swept hull check looks, for ships slow or nimble enough that their own stopping distance is tiny
+	SmartStop_MinRadiusMulti = 2.1,
+	SmartStop_BrakeMulti = 1.3,
 	Extra_SmartStop_Uses_Team_Match = true,
+
+	Debug_Draw_SweptHull = true, --only does anything with UseDebugMode on: draws the swept hull envelope of the player's target in mission
 
 	SP_FaceTarget = 1,
 
@@ -26,12 +32,18 @@ Movements = {  --makes a global variable! This is the only global variable this 
 }
 
 Movements.UseDebugMode = false 
+Movements.DebugModeEnabled = false 
 --^set to true to enable showing 3D lines to waypoint along with extra text info 
 --when targeting a ship with these movement orders
+
+Movements.AllowInStandalone = false
+--^set to true to allow this to work on multiplayer missions that are run on a standalone server
 
 --Internal Functions
 
 	function Movements:Initiate()
+
+		self.UseDebugMode = false
 
 		--remember that a ship not in mission will be nil in lua sexp if input parameter is type ship 
 		self.Time_Previous_Check = 0
@@ -50,6 +62,9 @@ Movements.UseDebugMode = false
 		self.Active_Big_Ships = {}
 		--separate out because ships may be okay with risking buzzing by ships of the other team
 		--recall, this list is only used and checked if extra smart stop safety checks are enabled
+
+		self.Class_HullExtents = {}
+		--hull dimensions read off each ship class' model, cached when ship is added to active big ships table
 
 		if ba.MultiplayerMode then
 			if multi:isServer() then
@@ -73,20 +88,14 @@ Movements.UseDebugMode = false
 
 	function Movements:Round(input_number, numDecimalPlaces) --if no number of decimals is specified then it defaults to 0
 
-		local output
-		input_number = tonumber(input_number)
-		if numDecimalPlaces == nil then numDecimalPlaces = 0 end
-
-		if numDecimalPlaces == 0 then
-			output = math.floor(math.floor(input_number + 0.5))
-		end
+		numDecimalPlaces = numDecimalPlaces or 0
 
 		if numDecimalPlaces > 0 then
 			local mult = 10^numDecimalPlaces
-			output = math.floor(input_number * mult + 0.5) / mult
+			return math.floor(input_number * mult + 0.5) / mult
+		else
+			return math.floor(input_number + 0.5)
 		end
-
-		return output
 
 	end
 
@@ -225,7 +234,7 @@ Movements.UseDebugMode = false
 		for i,v in ipairs({"x", "y", "z"}) do
 			local c = ""
 			if i <= 2 then c = "," end
-			ba.print(" "..v..": "..Movements:Round(v, 4)..c)
+			ba.print(" "..v..": "..Movements:Round(xyz[v], 4)..c)
 		end
 		ba.print(" (in meters) with mission time "..mn.getMissionTime().." \n")
 
@@ -269,10 +278,6 @@ Movements.UseDebugMode = false
             sbsh + (sinp*cbch), --8
             cosh_*cosp--9
         }
-
-        for i,v in ipairs(vals) do
-            vals[i] = self:Round(v,6)
-        end
 
         local finalm = {{vals[1],vals[4],vals[7]},{vals[2],vals[5],vals[8]},{vals[3],vals[6],vals[9]}}
 
@@ -367,7 +372,7 @@ Movements.UseDebugMode = false
 	function Movements:All_XYZ_Values_Within_Threshold(location_1, location_2, threshold) --location and threshold in meters
 
 		if location_1 == nil or location_2 == nil then 
-			print("Movements Error: XYZ values are invalid for function that checks if they are withing a threshold. \n")
+			ba.print("Movements Error: XYZ values are invalid for function that checks if they are withing a threshold. \n")
 			return false 
 		end
 
@@ -380,7 +385,7 @@ Movements.UseDebugMode = false
 	function Movements:All_PBH_Values_Within_Threshold(orientation_1, orientation_2, threshold) --orientations and threshold in radians
 
 		if orientation_1 == nil or orientation_2 == nil then 
-			print("Movements Error: PBH values are invalid for function that checks if they are withing a threshold. \n")
+			ba.print("Movements Error: PBH values are invalid for function that checks if they are withing a threshold. \n")
 			return false 
 		end
 
@@ -931,22 +936,41 @@ Movements.UseDebugMode = false
 			end
 		end
 
+		forced_minimum = forced_minimum or 0
 		return math.max(final, forced_minimum)
 
 	end
+
+
 
 	function Movements:BigShipTracker_Add(ship)
 
 		--only add if big ship
 		if ship == nil then return end
 		if not ship:isValid() then return end
-		if ship.Radius < self.Mininum_BigShip_Radius then return end
-		local ship_obj_type = ship.Class.Type.Name
+		local l_radius = ship.Radius
+		local class = ship.Class
+		local ship_obj_type = class.Type.Name
 		if ship_obj_type == "fighter" or ship_obj_type == "bomber" then return end
+
+		if FotG ~= nil and FotG:IsDummyClass(class.Name) then return end
+
+		local s_half_length, s_half_width, s_center_z, s_half_x, s_half_y, s_center_x, s_center_y = self:Get_Class_HullExtents(ship)
 
 		--big ship so add
 		local l_team = self:GetTeamFamily(ship.Team.Name)
-		self.Active_Big_Ships[ship.Name] = {activebig_signature = ship:getSignature(), activebig_team = l_team}
+		self.Active_Big_Ships[ship.Name] = {
+			activebig_signature = ship:getSignature(),
+			activebig_team = l_team,
+			activebig_radius = l_radius,
+			activebig_half_length = s_half_length,
+			activebig_half_width = s_half_width,
+			activebig_center_z = s_center_z,
+			activebig_half_x = s_half_x,
+			activebig_half_y = s_half_y,
+			activebig_center_x = s_center_x,
+			activebig_center_y = s_center_y
+		}
 
 	end
 
@@ -962,6 +986,7 @@ Movements.UseDebugMode = false
 	mn.LuaSEXPs["set-bank-constant"].Action = function(bank_constant, ...)
 
 		if not Movements.is_enabled then return end
+
 		if #arg <= 0 then return end
 		if type(bank_constant) ~= "number" then return end
 
@@ -981,6 +1006,7 @@ Movements.UseDebugMode = false
 	mn.LuaSEXPs["set-acceleration-time"].Action = function(acceleration_time, ...)
 
 		if not Movements.is_enabled then return end
+
 		if #arg <= 0 then return end
 		if type(acceleration_time) ~= "number" then return end
 
@@ -1006,6 +1032,7 @@ Movements.UseDebugMode = false
 	mn.LuaSEXPs["set-deceleration-time"].Action = function(deceleration_time, ...)
 
 		if not Movements.is_enabled then return end
+
 		if #arg <= 0 then return end
 		if type(deceleration_time) ~= "number" then return end
 
@@ -1030,6 +1057,8 @@ Movements.UseDebugMode = false
 
 	mn.LuaSEXPs["get-waypoint-speed-cap"].Action = function(ship) --returns 0 if ship invalid
 
+		if not Movements.is_enabled then return end
+
 		local cap = 0
 		if ship ~= nil and ship:isValid() then
 			cap = ship.WaypointSpeedCap
@@ -1040,6 +1069,8 @@ Movements.UseDebugMode = false
 	end
 
 	mn.LuaSEXPs["set-pos-to-rand-pos-on-hull"].Action = function(object_to_set_oswpt, target_ship, buffer_distance) 
+
+		if not Movements.is_enabled then return end
 
 		--does not set if something invalid
 
@@ -1053,13 +1084,15 @@ Movements.UseDebugMode = false
 		local random_pos = Movements:RandomPoint_On_ShipHull(target_ship, buffer_distance)
 
 		--set object to that position
-		if random_pos ~= nil and Movements.is_enabled then
+		if random_pos ~= nil then
 			object_to_set.Position = random_pos
 		end
 
 	end
 
 	mn.LuaSEXPs["set-pos-to-rand-pos-in-b-box"].Action = function(object_to_set_oswpt, target_ship)
+
+		if not Movements.is_enabled then return end
 
 		--does not set if something invalid
 
@@ -1321,6 +1354,8 @@ Movements.UseDebugMode = false
 
 	mn.LuaSEXPs["move-to-location"].Action = function(ship, final_x, final_y, final_z, time_start_delay, time_for_effect, play_dead_priority, accel_val, decel_val)
 
+		if not Movements.is_enabled then return end
+
 		if ship ~= nil and ship:isValid() then
 
 			local final_xyz = {x=final_x, y=final_y, z=final_z}
@@ -1346,6 +1381,8 @@ Movements.UseDebugMode = false
 	end
 
 	mn.LuaSEXPs["early-stop-move-to-location"].Action = function(ship)
+
+		if not Movements.is_enabled then return end
 
 		if ship ~= nil and ship:isValid() then
 			Movements:Remove_LocationMove(ship.Name, true)
@@ -1623,6 +1660,8 @@ Movements.UseDebugMode = false
 
 	mn.LuaSEXPs["move-to-orientation"].Action = function(ship, final_p, final_b, final_h, time_start_delay, time_for_effect, play_dead_priority)
 
+		if not Movements.is_enabled then return end
+
 		if ship ~= nil and ship:isValid() then
 
 			if not Movements:PBHisValid({p=final_p, b=final_b, h=final_h}) then 
@@ -1652,6 +1691,8 @@ Movements.UseDebugMode = false
 
 	mn.LuaSEXPs["move-to-face-object"].Action = function(ship_to_rotate, obj_to_face_oswpt, time_start_delay, time_for_effect, play_dead_priority)
 
+		if not Movements.is_enabled then return end
+
 		if ship_to_rotate ~= nil and ship_to_rotate:isValid() and obj_to_face_oswpt ~= nil then
 
 			local obj_to_face_name = Movements:Get_Name_from_Ship_or_Wpt_Obj(obj_to_face_oswpt:get())
@@ -1674,6 +1715,8 @@ Movements.UseDebugMode = false
 	end
 
 	mn.LuaSEXPs["early-stop-move-to-orientation"].Action = function(ship)
+
+		if not Movements.is_enabled then return end
 
 		if ship ~= nil and ship:isValid() then
 			Movements:Remove_Rotation(ship.Name, true)
@@ -1829,6 +1872,8 @@ Movements.UseDebugMode = false
 
 	mn.LuaSEXPs["add-waypoint-track-ship"].Action = function(target_object_owspt, waypointpath, waypoint_i, offset_x, offset_y, offset_z, track_interval, track_distance, userelative)
 
+		if not Movements.is_enabled then return end
+
 		if waypointpath == nil or target_object_owspt == nil then return end
 		if not waypointpath:isValid() then return end
 
@@ -1866,6 +1911,8 @@ Movements.UseDebugMode = false
 
 	mn.LuaSEXPs["pause-waypoint-track-ship"].Action = function(waypointpath, waypoint_i, pause_status)
 
+		if not Movements.is_enabled then return end
+
 		if waypointpath == nil then return end
 		if not waypointpath:isValid() then return end
 
@@ -1887,6 +1934,8 @@ Movements.UseDebugMode = false
 	end
 
 	mn.LuaSEXPs["remove-waypoint-track-ship"].Action = function(waypointpath, waypoint_i)
+
+		if not Movements.is_enabled then return end
 
 		if waypointpath == nil then return end
 		if not waypointpath:isValid() then return end
@@ -1935,7 +1984,331 @@ Movements.UseDebugMode = false
 
 	end
 
+	function Movements:Get_Class_HullExtents(ship) --returns ship_half_length, ship_half_width, ship_center_z, ship_half_x, ship_half_y, ship_center_x, ship_center_y (all in model space, where +z is forward), or nil if the ship handle is no good
+
+		--the bounding sphere is a poor fit for a long hull, so pull real dimensions off the model instead
+		--half_x and half_y are kept apart rather than rolled into one radius, since most hulls are far wider
+		--  than they are tall and a single radius makes a flat freighter as tall as it is wide
+		--center_x and center_y matter for the same reason center_z does: plenty of models sit off their own origin
+
+		if ship == nil then return nil end
+		local sclass = ship.Class
+		if sclass == nil then return nil end
+
+		if self.Class_HullExtents == nil then
+			self.Class_HullExtents = {}
+		end
+
+		--return cache early if already saved
+		local classname = sclass.Name
+		local cached = self.Class_HullExtents[classname]
+		if cached ~= nil then
+			return cached.ship_half_length, cached.ship_half_width, cached.ship_center_z, cached.ship_half_x, cached.ship_half_y, cached.ship_center_x, cached.ship_center_y
+		end
+
+		--otherwise calculate
+		local s_half_length, s_half_width, s_center_z, s_half_x, s_half_y, s_center_x, s_center_y
+
+		--grow every side by the same margin, so hulls are cleared with room to spare rather than exactly
+		--  the margin is baked into the cache, so changing it mid mission will not touch classes already looked up
+		local pad = self.HullExtents_Padding or 0
+
+		local model = sclass.Model
+		if model ~= nil then
+			local bmin = model.BoundingBoxMin
+			local bmax = model.BoundingBoxMax
+			if bmin ~= nil and bmax ~= nil then
+				local min_x, min_y, min_z = bmin[1], bmin[2], bmin[3]
+				local max_x, max_y, max_z = bmax[1], bmax[2], bmax[3]
+				--an invalid model handle hands back a zero vector, so sanity check the box before trusting it
+				if (max_z - min_z) > 1 then
+					--centers are not padded, since growing a box evenly leaves its middle where it was
+					s_half_length = (max_z - min_z) * 0.5 + pad
+					s_center_z = (max_z + min_z) * 0.5 --plenty of models are not centered on their own origin
+					s_half_x = (max_x - min_x) * 0.5 + pad
+					s_half_y = (max_y - min_y) * 0.5 + pad
+					s_center_x = (max_x + min_x) * 0.5
+					s_center_y = (max_y + min_y) * 0.5
+					if s_half_x < 1 then s_half_x = 1 end
+					if s_half_y < 1 then s_half_y = 1 end
+					--kept as the worst case of the two, for the cheap reject and for anything without an orientation to hand
+					s_half_width = math.max(s_half_x, s_half_y)
+				end
+			end
+		end
+
+		--no usable box, so fall back to the bounding sphere, which is fatter and therefore safe
+		if s_half_length == nil then
+			local r = ship.Radius
+			if r < 1 then r = 1 end
+			r = r + pad
+			s_half_length = r
+			s_half_width = r
+			s_center_z = 0
+			s_half_x = r
+			s_half_y = r
+			s_center_x = 0
+			s_center_y = 0
+		end
+
+		--cache and return values
+		self.Class_HullExtents[classname] = {ship_half_length = s_half_length, ship_half_width = s_half_width, ship_center_z = s_center_z, ship_half_x = s_half_x, ship_half_y = s_half_y, ship_center_x = s_center_x, ship_center_y = s_center_y}
+
+		return s_half_length, s_half_width, s_center_z, s_half_x, s_half_y, s_center_x, s_center_y
+
+	end
+
+	function Movements:BoxRadiusAlong(dx, dy, dz, rvec, uvec, half_x, half_y) --how far a hull's cross section reaches in the given unit direction
+
+		--support function of the box cross section: the forward axis is left out because the segment
+		--  the direction is measured from already covers the length of the hull
+		local dot_r = dx*rvec[1] + dy*rvec[2] + dz*rvec[3]
+		local dot_u = dx*uvec[1] + dy*uvec[2] + dz*uvec[3]
+
+		if dot_r < 0 then dot_r = -dot_r end
+		if dot_u < 0 then dot_u = -dot_u end
+
+		return dot_r*half_x + dot_u*half_y
+
+	end
+
+	function Movements:Segment_Distance_Squared(p1, q1, p2, q2) --closest distance between two line segments, squared, then the vector between those closest points; each argument is a plain {x,y,z} array
+
+		--plain number math on purpose, since this runs inside a loop and allocating vector userdata per candidate is wasteful
+
+		local d1x, d1y, d1z = q1[1]-p1[1], q1[2]-p1[2], q1[3]-p1[3]
+		local d2x, d2y, d2z = q2[1]-p2[1], q2[2]-p2[2], q2[3]-p2[3]
+		local rx, ry, rz = p1[1]-p2[1], p1[2]-p2[2], p1[3]-p2[3]
+
+		local a = d1x*d1x + d1y*d1y + d1z*d1z --squared length of the first segment
+		local e = d2x*d2x + d2y*d2y + d2z*d2z --squared length of the second segment
+		local f = d2x*rx + d2y*ry + d2z*rz
+
+		local epsilon = 0.0001
+		local s, t
+
+		if a <= epsilon and e <= epsilon then
+			--both segments are really just points
+			return rx*rx + ry*ry + rz*rz, rx, ry, rz
+		end
+
+		if a <= epsilon then
+			--first segment is a point
+			s = 0
+			t = f/e
+			if t < 0 then t = 0 elseif t > 1 then t = 1 end
+		else
+			local c = d1x*rx + d1y*ry + d1z*rz
+			if e <= epsilon then
+				--second segment is a point
+				t = 0
+				s = -c/a
+				if s < 0 then s = 0 elseif s > 1 then s = 1 end
+			else
+				local b = d1x*d2x + d1y*d2y + d1z*d2z
+				local denom = a*e - b*b
+				if denom ~= 0 then
+					s = (b*f - c*e)/denom
+					if s < 0 then s = 0 elseif s > 1 then s = 1 end
+				else
+					--segments are parallel, so any point along the first one will do
+					s = 0
+				end
+				t = (b*s + f)/e
+				--if the closest point ran off the end of the second segment then clamp it and redo the first
+				if t < 0 then
+					t = 0
+					s = -c/a
+					if s < 0 then s = 0 elseif s > 1 then s = 1 end
+				elseif t > 1 then
+					t = 1
+					s = (b - c)/a
+					if s < 0 then s = 0 elseif s > 1 then s = 1 end
+				end
+			end
+		end
+
+		local dx = (p1[1] + d1x*s) - (p2[1] + d2x*t)
+		local dy = (p1[2] + d1y*s) - (p2[2] + d2y*t)
+		local dz = (p1[3] + d1z*s) - (p2[3] + d2z*t)
+
+		return dx*dx + dy*dy + dz*dz, dx, dy, dz
+
+	end
+
+	function Movements:ForwardLead(ship, time_check_interval) --how far a ship's nose will have got by the time it could come to a stop, or nil if it has no physics
+
+		--get how fast ship is moving and time until next check
+		--how far will ship have moved in that amount of time?
+		local sphysics = ship.Physics
+		if sphysics == nil then return nil end
+
+		local current_speed_z = sphysics:getForwardSpeed()
+		if current_speed_z <= 0 then
+			--a ship that is stopped or backing up is not about to arrive anywhere ahead of itself
+			return 0
+		end
+
+		--try to calculate far the ship really needs in order to stop
+		--  (how far it travels before we look again, plus its braking distance)
+		local reaction_distance = time_check_interval * current_speed_z * self.SmartStop_BrakeMulti
+
+		--the engine damps velocity exponentially with the decel time as its time constant, so just kinda guess for now
+		local braking_distance = current_speed_z * sphysics.ForwardDecelerationTime
+
+		local failsafe_min = self.SmartStop_MinSweepDistance
+		local s_radius2x = ship.Radius * self.SmartStop_MinRadiusMulti
+
+		return math.max(reaction_distance + braking_distance, failsafe_min, s_radius2x)
+
+	end
+
+	function Movements:SweepDistance(ship, stop_ray_distance_min, time_check_interval) --how far ahead the swept hull check looks, or nil if the ship has no physics
+
+		--this is what the swept hull check uses,
+		--  kept separate from danger_zone_distance so the ray check is unchanged
+		local lead = self:ForwardLead(ship, time_check_interval)
+
+		if lead > stop_ray_distance_min then
+			return lead
+		else
+			return stop_ray_distance_min
+		end
+
+	end
+
+	function Movements:SweptHull_Blocker(ship, sweep_distance, skip_radius, skip_validity, time_check_interval) --returns the first tracked big ship whose hull is in this ship's forward sweep, otherwise nil
+
+		if not skip_validity then
+			if ship == nil then return nil end
+			if not ship:isValid() then return nil end
+		end
+
+		skip_radius = skip_radius or self.Default_ShipRadius_is_Obstacle
+
+		--broad phase check, treating each hull as a capsule along its own forward axis
+		--  that is far tighter than a bounding sphere for a long ship, and unlike the single center ray
+		--  it covers the actual width of the hull, so a nose crossing the path does get caught
+
+		local self_active = self.Active_Big_Ships[ship.Name] or {}
+
+		local my_half_length = self_active.activebig_half_length
+		local my_half_width = self_active.activebig_half_width or my_half_length
+		local my_center_z = self_active.activebig_center_z or 0
+		local my_half_x = self_active.activebig_half_x or my_half_width
+		local my_half_y = self_active.activebig_half_y or my_half_width
+		local my_center_x = self_active.activebig_center_x or 0
+		local my_center_y = self_active.activebig_center_y or 0
+
+		if my_half_length == nil then return nil end
+
+		local my_pos = ship.Position
+		local my_fvec = ship:getfvec(true)
+		local my_rvec = ship:getrvec(true)
+		local my_uvec = ship:getuvec(true)
+		local fx, fy, fz = my_fvec[1], my_fvec[2], my_fvec[3]
+
+		--shift the axis onto the hull's own centerline, since a model that sits off its origin would
+		--  otherwise be swept down a line that does not run through the middle of the ship
+		local ox = my_rvec[1]*my_center_x + my_uvec[1]*my_center_y
+		local oy = my_rvec[2]*my_center_x + my_uvec[2]*my_center_y
+		local oz = my_rvec[3]*my_center_x + my_uvec[3]*my_center_y
+
+		--run the segment from midships out past the nose by the stopping distance
+		--  starting at midships rather than the tail keeps a ship parked alongside from blocking us
+		local start_z = my_center_z
+		local end_z = my_center_z + my_half_length + sweep_distance
+		local my_p = {my_pos[1] + fx*start_z + ox, my_pos[2] + fy*start_z + oy, my_pos[3] + fz*start_z + oz}
+		local my_q = {my_pos[1] + fx*end_z + ox, my_pos[2] + fy*end_z + oy, my_pos[3] + fz*end_z + oz}
+
+		local my_signature = ship:getSignature()
+		local my_teamname = self:GetTeamFamily(ship.Team.Name)
+		local mnships = mn.Ships
+
+		for k_sname, v_sinfo in pairs(self.Active_Big_Ships) do
+			if my_signature ~= v_sinfo.activebig_signature and v_sinfo.activebig_radius > skip_radius then
+				local l_team = v_sinfo.activebig_team
+				local l_ship = mnships[k_sname]
+				if l_ship ~= nil and l_ship:isValid() then
+
+					local l_pos = l_ship.Position
+
+					--sweep the other hull forward too, by as far as it would carry before it could stop
+					--  (helps with two ships converging on the same point from different angles)
+					local l_lead = 0
+					if time_check_interval ~= nil then
+						l_lead = self:ForwardLead(l_ship, time_check_interval) or 0
+					end
+
+					--do quick before the segment math to see if the two possibly reach each other at all
+					--  recall, we use other ship's bounding sphere stands for its box here, so add the margin back on
+					--  (otherwise a padded hull could be rejected before the finer test ever sees it)
+					local reach = my_half_length + sweep_distance + my_half_width + v_sinfo.activebig_radius + l_lead + (self.HullExtents_Padding or 0)
+					if self:Get_Distance_Linear(my_pos, l_pos, true, true) <= reach*reach then
+
+						local l_half_length = v_sinfo.activebig_half_length
+						local l_half_width = v_sinfo.activebig_half_width or l_half_length
+						local l_center_z = v_sinfo.activebig_center_z or 0
+						if l_half_length ~= nil then
+							local l_half_x = v_sinfo.activebig_half_x or l_half_width
+							local l_half_y = v_sinfo.activebig_half_y or l_half_width
+							local l_center_x = v_sinfo.activebig_center_x or 0
+							local l_center_y = v_sinfo.activebig_center_y or 0
+
+							local l_fvec = l_ship:getfvec(true)
+							local l_rvec = l_ship:getrvec(true)
+							local l_uvec = l_ship:getuvec(true)
+							local lfx, lfy, lfz = l_fvec[1], l_fvec[2], l_fvec[3]
+
+							local lox = l_rvec[1]*l_center_x + l_uvec[1]*l_center_y
+							local loy = l_rvec[2]*l_center_x + l_uvec[2]*l_center_y
+							local loz = l_rvec[3]*l_center_x + l_uvec[3]*l_center_y
+
+							local l_back_z = l_center_z - l_half_length
+							local l_front_z = l_center_z + l_half_length + l_lead
+							local l_p = {l_pos[1] + lfx*l_back_z + lox, l_pos[2] + lfy*l_back_z + loy, l_pos[3] + lfz*l_back_z + loz}
+							local l_q = {l_pos[1] + lfx*l_front_z + lox, l_pos[2] + lfy*l_front_z + loy, l_pos[3] + lfz*l_front_z + loz}
+
+							local gap_sq, gx, gy, gz = self:Segment_Distance_Squared(my_p, my_q, l_p, l_q)
+
+							--clear the two hulls by what they actually measure in the direction they are closest in,
+							--  rather than by the fattest radius either one has in any direction
+							local clearance
+							local gap = math.sqrt(gap_sq)
+							if gap > 0.0001 then
+								local inv = 1/gap
+								local gnx, gny, gnz = gx*inv, gy*inv, gz*inv
+								clearance = self:BoxRadiusAlong(gnx, gny, gnz, my_rvec, my_uvec, my_half_x, my_half_y)
+											+ self:BoxRadiusAlong(gnx, gny, gnz, l_rvec, l_uvec, l_half_x, l_half_y)
+							else
+								--axes are touching, so there is no direction to measure along and it is already a hit
+								clearance = my_half_width + l_half_width
+							end
+
+							if gap <= clearance then
+								return l_ship
+							end
+						end
+
+					end
+
+				end
+			end
+		end
+
+		return nil
+
+	end
+
 	function Movements:Obstacle_In_Path(ship, wp_pause_triggered, uses_smart_stop, stop_ray_distance_min, ignore_ships_with_this_radius, time_check_interval, myship_radius, smart_stop_use_extra_check) --assumes args are valid
+
+		if ship == nil then 
+			return false, nil
+		end
+
+		if not ship:isValid() then 
+			return false, nil
+		end
 
 		if wp_pause_triggered or self:Get_Custom_Ship_PausedWaypoint(ship) then
 			return true, ship
@@ -1955,89 +2328,47 @@ Movements.UseDebugMode = false
 			return false, nil
 		end
 
-		if smart_stop_use_extra_check == nil then
-			smart_stop_use_extra_check = true
-		end
-
 		--quick out if we are not even facing the waypoint?
 		--if a ship blocks us, it would be nice to rotate to at least face the waypoint?
 		--possibly not, especially with less frequent interval checks
 			--b/c if we are not facing waypoint, then start turning, 10 seconds later we could have already started moving and smashed into something 
 
-		--get how fast ship is moving and time until next check
-		--how far will ship have moved in that amount of time?
-		local current_speed_z = sphysics:getForwardSpeed()
-		if current_speed_z < 0 then
-			current_speed_z = 0 
-		end
-		local decleration_time = sphysics.ForwardDecelerationTime
+		local sweep_distance = self:SweepDistance(ship, stop_ray_distance_min, time_check_interval)
 
-		local extra_slow_down_multiplier = math.max(decleration_time, 3) --minimum is bit of a magic number
-		local distance_covered_by_next_check = time_check_interval * current_speed_z * extra_slow_down_multiplier -- ie 10 m/s * 1.5 seconds = 15 meters covered until next check
-		--if that math.max(distance * 2, ship_radius*2) is > the closest obstacle then we better hit the brakes now
-		local danger_zone_distance = math.max(stop_ray_distance_min * 1.2, distance_covered_by_next_check * 1.25) --bit more magic numbers
-
-		--has line of sight only uses vectors, so make sure we ignore ourselves when doing obstacle checks
-		--lets cast the ray from the center of the ship to ensure we see everything
-		local ship_pos = ship.Position
-		--the end of the ray cast should extend quite a bit along the forward vector of the ship
-		local ray_end_pos = ship_pos + ship.Orientation:unrotateVector(ba.createVector(0, 0, danger_zone_distance*3))
-
-		--boolean, number getLineOfSightFirstIntersect(vector from, vector to, [table excludedObjects (expects list of objects, empty by default), boolean testForShields = false, boolean testForHull = true, number threshold = 10.0])
-		--Checks whether the to-position is in line of sight from the from-position and returns the distance to the first interruption of the line of sight, disregarding specific excluded objects and objects with a radius of less then threshold.
-		--Returns: true and zero if there is line of sight, false and the distance otherwise and intersecting object otherwise.
-		local has_line_of_sight, closest_obstacle_distance, intersecting_obj = mn.getLineOfSightFirstIntersect(ship_pos, ray_end_pos, {ship}, false, true, ignore_ships_with_this_radius)
-
+		local intersecting_obj 
 		local obstacle_in_way = false
-		--no for 'line of sight' means there is an obstacle somewhere, so we should check where
-			--obstacle is within danger zone -> obstacle in way = true
-			--obstacle not within danger zone -> obstacle in way = false
-		--yes for 'line of sight' means no possibility for obstacles
-		if not has_line_of_sight and intersecting_obj ~= nil and intersecting_obj:isValid() then
 
-			--if there is an obstacle
-			--account for ship and target self and any obstacle radius, if specified
-			if smart_stop_use_extra_check then
-				--update distance with safety radius and do check
-				closest_obstacle_distance = closest_obstacle_distance - (myship_radius + intersecting_obj.Radius)
-			end
+		--sweep the actual hull forward and check that
+		local swept_blocker = self:SweptHull_Blocker(ship, sweep_distance, ignore_ships_with_this_radius, true, time_check_interval)
+		if swept_blocker ~= nil then
+			intersecting_obj = swept_blocker
+			obstacle_in_way = true
+		end
 
-			if closest_obstacle_distance < 0 then 
-				closest_obstacle_distance = 0 
-			end
-
-			if closest_obstacle_distance <= danger_zone_distance then
-				obstacle_in_way = true
-			--else --no obstacles in the way
-			end
-
-		else --if there is not a known obstacle and extra_safety_check is on, run sphere check
-			--note, sphere check is more of a failsafe since it does not account for how far ship will travel before next check
-			--  and it only checks ships on same team by default, 
-			--  since opposing team ships would be okay with risking a collision if line of sight was clear
-			if smart_stop_use_extra_check then
-				local my_signature = ship:getSignature()
-				local my_teamname = self:GetTeamFamily(ship.Team.Name)
-				local nose_tip_position = ship_pos + ship.Orientation:unrotateVector(ba.createVector(0, 0, myship_radius))
-				local mnships = mn.Ships
-				local tmatch = self.Extra_SmartStop_Uses_Team_Match
-				for k_sname, v_sinfo in pairs(self.Active_Big_Ships) do
-					local l_ship = mnships[k_sname]
-					local l_team = v_sinfo.activebig_team
-					if my_signature ~= v_sinfo.activebig_signature then
-						if not tmatch or (tmatch and (l_team == my_teamname or l_team == "Civilian")) then
-							if l_ship ~= nil and l_ship:isValid() then
-								if self:Has_Overlap(nose_tip_position, myship_radius, l_ship.Position, l_ship.Radius, true) then
-									intersecting_obj = l_ship
-									obstacle_in_way = true
-									break
-								end
+		--note, sphere check is more of a failsafe since it does not account for how far ship will travel before next check
+		--  and it only checks ships on same team by default, 
+		--  since opposing team ships would be okay with risking a collision if line of sight was clear
+		if smart_stop_use_extra_check and not obstacle_in_way then
+			local my_signature = ship:getSignature()
+			local my_teamname = self:GetTeamFamily(ship.Team.Name)
+			local nose_tip_position = ship.Position + ship.Orientation:unrotateVector(ba.createVector(0, 0, myship_radius))
+			local mnships = mn.Ships
+			local tmatch = self.Extra_SmartStop_Uses_Team_Match
+			for k_sname, v_sinfo in pairs(self.Active_Big_Ships) do
+				local l_ship = mnships[k_sname]
+				local l_team = v_sinfo.activebig_team
+				if my_signature ~= v_sinfo.activebig_signature then
+					if not tmatch or (tmatch and (l_team == my_teamname or l_team == "Civilian")) then
+						if l_ship ~= nil and l_ship:isValid() then
+							if self:Has_Overlap(nose_tip_position, myship_radius, l_ship.Position, v_sinfo.activebig_radius, true) then
+								intersecting_obj = l_ship
+								obstacle_in_way = true
+								break
 							end
 						end
 					end
 				end
 			end
-
 		end
 
 		return obstacle_in_way, intersecting_obj
@@ -2178,10 +2509,6 @@ Movements.UseDebugMode = false
 				smart_stop_ignore_radius = self.Default_ShipRadius_is_Obstacle --default value of 25
 			end
 
-			--use extra safety buffer, default is yes
-			if smart_stop_use_extra_check == nil then
-				smart_stop_use_extra_check = true
-			end
 		else
 			smart_stop_ray_distance_min = -1
 			smart_stop_ignore_radius = -1
@@ -2320,15 +2647,15 @@ Movements.UseDebugMode = false
 
 			if i_list == 1 then
 				self.Ships_Waypoints_Paused1_List[shipname] = status
-				self.Ships_Waypoints_Paused1_On = true
+				self.Ships_Waypoints_Paused1_On = true --this just means we have started using the table
 			elseif i_list == 2 then
 				self.Ships_Waypoints_Paused2_List[shipname] = status
-				self.Ships_Waypoints_Paused2_On = true
+				self.Ships_Waypoints_Paused2_On = true --this just means we have started using the table
 			else
 				self.Ships_Waypoints_Paused1_List[shipname] = status
-				self.Ships_Waypoints_Paused1_On = true
+				self.Ships_Waypoints_Paused1_On = true --this just means we have started using the table
 				self.Ships_Waypoints_Paused2_List[shipname] = status
-				self.Ships_Waypoints_Paused2_On = true
+				self.Ships_Waypoints_Paused2_On = true --this just means we have started using the table
 			end
 		end
 
@@ -2460,7 +2787,7 @@ Movements.UseDebugMode = false
 						--so can safely just add match bank up here, and
 						--  we do want to allow everything else to continue to work though, including smart stop, 
 						--  so do not return early
-						local match_bank = self.StW_OUT_match_bank_always
+						local match_bank = v.StW_OUT_match_bank_always
 						if match_bank ~= nil and self.Active_Rotations[v.StW_OUT_shipname] == nil then
 							local s_pbh = ship.Orientation
 							local s_pitch, s_bank, s_heading = s_pbh.p, s_pbh.b, s_pbh.h
@@ -2472,7 +2799,7 @@ Movements.UseDebugMode = false
 									SR_IN_final_pbh_target_name = nil,
 									SR_IN_final_pbh_special_override = nil,
 									SR_IN_requires_engines = true,
-									SR_IN_only_match_bank = 0 --must be in radians
+									SR_IN_only_match_bank = match_bank --must be in radians
 								}
 								--recall add rotation will create the final orientation once timer is triggered, 
 								--so just add in the base pbh table as the input
@@ -2714,6 +3041,8 @@ Movements.UseDebugMode = false
 
 	mn.LuaSEXPs["pause-ai-goal-track-waypoint"].Action = function(ship, trigger_bool, stop_any_rotations)
 
+		if not Movements.is_enabled then return end
+
 		if ship ~= nil and ship:isValid() then
 			Movements:Set_Waypoint_Pause_Trigger(ship.Name, trigger_bool, stop_any_rotations)
 		end
@@ -2721,6 +3050,8 @@ Movements.UseDebugMode = false
 	end
 
 	mn.LuaSEXPs["add-ai-goal-track-waypoint"].Action = function(ship, waypointpath, priority, track_interval, track_distance, use_smart_stop, smart_stop_ray_distance_min, smart_stop_ignore_radius, smart_stop_use_extra_check)
+
+		if not Movements.is_enabled then return end
 
 		--recall this doesn't take into account target ship, so nothing about the orientation, continuous_pbh_check, or play_dead_PR is set here. 
 		--this should only be used for waypoints not related to ships, if more is needed use the actual function
@@ -2764,6 +3095,8 @@ Movements.UseDebugMode = false
 	end
 
 	mn.LuaSEXPs["remove-ai-goal-track-waypoint"].Action = function(ship)
+
+		if not Movements.is_enabled then return end
 
 		if ship ~= nil and ship:isValid() then
 			--number checks are completed in function below 
@@ -2822,6 +3155,8 @@ Movements.UseDebugMode = false
 
 	mn.LuaSEXPs["set-idle-track-orientation"].Action = function(ship, pitch, bank, heading, usetargetship, input_targetship, continuous_pbh_check)
 
+		if not Movements.is_enabled then return end
+
 		if ship ~= nil and ship:isValid() then
 			--if target ship is specified only run if it's in mission
 			if usetargetship == nil then
@@ -2848,6 +3183,8 @@ Movements.UseDebugMode = false
 	end
 
 	mn.LuaSEXPs["unset-idle-track-orientation"].Action = function(ship)
+
+		if not Movements.is_enabled then return end
 
 		if ship ~= nil and ship:isValid() then
 			Movements:Unset_Idle_Tracking_PBH(ship.Name)
@@ -2958,6 +3295,8 @@ Movements.UseDebugMode = false
 
 	mn.LuaSEXPs["add-ai-goal-track-ship"].Action = function(ship_to_order, ship_to_track, waypointpath, priority, off_x, off_y, off_z, pbh_p, pbh_b, pbh_h, userelative, continuous_pbh_check, play_dead_PR, use_smart_stop)
 
+		if not Movements.is_enabled then return end
+
 		if ship_to_order == nil or ship_to_track == nil or waypointpath == nil then return end
 		if not ship_to_order:isValid() or not ship_to_track:isValid() or not waypointpath:isValid() then return end
 
@@ -3000,6 +3339,8 @@ Movements.UseDebugMode = false
 	end
 
 	mn.LuaSEXPs["remove-ai-goal-track-ship"].Action = function(ship_to_remove_order, waypointpath, waypoint_i)
+
+		if not Movements.is_enabled then return end
 
 		if ship_to_remove_order == nil or waypointpath == nil then return end
 		if not ship_to_remove_order:isValid() or not waypointpath:isValid() then return end
@@ -3080,28 +3421,146 @@ Movements.UseDebugMode = false
 
 	end
 
+	function Movements:DebugDraw_HullCage(pos, fvec, rvec, uvec, start_z, end_z, half_x, half_y, center_x, center_y, cap_far_end) --draws one hull box along the ship's forward axis using the active draw color
+
+		--four corner rails and a center line, built from the same half extents and offsets the clearance
+		--  math uses, so a wide flat hull is drawn wide and flat instead of as a square tube
+		local px, py, pz = pos[1], pos[2], pos[3]
+		local fx, fy, fz = fvec[1], fvec[2], fvec[3]
+
+		--the hull's own centerline, which is not the model origin when the model sits off center
+		local ox = rvec[1]*center_x + uvec[1]*center_y
+		local oy = rvec[2]*center_x + uvec[2]*center_y
+		local oz = rvec[3]*center_x + uvec[3]*center_y
+
+		local sx, sy, sz = px + fx*start_z + ox, py + fy*start_z + oy, pz + fz*start_z + oz
+		local ex, ey, ez = px + fx*end_z + ox, py + fy*end_z + oy, pz + fz*end_z + oz
+
+		gr.draw3dLine(ba.createVector(sx, sy, sz), ba.createVector(ex, ey, ez), true, 2, 2)
+
+		--corner offsets, going round the cross section in the ship's own right and up axes
+		local corner_x = {half_x, half_x, -half_x, -half_x}
+		local corner_y = {half_y, -half_y, -half_y, half_y}
+		local corner_start = {}
+		local corner_end = {}
+
+		for i = 1, 4 do
+			local dx = rvec[1]*corner_x[i] + uvec[1]*corner_y[i]
+			local dy = rvec[2]*corner_x[i] + uvec[2]*corner_y[i]
+			local dz = rvec[3]*corner_x[i] + uvec[3]*corner_y[i]
+			corner_start[i] = ba.createVector(sx + dx, sy + dy, sz + dz)
+			corner_end[i] = ba.createVector(ex + dx, ey + dy, ez + dz)
+			gr.draw3dLine(corner_start[i], corner_end[i], true, 1, 1)
+		end
+
+		--close the ends so the box reads as a solid shape rather than four loose rails
+		for i = 1, 4 do
+			local nxt = i % 4 + 1
+			gr.draw3dLine(corner_start[i], corner_start[nxt], true, 1, 1)
+			if cap_far_end then
+				gr.draw3dLine(corner_end[i], corner_end[nxt], true, 1, 1)
+			end
+		end
+
+	end
+
+	function Movements:DebugDraw_SweptHull(ship, tracking_info) --draws the geometry SweptHull_Blocker works with for this ship, and returns a one line status
+
+		--read the extents the same way the check does, so what is drawn cannot disagree with what is decided
+		local entry = self.Active_Big_Ships[ship.Name]
+		if entry == nil then
+			return "ship is not tracked, so no swept hull check runs for it"
+		end
+
+		local my_half_length = entry.activebig_half_length
+		if my_half_length == nil then
+			return "ship is tracked but has no cached hull extents"
+		end
+		local my_half_width = entry.activebig_half_width or my_half_length
+		local my_center_z = entry.activebig_center_z or 0
+		local my_half_x = entry.activebig_half_x or my_half_width
+		local my_half_y = entry.activebig_half_y or my_half_width
+		local my_center_x = entry.activebig_center_x or 0
+		local my_center_y = entry.activebig_center_y or 0
+
+		local skip_radius = tracking_info.StW_OUT_smart_stop_ignore_radius or self.Default_ShipRadius_is_Obstacle
+		local ray_min = tracking_info.StW_OUT_smart_stop_ray_min or 0
+		local interval = tracking_info.StW_OUT_track_interval or self.G_Time_Check_Interval
+
+		local sweep_distance = self:SweepDistance(ship, ray_min, interval)
+		if sweep_distance == nil then
+			return "ship has no physics handle, so no swept hull check runs for it"
+		end
+
+		--our own envelope, running from midships out past the nose by the stopping distance
+		gr.setColor(255, 215, 0)
+		self:DebugDraw_HullCage(ship.Position, ship:getfvec(true), ship:getrvec(true), ship:getuvec(true), my_center_z, my_center_z + my_half_length + sweep_distance, my_half_x, my_half_y, my_center_x, my_center_y, true)
+
+		--ask the real check what it would return, so the highlight matches the actual decision
+		local blocker = self:SweptHull_Blocker(ship, sweep_distance, skip_radius, true, interval)
+		local blocker_sig = -1
+		if blocker ~= nil then
+			blocker_sig = blocker:getSignature()
+		end
+
+		--every hull the check would consider, so it is clear which ones were even in the running
+		local my_signature = ship:getSignature()
+		local my_teamname = self:GetTeamFamily(ship.Team.Name)
+		local mnships = mn.Ships
+
+		for k_sname, v_sinfo in pairs(self.Active_Big_Ships) do
+			if my_signature ~= v_sinfo.activebig_signature and v_sinfo.activebig_radius > skip_radius then
+				local l_team = v_sinfo.activebig_team
+				local l_ship = mnships[k_sname]
+				if l_ship ~= nil and l_ship:isValid() then
+					local l_half_length = v_sinfo.activebig_half_length
+					if l_half_length ~= nil then
+						local l_half_width = v_sinfo.activebig_half_width or l_half_length
+						local l_center_z = v_sinfo.activebig_center_z or 0
+						local l_half_x = v_sinfo.activebig_half_x or l_half_width
+						local l_half_y = v_sinfo.activebig_half_y or l_half_width
+						local l_center_x = v_sinfo.activebig_center_x or 0
+						local l_center_y = v_sinfo.activebig_center_y or 0
+						if l_ship:getSignature() == blocker_sig then
+							gr.setColor(255, 50, 50) --the hull the check actually stopped on
+						else
+							gr.setColor(60, 200, 255)
+						end
+						--drawn with its own forward sweep on the nose, the same as the check gives it
+						local l_lead = self:ForwardLead(l_ship, interval) or 0
+						self:DebugDraw_HullCage(l_ship.Position, l_ship:getfvec(true), l_ship:getrvec(true), l_ship:getuvec(true), l_center_z - l_half_length, l_center_z + l_half_length + l_lead, l_half_x, l_half_y, l_center_x, l_center_y, l_lead > 0)
+					end
+				end
+			end
+		end
+
+		if blocker ~= nil then
+			return "blocked by "..blocker.Name..", sweep "..self:Round(sweep_distance).."m, ignoring radius under "..skip_radius
+		end
+
+		return "clear, sweep "..self:Round(sweep_distance).."m, ignoring radius under "..skip_radius
+
+	end
+
 	function Movements:OnFrameDebug()
 
 		if not Movements.UseDebugMode then return end
 
 		--get player target, and if on movement order list draw info
-		local ply = hv.Player
+		local ply = FotG:GetPlayerShip()
 		if ply == nil then return end
 		if not ply:isValid() then return end
+		if ply:getBreedName() ~= "Ship" then return end
 
-		local ply_target = ply.Target
-		if ply_target == nil then return end
-		if not ply_target:isValid() then return end
-
-		local target_name = tostring(ply_target) or ""
-		local ship_tracking_info = self.Active_Ships_trk_Wpts[target_name]
-		if ship_tracking_info == nil then return end
-
-		if ply_target:getBreedName() ~= "Ship" then return end
-		local targeted_ship = mn.Ships[target_name]
+		local targeted_ship = ply.Target
 		if targeted_ship == nil then return end
 		if not targeted_ship:isValid() then return end
+		if targeted_ship:getBreedName() ~= "Ship" then return end
 		if targeted_ship:isArrivingWarp() or targeted_ship:isDying() or targeted_ship:isDepartingWarp() then return end
+
+		local target_name = targeted_ship.Name or ""
+		local ship_tracking_info = self.Active_Ships_trk_Wpts[target_name]
+		if ship_tracking_info == nil then return end
 
 		--ship is valid and has order and stable, so draw line
 		local wp_name = ship_tracking_info.StW_OUT_wp_path_name or ""
@@ -3116,10 +3575,20 @@ Movements.UseDebugMode = false
 		gr.setColor(255, 255, 255)
 		gr.draw3dLine(targeted_ship.Position, last_wp.Position, true, 2, 1.5)
 
+		--draw the smart stop geometry before any text, so the strings are not sitting under the lines
+		local swept_status
+		if self.Debug_Draw_SweptHull and ship_tracking_info.StW_OUT_uses_smart_stop then
+			swept_status = self:DebugDraw_SweptHull(targeted_ship, ship_tracking_info)
+		end
+
+		gr.setColor(255, 255, 255)
 		local screenwidth = gr.getScreenWidth()
 		gr.drawString("Movements information for ship "..target_name, screenwidth/2, 50)
 		gr.drawString("  Waypoint speed cap is "..targeted_ship.WaypointSpeedCap)
 		gr.drawString("  Target name is "..tostring(ship_tracking_info.StW_OUT_final_pbh_target_name))
+		if swept_status ~= nil then
+			gr.drawString("  Swept hull is "..swept_status)
+		end
 
 	end
 
@@ -3149,13 +3618,13 @@ Movements.UseDebugMode = false
 
 		local orders_og = ship.Orders
 		if orders_og == nil then return end
-		if #ship.Orders <= 0 then return end
+		if #orders_og <= 0 then return end
 
 		--do not use clear orders, only remove 
 		--and do not remove any undocking orders
 
 		-- clear by checking through iteration, have to do brute force way b/c FSO order iterating is weird
-		local max_orders = 5
+		local max_orders = 5 --this is FSO max
 		for _= 1, max_orders do
 
 			--go through orders and remove if <= PR
@@ -3203,7 +3672,7 @@ Movements.UseDebugMode = false
 			return
 		end
 
-		if dockee_ship:isDocked(dockee_ship) then 
+		if docker_ship:isDocked(dockee_ship) then 
 			return 
 		end
 
@@ -3259,6 +3728,7 @@ Movements.UseDebugMode = false
 	mn.LuaSEXPs["clear-orders-safe"].Action = function(...)
 
 		if not Movements.is_enabled then return end
+
 		if #arg <= 0 then return end
 
 		for _, value in ipairs(arg) do
@@ -3268,8 +3738,34 @@ Movements.UseDebugMode = false
 
 	end
 
+	mn.LuaSEXPs["movements-enable-debug"].Action = function(debug_status)
+
+		if not Movements.is_enabled then return end
+
+		if (not ba.inStandalone()) or (ba.inStandalone() and Movements.AllowInStandalone) then
+
+			if debug_status and not Movements.DebugModeEnabled then
+					
+					Movements.DebugModeEnabled = true
+
+					engine.addHook("On HUD Draw", function() 
+							Movements:OnFrameDebug()
+						end,
+						{State="GS_STATE_GAME_PLAY"}
+					)				
+
+			end
+
+			Movements.UseDebugMode = debug_status
+
+		end
+
+	end
+
+
 --
 --Hook Functions
+if (not ba.inStandalone()) or (ba.inStandalone() and Movements.AllowInStandalone) then 
 	engine.addHook("On Simulation", function()
 		if Movements and Movements.is_enabled then
 			Movements:OnSimulation()
@@ -3282,7 +3778,7 @@ Movements.UseDebugMode = false
 		end
 	end)
 
-	engine.addHook("On Mission End", function() 
+	engine.addHook("On Mission About To End", function() 
 		if Movements then
 			Movements:Initiate()
 		end
@@ -3330,11 +3826,4 @@ Movements.UseDebugMode = false
 		end		
 	end)
 
-	if Movements.UseDebugMode then
-		engine.addHook("On HUD Draw", function() 
-				Movements:OnFrameDebug()
-			end,
-			{State="GS_STATE_GAME_PLAY"}
-		)
-	end
-
+end

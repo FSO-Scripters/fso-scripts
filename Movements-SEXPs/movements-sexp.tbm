@@ -304,7 +304,7 @@ $Parameter:
 	+Description: Radius of ships to ignore when checking for collisions. If not set or set to a negative value then default value of 25 is used. Only used if 'smart stop' option was enabled above. 
 	+Type: Number
 $Parameter: 
-	+Description: Whether or not to account for any obstacle's radius when checking if smart stop should be used. Default is true. Only used if 'smart stop option' was enabled above. 
+	+Description: Whether or not to use extra conservative checking for any possible collisions (this is generally overkill). Default is false. Only used if 'smart stop option' was enabled above. 
 	+Type: Boolean
 
 $Operator: pause-ai-goal-track-waypoint
@@ -442,5 +442,16 @@ $Parameter:
 	+Description: Number of the waypoint in the waypoint path used in the initial 'add-ai-goal-Track-Ship' sexp. For example, if the first waypoint was used in that sexp set this value to 1. Default is the first waypoint of the waypoint path.
 	+Type: Number	
 
+
+$Operator: movements-enable-debug
+$Category: Change
+$Subcategory: LUA-Movements
+$Minimum Arguments: 1
+$Maximum Arguments: 1
+$Return Type: Nothing
+$Description: Sets debug status, which shows 3D lines for ship movements and collision tests. Once enabled, target a ship with a track-waypoint order and it will show 3D lines involving the movement and collision checks.  
+$Parameter: 	
+	+Description: True to enable debug mode. 
+	+Type: Boolean
 
 #End
